@@ -1,0 +1,43 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import type { Command } from 'commander';
+import { CliError, ExitCode } from '../../errors.js';
+import { ensureWorkspace, markStage } from '../../clarification/workspace.js';
+import { addDefinition, applicationFreshness, applyApplication, createApplication, readApplications, readDefinition, readJourneys, readPolicies, recordApplicationVerification, rollbackApplication, validateDefinitionReferences, validatePolicyReferences } from '../../clarification/definition-store.js';
+import { applicationPlanSchema, createProductDefinition, parseJourney, parsePolicy, parseProductDefinition } from '../../schema/definition.js';
+import { classifyPolicyPair } from '../../clarification/policy-analysis.js';
+import { readGraphDocument } from '../../clarification/graph-store.js';
+import { effectiveEdge } from '../../clarification/graph.js';
+import { loadGraphWorkspace } from '../../clarification/provenance.js';
+import type { Output } from '../output.js';
+import { SKILLS_ROOT } from '../../clarification/skills.js';
+
+function rootPath():string{return path.join(process.cwd(),'product');}
+async function textFile(file:string):Promise<string>{return readFile(path.resolve(file),'utf8');}
+
+export function registerDefinitionCommand(program:Command,output:Output):void{
+  const define=program.command('define').description('create and validate traceable Product Definition artifacts (no LLM invocation)');
+  define.action(()=>{output.out(`Read the installed Agent Skill: ${path.join(SKILLS_ROOT,'define','SKILL.md')}`);output.out('The CLI validates artifact structure and hashes only; it does not create semantic content or approve the Definition.');});
+  define.command('status').description('show Definition, Policy, Journey, and Application status').action(async()=>{const root=rootPath();await ensureWorkspace(root);const definition=await readDefinition(root);output.out(`Definition: ${definition?`${definition.id} draft`:'not created'}`);output.out(`Journeys: ${(await readJourneys(root)).length}; Policies: ${(await readPolicies(root)).length}`);for(const app of await readApplications(root)){const fresh=await applicationFreshness(root,app);output.out(`Application ${app.id}: ${app.status}; verification=${fresh.stale?'stale':app.verification_status}${fresh.reasons.length?`; ${fresh.reasons.join('; ')}`:''}`);}});
+
+  const policy=define.command('policy').description('record or validate a structured Policy');
+  policy.command('validate').argument('<file>').description('validate Policy structure and current provenance').action(async(file:string)=>{const root=rootPath();await ensureWorkspace(root);const value=parsePolicy(await textFile(file));await validatePolicyReferences(root,value);output.out(`Policy ${value.id}: STRUCTURE PASS; meaning requires review.`);});
+  policy.command('analyze').argument('<left-yaml>').argument('<right-yaml>').description('classify structural policy consistency candidates only').action(async(leftFile:string,rightFile:string)=>{const root=rootPath();await ensureWorkspace(root);const left=parsePolicy(await textFile(leftFile));const right=parsePolicy(await textFile(rightFile));const {graph}=await readGraphDocument(root);const workspace=await loadGraphWorkspace(root);const leftNodes=new Set(left.provenance.source_refs.filter(r=>r.kind==='node').map(r=>r.ref));const rightNodes=new Set(right.provenance.source_refs.filter(r=>r.kind==='node').map(r=>r.ref));const exceptionLinked=graph.edges.some(edge=>edge.type==='exception_of'&&effectiveEdge(edge,workspace.nodes).status==='confirmed'&&((leftNodes.has(edge.source)&&rightNodes.has(edge.target))||(rightNodes.has(edge.source)&&leftNodes.has(edge.target))));const result=classifyPolicyPair(left,right,exceptionLinked);output.out(JSON.stringify(result,null,2));output.out('Candidate classification only; conditions do not prove conflict or policy correctness.');});
+  policy.command('list').action(async()=>{const root=rootPath();await ensureWorkspace(root);const items=await readPolicies(root);if(!items.length)output.out('No Policies.');for(const item of items)output.out(`${item.id} ${item.context} / ${item.actor} (${item.content_hash})`);});
+
+  const journey=define.command('journey').description('validate a user Journey or include it in an Application plan');
+  journey.command('validate').argument('<file>').action(async(file:string)=>{const root=rootPath();await ensureWorkspace(root);const value=parseJourney(await textFile(file));output.out(`Journey ${value.id}: STRUCTURE ${value.provenance.prompt_refs.length?'PASS':'BLOCKED'}.`);if(!value.provenance.prompt_refs.length)throw new CliError('Journey requires Prompt provenance.',ExitCode.GATE_BLOCKED);});
+
+  define.command('create').requiredOption('--input <yaml>').description('create an immutable draft Product Definition').action(async(opts:{input:string})=>{const root=rootPath();await ensureWorkspace(root);const raw=parseYaml(await textFile(opts.input)) as Record<string,unknown>;const value=createProductDefinition(raw as never);const result=await addDefinition(root,value);await markStage(root,'define','done');output.out(`${result.created?'Created':'Existing'} Product Definition ${result.definition.id}: draft.`);output.out('This is not final approval.');});
+  define.command('validate').option('--file <yaml>').description('validate current or supplied Product Definition and provenance').action(async(opts:{file?:string})=>{const root=rootPath();await ensureWorkspace(root);const definition=opts.file?parseProductDefinition(await textFile(opts.file)):await readDefinition(root);if(!definition)throw new CliError('Product Definition has not been created.',ExitCode.GATE_BLOCKED);await validateDefinitionReferences(root,definition);output.out(`Definition ${definition.id}: STRUCTURE PASS; not semantically approved.`);});
+
+  const application=define.command('application').description('plan, apply, verify, and recover Decision applications');
+  application.command('plan').requiredOption('--input <yaml>').description('validate and persist an application preview; does not change targets').action(async(opts:{input:string})=>{const root=rootPath();await ensureWorkspace(root);const plan=applicationPlanSchema.parse(parseYaml(await textFile(opts.input)));const result=await createApplication(root,plan);output.out(`${result.created?'Planned':'Existing'} Application ${result.application.id}: ${result.application.status}; no target was changed.`);});
+  application.command('apply').argument('<id>').description('apply a current preview after rechecking every target hash').action(async(id:string)=>{const root=rootPath();await ensureWorkspace(root);const result=await applyApplication(root,id);output.out(`Application ${result.id}: ${result.status}; verification=${result.verification_status}.`);output.out('Application does not resolve Findings or approve the Product Definition.');});
+  application.command('recover').argument('<id>').description('resume a journaled application only from known before/after hashes').action(async(id:string)=>{const root=rootPath();await ensureWorkspace(root);const result=await applyApplication(root,id);output.out(`Application ${result.id}: ${result.status}.`);});
+  application.command('rollback').argument('<id>').description('restore transaction-owned targets when their after hashes still match').action(async(id:string)=>{const root=rootPath();await ensureWorkspace(root);const result=await rollbackApplication(root,id);output.out(`Application ${result.id}: ${result.status}; transaction-owned changes restored.`);});
+  application.command('verify').argument('<id>').requiredOption('--input <yaml>').description('append a post-application semantic assessment record').action(async(id:string,opts:{input:string})=>{const root=rootPath();await ensureWorkspace(root);const value=parseYaml(await textFile(opts.input)) as {status:'verified'|'failed'|'inconclusive';assessor:'ai'|'user';summary:string;evidence_refs:unknown[];uncertainty:string[]};const result=await recordApplicationVerification(root,id,value);output.out(`Application ${id}: verification=${result.verification_status} recorded.`);output.out('The CLI checked record structure and hashes, not semantic correctness or speaker identity.');});
+
+  define.command('validate-file').argument('<file>').description('parse a Product Definition artifact without workspace reference checks').action(async(file:string)=>{const definition=parseProductDefinition(await textFile(file));output.out(`Definition ${definition.id}: schema PASS only; workspace refs not checked.`);});
+}

@@ -1,0 +1,1566 @@
+[
+  {
+    "version": "before",
+    "scenario": "empty",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [],
+        "decomposition": [],
+        "elaboration": [],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "910cd1172d0f5bfff55006198f131a6364245abb255ee2c4ee8ac74600427e18",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "entry_hash": "e0fdd5ec9e9988ba004900e61fb0e52bf08f3b47008fec59c0546e956fd8707e"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "910cd1172d0f5bfff55006198f131a6364245abb255ee2c4ee8ac74600427e18",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 0,
+      "stdout": "NodeGroup not yet complete: NDG-001\n  Reason: At least one Node has a derived_from that does not resolve (wrong Clarification, or a decomposition_index out of range for the current steps).\n  Detail: Nodes with a derived_from that does not resolve: NOD-001-1\n  Instruction: /private/tmp/productkit-critical-gates/skills/model/SKILL.md\n",
+      "stderr": ""
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "before",
+    "scenario": "valid",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "entry_hash": "11d62ff98c1e7ddfd9ce7511b32cfd5ed426a39e13fb0b47908b109e1351180b"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 0,
+      "stdout": "NodeGroup modeled: NDG-001\n(Structural checks passed: coverage complete, every Node has a determined atomicity,\n no open risk findings, and the source hash matches. This is not a semantic proof that\n the modeling is correct — see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "before",
+    "scenario": "split_required",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "entry_hash": "11d62ff98c1e7ddfd9ce7511b32cfd5ed426a39e13fb0b47908b109e1351180b"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "no",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "valid_split",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "split_required"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 0,
+      "stdout": "NodeGroup modeled: NDG-001\n(Structural checks passed: coverage complete, every Node has a determined atomicity,\n no open risk findings, and the source hash matches. This is not a semantic proof that\n the modeling is correct — see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "before",
+    "scenario": "missing_prompt",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-999",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "entry_hash": "11d62ff98c1e7ddfd9ce7511b32cfd5ed426a39e13fb0b47908b109e1351180b"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 0,
+      "stdout": "NodeGroup modeled: NDG-001\n(Structural checks passed: coverage complete, every Node has a determined atomicity,\n no open risk findings, and the source hash matches. This is not a semantic proof that\n the modeling is correct — see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "before",
+    "scenario": "changed_prompt",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "entry_hash": "11d62ff98c1e7ddfd9ce7511b32cfd5ed426a39e13fb0b47908b109e1351180b"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 0,
+      "stdout": "NodeGroup modeled: NDG-001\n(Structural checks passed: coverage complete, every Node has a determined atomicity,\n no open risk findings, and the source hash matches. This is not a semantic proof that\n the modeling is correct — see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "before",
+    "scenario": "changed_clarification",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "변경된 용어 정의",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "entry_hash": "11d62ff98c1e7ddfd9ce7511b32cfd5ed426a39e13fb0b47908b109e1351180b"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "74348c0e33be0ea4e50d8ea2edfb902a05fa66ed4450a070121eb33b80763105",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification not yet complete: CLR-001\n  Reason: The clarification steps changed after the last agreed entry — that entry no longer covers the current content. Re-confirmation is required.\n  Detail: steps changed after entry SYNTHETIC-IC was agreed to; re-confirmation is required\n  Instruction: /private/tmp/productkit-critical-gates/skills/clarify/SKILL.md\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: content_changed_since_confirmation).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "after",
+    "scenario": "empty",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+      "steps": {
+        "definition": [],
+        "decomposition": [],
+        "elaboration": [],
+        "relation_check": [],
+        "counterexample": [],
+        "relation_check_no_items_reason": "다른 진술과 필수 의존 관계는 발견하지 못했다.",
+        "counterexample_no_items_reason": "조건을 대조했으며 추가 해석 후보를 발견하지 못했다."
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "a9f52d33fa8854d44f1549005bca4e43aa1e35e87986ee8083de21229151c426",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "prompt_ref": "PRM-001",
+          "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+          "entry_hash": "74ebc3daff02a746305191bd9a1c5a84eeee3ed1a0c8c80201c2af261cbeb577"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "a9f52d33fa8854d44f1549005bca4e43aa1e35e87986ee8083de21229151c426",
+      "clarification_content_hash": "27f11cd75673c8d1c8fdd2bcccc1df9ba4206f16084f838b78b7fa5ea259dbad",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "condition_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "operator_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "exception_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification not yet complete: CLR-001\n  Reason: Clarification has incomplete steps or placeholder output.\n  Detail: Definition requires substantive term/meaning records.\n  Instruction: <PRODUCTKIT_ROOT>/skills/clarify/SKILL.md\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: incomplete_steps).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "after",
+    "scenario": "valid",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": [],
+        "relation_check_no_items_reason": "다른 진술과 필수 의존 관계는 발견하지 못했다.",
+        "counterexample_no_items_reason": "조건을 대조했으며 추가 해석 후보를 발견하지 못했다."
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "prompt_ref": "PRM-001",
+          "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+          "entry_hash": "7f62b6ab0bf0494e877ca6c177caf5079ea2bc74df581379faaed80e761b9694"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+      "clarification_content_hash": "22b8734520beb8b60f871c6d2d08416de305ce4b8b5075d9fa43620bb5b2b041",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "condition_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "operator_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "exception_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 0,
+      "stdout": "NodeGroup modeled: NDG-001\n(Structural checks passed: coverage complete, every final Node is atomic,\n no open risk findings, and the source hash matches. This is not a semantic proof that\n the modeling is correct — see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "after",
+    "scenario": "split_required",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": [],
+        "relation_check_no_items_reason": "다른 진술과 필수 의존 관계는 발견하지 못했다.",
+        "counterexample_no_items_reason": "조건을 대조했으며 추가 해석 후보를 발견하지 못했다."
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "prompt_ref": "PRM-001",
+          "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+          "entry_hash": "7f62b6ab0bf0494e877ca6c177caf5079ea2bc74df581379faaed80e761b9694"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+      "clarification_content_hash": "22b8734520beb8b60f871c6d2d08416de305ce4b8b5075d9fa43620bb5b2b041",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "no",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "valid_split",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "split_required"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "condition_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "operator_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "exception_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 0,
+      "stdout": "NodeGroup not yet complete: NDG-001\n  Reason: A final Node still requires splitting; preserve it as retired history and create new atomic Nodes.\n  Detail: Final Nodes still require splitting: NOD-001-1\n  Instruction: <PRODUCTKIT_ROOT>/skills/model/SKILL.md\n",
+      "stderr": ""
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "after",
+    "scenario": "missing_prompt",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-999",
+      "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": [],
+        "relation_check_no_items_reason": "다른 진술과 필수 의존 관계는 발견하지 못했다.",
+        "counterexample_no_items_reason": "조건을 대조했으며 추가 해석 후보를 발견하지 못했다."
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "prompt_ref": "PRM-001",
+          "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+          "entry_hash": "7f62b6ab0bf0494e877ca6c177caf5079ea2bc74df581379faaed80e761b9694"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+      "clarification_content_hash": "22b8734520beb8b60f871c6d2d08416de305ce4b8b5075d9fa43620bb5b2b041",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "condition_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "operator_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "exception_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: Clarification identity/reference does not match the selected Prompt.\n"
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: missing_prompt).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "after",
+    "scenario": "changed_prompt",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "결제 완료 후 주문을 확정하는 행동",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": [],
+        "relation_check_no_items_reason": "다른 진술과 필수 의존 관계는 발견하지 못했다.",
+        "counterexample_no_items_reason": "조건을 대조했으며 추가 해석 후보를 발견하지 못했다."
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "prompt_ref": "PRM-001",
+          "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+          "entry_hash": "7f62b6ab0bf0494e877ca6c177caf5079ea2bc74df581379faaed80e761b9694"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+      "clarification_content_hash": "22b8734520beb8b60f871c6d2d08416de305ce4b8b5075d9fa43620bb5b2b041",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "condition_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "operator_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "exception_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification not yet complete: CLR-001\n  Reason: Prompt text/hash/spans are inconsistent.\n  Detail: Prompt raw text does not match content_hash.\n  Instruction: <PRODUCTKIT_ROOT>/skills/clarify/SKILL.md\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: prompt_integrity_violation).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "artifacts_preserved": true
+  },
+  {
+    "version": "after",
+    "scenario": "changed_clarification",
+    "synthetic": true,
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+      "steps": {
+        "definition": [
+          {
+            "term": "주문 확정",
+            "meaning": "변경된 용어 정의",
+            "origin": "ai_inferred"
+          }
+        ],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+            "actor": "시스템",
+            "object": "주문과 이메일",
+            "condition": "결제 완료",
+            "action": "주문 확정과 이메일 전송",
+            "result": "주문 확정 및 이메일 발송"
+          }
+        ],
+        "relation_check": [],
+        "counterexample": [],
+        "relation_check_no_items_reason": "다른 진술과 필수 의존 관계는 발견하지 못했다.",
+        "counterexample_no_items_reason": "조건을 대조했으며 추가 해석 후보를 발견하지 못했다."
+      },
+      "status": "confirmed",
+      "interpretation_check": [
+        {
+          "id": "SYNTHETIC-IC",
+          "presented_statement": "SYNTHETIC: 결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "presented_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+          "user_response": "agreed",
+          "user_statement": "SYNTHETIC TEST ONLY",
+          "checked_at": "2026-10-13T00:00:00Z",
+          "prompt_ref": "PRM-001",
+          "prompt_content_hash": "815ce2d1801cab8343249d56878c33626e0fbd98d7b3d41b295e5a54e4503dca",
+          "entry_hash": "7f62b6ab0bf0494e877ca6c177caf5079ea2bc74df581379faaed80e761b9694"
+        }
+      ],
+      "finding_candidates": []
+    },
+    "node_group": {
+      "id": "NDG-001",
+      "clarification_ref": "CLR-001",
+      "source_content_hash": "ee76ef1b474919c95ab13502d3c55de3beefd5be1d8194991e0d304be6dc796c",
+      "clarification_content_hash": "22b8734520beb8b60f871c6d2d08416de305ce4b8b5075d9fa43620bb5b2b041",
+      "nodes": [
+        {
+          "id": "NOD-001-1",
+          "kind": "requirement",
+          "statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "origin": "source",
+          "derived_from": {
+            "clarification_ref": "CLR-001",
+            "decomposition_index": 0
+          },
+          "structural_signal": {
+            "conjunction_count": 1,
+            "multiple_predicates": false
+          },
+          "atomicity": {
+            "single_verifiable_subject": {
+              "verdict": "yes",
+              "reason": "단일 결과로 판정한 합성 fixture"
+            },
+            "decomposability": {
+              "verdict": "not_applicable",
+              "reason": "분해 대상 없음으로 판정한 합성 fixture"
+            },
+            "meaning_preservation": {
+              "verdict": "preserved",
+              "confidence": "high",
+              "reason": "원문과 대조한 합성 검토"
+            },
+            "final": "atomic"
+          }
+        }
+      ],
+      "coverage": {
+        "complete": true,
+        "uncovered_decomposition_indices": []
+      },
+      "distortion_checks": [
+        {
+          "decomposition_index": 0,
+          "reconstructed_statement": "결제가 완료되면 주문을 확정하고 이메일을 보낸다.",
+          "condition_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "operator_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "exception_preservation": {
+            "verdict": "preserved",
+            "reason": "합성 검토 기록"
+          },
+          "verdict": "preserved",
+          "confidence": "high",
+          "reason": "합성 역합성 검토"
+        }
+      ],
+      "finding_candidates": [],
+      "status": "modeled"
+    },
+    "clarify": {
+      "args": [
+        "clarify",
+        "--prompt",
+        "PRM-001"
+      ],
+      "exit": 0,
+      "stdout": "Clarification not yet complete: CLR-001\n  Reason: The clarification steps changed after the last agreed entry — that entry no longer covers the current content. Re-confirmation is required.\n  Detail: steps changed after entry SYNTHETIC-IC was agreed to; re-confirmation is required\n  Instruction: <PRODUCTKIT_ROOT>/skills/clarify/SKILL.md\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model",
+        "--clarification",
+        "CLR-001"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: content_changed_since_confirmation).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "artifacts_preserved": true
+  }
+]

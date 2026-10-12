@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "empty_steps": {
+    "confirmed": true
+  },
+  "missing_prompt_ref": {
+    "args": [
+      "clarify"
+    ],
+    "exit": 0,
+    "stdout": "Clarification confirmed: CLR-001\n(The record is internally consistent and marked agreed — this is not proof\n that a human actually said so; see docs/artifact-contracts.md.)\n",
+    "stderr": ""
+  },
+  "empty_nodes": {
+    "status": "modeled"
+  },
+  "split_required_group": {
+    "status": "modeled"
+  }
+}

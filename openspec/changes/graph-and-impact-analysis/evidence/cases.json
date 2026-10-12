@@ -1,0 +1,184 @@
+[
+  {
+    "case": 1,
+    "kind": "primary-agent minimal structural draft; NOT Claude E2E",
+    "original": "결제가 완료되면 주문을 확정하고 이메일을 보내고 재고를 차감한다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [],
+        "decomposition": [
+          {
+            "statement": "결제가 완료되면 주문을 확정하고 이메일을 보내고 재고를 차감한다.",
+            "span_refs": [
+              "SPN-001"
+            ]
+          }
+        ],
+        "elaboration": [],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "awaiting_confirmation",
+      "interpretation_check": [],
+      "finding_candidates": []
+    },
+    "init": {
+      "args": [
+        "init"
+      ],
+      "exit": 0,
+      "stdout": "ProductKit workspace: /private/tmp/productkit-change04-audit/case-1/product\n\n  created          product/\n  created          product/config.yaml\n  created          product/constitution.md\n  created          product/overview.md\n  created          product/sources/\n  created          product/sources/README.md\n  created          product/discovery/\n  created          product/discovery/README.md\n  created          product/nodes/\n  created          product/nodes/README.md\n  created          product/findings/\n  created          product/findings/README.md\n  created          product/proposals/\n  created          product/proposals/README.md\n  created          product/decisions/\n  created          product/decisions/README.md\n  created          product/journeys/\n  created          product/journeys/README.md\n  created          product/policies/\n  created          product/policies/README.md\n  created          product/assumptions/\n  created          product/assumptions/README.md\n  created          product/reviews/\n  created          product/reviews/README.md\n\n24 created, 0 skipped, 0 conflicts\n\nNext: productkit intake \"<your idea>\", then productkit clarify.\n",
+      "stderr": ""
+    },
+    "intake": {
+      "args": [
+        "intake",
+        "결제가 완료되면 주문을 확정하고 이메일을 보내고 재고를 차감한다."
+      ],
+      "exit": 0,
+      "stdout": "Prompt saved: PRM-001\n  product/sources/PRM-001.yaml\n\nNext: productkit clarify\n",
+      "stderr": ""
+    },
+    "clarify": {
+      "args": [
+        "clarify"
+      ],
+      "exit": 0,
+      "stdout": "Clarification not yet complete: CLR-001\n  Reason: No interpretation_check entry yet — nothing has been confirmed.\n  Instruction: <PRODUCTKIT_ROOT>/skills/clarify/SKILL.md\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: no_confirmation).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "node_result": "not generated: no actual user confirmation"
+  },
+  {
+    "case": 2,
+    "kind": "primary-agent minimal structural draft; NOT Claude E2E",
+    "original": "로그인 실패가 3회 이상이고 최근 1시간 이내이거나 관리자가 잠금을 요청하면 계정을 잠근다. 단, 서비스 계정은 제외한다.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [],
+        "decomposition": [
+          {
+            "statement": "로그인 실패가 3회 이상이고 최근 1시간 이내이거나 관리자가 잠금을 요청하면 계정을 잠근다. 단, 서비스 계정은 제외한다.",
+            "span_refs": [
+              "SPN-001",
+              "SPN-002"
+            ]
+          }
+        ],
+        "elaboration": [],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "awaiting_confirmation",
+      "interpretation_check": [],
+      "finding_candidates": []
+    },
+    "init": {
+      "args": [
+        "init"
+      ],
+      "exit": 0,
+      "stdout": "ProductKit workspace: /private/tmp/productkit-change04-audit/case-2/product\n\n  created          product/\n  created          product/config.yaml\n  created          product/constitution.md\n  created          product/overview.md\n  created          product/sources/\n  created          product/sources/README.md\n  created          product/discovery/\n  created          product/discovery/README.md\n  created          product/nodes/\n  created          product/nodes/README.md\n  created          product/findings/\n  created          product/findings/README.md\n  created          product/proposals/\n  created          product/proposals/README.md\n  created          product/decisions/\n  created          product/decisions/README.md\n  created          product/journeys/\n  created          product/journeys/README.md\n  created          product/policies/\n  created          product/policies/README.md\n  created          product/assumptions/\n  created          product/assumptions/README.md\n  created          product/reviews/\n  created          product/reviews/README.md\n\n24 created, 0 skipped, 0 conflicts\n\nNext: productkit intake \"<your idea>\", then productkit clarify.\n",
+      "stderr": ""
+    },
+    "intake": {
+      "args": [
+        "intake",
+        "로그인 실패가 3회 이상이고 최근 1시간 이내이거나 관리자가 잠금을 요청하면 계정을 잠근다. 단, 서비스 계정은 제외한다."
+      ],
+      "exit": 0,
+      "stdout": "Prompt saved: PRM-001\n  product/sources/PRM-001.yaml\n\nNext: productkit clarify\n",
+      "stderr": ""
+    },
+    "clarify": {
+      "args": [
+        "clarify"
+      ],
+      "exit": 0,
+      "stdout": "Clarification not yet complete: CLR-001\n  Reason: No interpretation_check entry yet — nothing has been confirmed.\n  Instruction: <PRODUCTKIT_ROOT>/skills/clarify/SKILL.md\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: no_confirmation).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "node_result": "not generated: no actual user confirmation"
+  },
+  {
+    "case": 3,
+    "kind": "primary-agent minimal structural draft; NOT Claude E2E",
+    "original": "기존 규정: 구매 후 7일 이내 환불 가능. 신규 요구: 디지털 상품은 구매 후 30일 이내 환불 가능.",
+    "clarification": {
+      "id": "CLR-001",
+      "prompt_ref": "PRM-001",
+      "steps": {
+        "definition": [],
+        "decomposition": [
+          {
+            "statement": "기존 규정: 구매 후 7일 이내 환불 가능. 신규 요구: 디지털 상품은 구매 후 30일 이내 환불 가능.",
+            "span_refs": [
+              "SPN-001",
+              "SPN-002"
+            ]
+          }
+        ],
+        "elaboration": [],
+        "relation_check": [],
+        "counterexample": []
+      },
+      "status": "awaiting_confirmation",
+      "interpretation_check": [],
+      "finding_candidates": []
+    },
+    "init": {
+      "args": [
+        "init"
+      ],
+      "exit": 0,
+      "stdout": "ProductKit workspace: /private/tmp/productkit-change04-audit/case-3/product\n\n  created          product/\n  created          product/config.yaml\n  created          product/constitution.md\n  created          product/overview.md\n  created          product/sources/\n  created          product/sources/README.md\n  created          product/discovery/\n  created          product/discovery/README.md\n  created          product/nodes/\n  created          product/nodes/README.md\n  created          product/findings/\n  created          product/findings/README.md\n  created          product/proposals/\n  created          product/proposals/README.md\n  created          product/decisions/\n  created          product/decisions/README.md\n  created          product/journeys/\n  created          product/journeys/README.md\n  created          product/policies/\n  created          product/policies/README.md\n  created          product/assumptions/\n  created          product/assumptions/README.md\n  created          product/reviews/\n  created          product/reviews/README.md\n\n24 created, 0 skipped, 0 conflicts\n\nNext: productkit intake \"<your idea>\", then productkit clarify.\n",
+      "stderr": ""
+    },
+    "intake": {
+      "args": [
+        "intake",
+        "기존 규정: 구매 후 7일 이내 환불 가능. 신규 요구: 디지털 상품은 구매 후 30일 이내 환불 가능."
+      ],
+      "exit": 0,
+      "stdout": "Prompt saved: PRM-001\n  product/sources/PRM-001.yaml\n\nNext: productkit clarify\n",
+      "stderr": ""
+    },
+    "clarify": {
+      "args": [
+        "clarify"
+      ],
+      "exit": 0,
+      "stdout": "Clarification not yet complete: CLR-001\n  Reason: No interpretation_check entry yet — nothing has been confirmed.\n  Instruction: <PRODUCTKIT_ROOT>/skills/clarify/SKILL.md\n",
+      "stderr": ""
+    },
+    "model": {
+      "args": [
+        "model"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: CLR-001 is not confirmed yet (reason: no_confirmation).\nNode modeling only accepts a confirmed Clarification. Run \"productkit clarify\" first.\n"
+    },
+    "node_result": "not generated: no actual user confirmation"
+  }
+]

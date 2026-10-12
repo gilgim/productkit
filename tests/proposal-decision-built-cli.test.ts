@@ -1,0 +1,26 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { stringify } from 'yaml';
+import { runInit } from '../src/cli/commands/init.js';
+import { createMemoryOutput } from '../src/cli/output.js';
+import { createFinding, appendFindingConfirmation, findingContentHash, toFindingInput } from '../src/schema/finding.js';
+import { currentChallengeInputs } from '../src/clarification/challenge-store.js';
+import { readDecisions, readProposals } from '../src/clarification/proposal-decision-store.js';
+import { promptFixture, confirmedFixture, groupFixture } from './helpers/gate-fixtures.js';
+
+let root='';afterEach(async()=>{if(root)await rm(root,{recursive:true,force:true});});
+const projectRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');const bin=path.join(projectRoot,'dist/cli/bin.js');
+const findingInput={issue_key:'built-cli-timeout-gap',type:'flow_gap' as const,severity:'major' as const,statement:'Timeout behavior is unspecified.',related_refs:[{kind:'node' as const,ref:'NOD-001-1'}],evidence_refs:[{kind:'prompt' as const,ref:'PRM-001',detail:'Timeout clause'}],counterexamples:[{condition:'provider timeout',expected:'defined response',observed:'none',status:'hypothesis' as const}],ai_assessment:{is_ai_judgment:true as const,rationale:'No timeout outcome in linked requirement.',confidence:'medium' as const,uncertainty:['A policy may exist elsewhere.']},questions:['What should happen?']};
+describe('built CLI Proposal and Decision E2E',()=>{
+ it('records a Proposal and only a user-stated pending Decision',async()=>{
+  // Synthetic user statement for structural E2E only; this is not a real user approval.
+  root=await mkdtemp(path.join(tmpdir(),'productkit-built-proposal-decision-'));await runInit({cwd:root,now:new Date('2026-10-13T00:00:00Z')},createMemoryOutput());const product=path.join(root,'product');const prompt=promptFixture();const clarification=confirmedFixture(undefined,prompt);const group=groupFixture(clarification.steps);await writeFile(path.join(product,'sources',`${prompt.id}.yaml`),stringify(prompt));await writeFile(path.join(product,'discovery',`${clarification.id}.yaml`),stringify(clarification));await writeFile(path.join(product,'nodes',`${group.id}.yaml`),stringify(group));const finding=appendFindingConfirmation(createFinding(findingInput),'confirmed','I confirm this issue exists.','I reviewed the requirement.');await writeFile(path.join(product,'findings',`${finding.id}.yaml`),stringify(finding));const snapshot=await currentChallengeInputs(product);const hash=(kind:string,ref:string)=>snapshot.inputs.find(i=>i.kind===kind&&i.ref===ref)!.content_hash;const claimHash=findingContentHash(toFindingInput(finding));
+  const option=(id:string)=>({id,description:`Alternative ${id}`,evidence_refs:[{kind:'node',ref:'NOD-001-1',content_hash:hash('node','NOD-001-1')}],benefits:['Benefit'],costs:['Cost'],risks:['Risk'],assumptions:['Assumption'],expected_impacts:['Impact'],side_effects:['Side effect'],target_candidates:[{kind:'node',ref:'NOD-001-1',content_hash:hash('node','NOD-001-1')}],finding_coverage:[{finding_ref:finding.id,approach:'Define timeout behavior',residual_issues:['Provider limits']} ]});
+  const proposalFile=path.join(root,'proposal.yaml');await writeFile(proposalFile,stringify({finding_refs:[{finding_ref:finding.id,claim_hash:claimHash,review_status:'confirmed'}],input_snapshot:[{kind:'node',ref:'NOD-001-1',content_hash:hash('node','NOD-001-1')}],options:[option('OPT-A'),option('OPT-B')]}));let run=spawnSync(process.execPath,[bin,'propose','add','--input',proposalFile],{cwd:root,encoding:'utf8'});expect(run.status,run.stderr).toBe(0);const proposal=(await readProposals(product))[0]!;
+  const decisionFile=path.join(root,'decision.yaml');await writeFile(decisionFile,stringify({decision_type:'content_decision',proposal_ref:proposal.id,option_ref:'OPT-A',finding_refs:[{finding_ref:finding.id,claim_hash:claimHash}],selection:{kind:'proposal_option',proposal_ref:proposal.id,option_ref:'OPT-A'},input_snapshot:[{kind:'finding',ref:finding.id,content_hash:hash('finding',finding.id)},{kind:'node',ref:'NOD-001-1',content_hash:hash('node','NOD-001-1')},{kind:'proposal',ref:proposal.id,content_hash:proposal.claim_hash}]}));run=spawnSync(process.execPath,[bin,'decide','record','--input',decisionFile,'--user-statement','I choose OPT-A.','--rationale','It is safer.','--scope','Timeout handling.'],{cwd:root,encoding:'utf8'});expect(run.status,run.stderr).toBe(0);const decision=(await readDecisions(product))[0]!;expect(decision.application_status).toBe('pending_application');expect(decision.user_statement).toBe('I choose OPT-A.');expect(await readFile(path.join(product,'findings',`${finding.id}.yaml`),'utf8')).toContain('unresolved');group.nodes[0]!.statement+=' changed';await writeFile(path.join(product,'nodes',`${group.id}.yaml`),stringify(group));run=spawnSync(process.execPath,[bin,'decide','status'],{cwd:root,encoding:'utf8'});expect(run.status).toBe(1);expect(run.stdout).toContain('STALE');
+ });
+});

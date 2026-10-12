@@ -1,0 +1,29 @@
+# ProductKit workspace config
+#
+# schema_version: artifact contract version (docs/artifact-contracts.md).
+# stages / definition.status are progress notes, not validation results.
+# The quality gate judges the current document content, never these values.
+schema_version: 1
+
+product:
+  name: {{product_name}}
+  created_at: "{{created_at}}"
+
+# not_started | in_progress | done
+stages:
+  ingest: not_started
+  discover: not_started
+  atomic_modeling: not_started
+  graph_analysis: not_started
+  challenge: not_started
+  propose: not_started
+  decide: not_started
+  define: not_started
+  review: not_started
+  validate: not_started
+  export: not_started
+
+definition:
+  # not_started | draft | confirmed
+  # Only a passing gate may set this to confirmed.
+  status: not_started

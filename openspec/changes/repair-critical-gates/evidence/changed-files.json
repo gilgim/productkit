@@ -1,0 +1,77 @@
+[
+  {
+    "file": "src/clarification/workspace.ts",
+    "before_sha256": "cf04dbfa597a4ff7cbe9feee6035e6c6d81640cf5eff2ba1fbc1dab7fa3ae947",
+    "after_sha256": "80b7803fb846c03d6ed75fb0f5500f00149c7bec56a6c402b23f668d34ade757"
+  },
+  {
+    "file": "src/cli/commands/clarify.ts",
+    "before_sha256": "b7110d689fa56728a4660976a43cfc5bbbe81b41fb27113fb69af1e904fd1772",
+    "after_sha256": "97f544d7fd5b989702570f5356623ee30334137c54397b989e5f871707ddb754"
+  },
+  {
+    "file": "src/cli/commands/model.ts",
+    "before_sha256": "42480cfe98fc4d04adafde92e76eeb3e13b6058f7132d9c596986da736da83ea",
+    "after_sha256": "fb9d8110e9bac46027baec676b57f7e65168255c1948ef68e46d27c0726c1a5c"
+  },
+  {
+    "file": "src/index.ts",
+    "before_sha256": "87c8c4670a4242c2627f209521443dddad6660aaf69e50a823f8e61eb44c771b",
+    "after_sha256": "4c00b688d88679383b93e5dc37e35a042a73a789cd856cfb7b91d2f8597d5362"
+  },
+  {
+    "file": "src/schema/clarification.ts",
+    "before_sha256": "619410a0ff21988be5cc8ba734946b480cb7687a8dbdecf4070e42b5563ba9dc",
+    "after_sha256": "b888e2064571198bcd1d453763af5faa8d9d2e1c3dc0b40db157eb334337a527"
+  },
+  {
+    "file": "src/schema/node.ts",
+    "before_sha256": "8cdf21e8168684e3e438129950ef85fee4fab218f99f034a8effec457967dc54",
+    "after_sha256": "4b5cad039ef1211c5907eeaef7555c47b8e83f4b70be97ea1f719c9a9a218bea"
+  },
+  {
+    "file": "src/schema/prompt.ts",
+    "before_sha256": "25c2c9d7a61322e8ef7483b8889244bbab3d55b00138b3e5a0702de1f9fd48fe",
+    "after_sha256": "9b5a37a6ec7ede2593bf713e425e035c555e552b929cd2af2dc104af9db33fbf"
+  },
+  {
+    "file": "src/schema/text.ts",
+    "before_sha256": null,
+    "after_sha256": "69bdc7d736d9851d6fa6c85d8ce9373d802393325f213d4fddcc795f5efe050c"
+  },
+  {
+    "file": "tests/clarification.test.ts",
+    "before_sha256": "35c98d4ab5bcebed5a5b6d54798a205a9865d4cdf486b6deb688836af6dffd4d",
+    "after_sha256": "8dd470f2a2c2e5b3f5fc96e0765cd430f32afb30270e3786ea46221f629e2660"
+  },
+  {
+    "file": "tests/clarify.test.ts",
+    "before_sha256": "e66b5f9829f0290139250a9426133ee2a8e2528adf06e6a3fcd80cce8adee358",
+    "after_sha256": "0229948c2a88b5cc7cf641920b248634a5bb53aed03064dfa293ccaf7d79a6b2"
+  },
+  {
+    "file": "tests/critical-cli.test.ts",
+    "before_sha256": null,
+    "after_sha256": "7d132aae216508b6d86fe5c55c0b3743532ea5ef390d9ecc5f2714b2f315e29e"
+  },
+  {
+    "file": "tests/critical-gates.test.ts",
+    "before_sha256": null,
+    "after_sha256": "bf83cd6645abb4fd166f0c23124785db60b8f99438996670ac45f19f631eeab0"
+  },
+  {
+    "file": "tests/helpers/gate-fixtures.ts",
+    "before_sha256": null,
+    "after_sha256": "a66b0bb5442d6cfbac71849f33a4a6298babfed678e0421d78964bc7e9039025"
+  },
+  {
+    "file": "tests/model.test.ts",
+    "before_sha256": "d90408255e63accae8c0a7ab6e7ed01513f7916da6b1bbb2a306f0a6e96fc069",
+    "after_sha256": "5ff4b8af459a82e6f98e868f22b5e5507463718c4837ac21dea378143b103db0"
+  },
+  {
+    "file": "tests/node.test.ts",
+    "before_sha256": "6c6883024dff3e26357adedd9991951ce596937c86a9b9e766e6b26028072d58",
+    "after_sha256": "ef063cfae3ce530fcdb3e061aa76f4095a0fffcdb1cff525da0a497c0520b8c6"
+  }
+]
