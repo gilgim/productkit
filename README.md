@@ -30,10 +30,7 @@ ProductKit puts a guard rail between the idea and the spec:
 
 ## How it works
 
-```text
-Prompt → Clarify → Model → Graph → Challenge → Propose & Decide → Define → Validate & Approve → OpenSpec
- (you)   (agent)   (agent) (agent)   (agent)       (you decide)    (agent)    (CLI gate, you)    (export)
-```
+<p align="center"><img src="docs/assets/how-it-works.svg" alt="How ProductKit works: you decide, the agent reasons, the CLI judges and records" width="100%"></p>
 
 The CLI judges whether each stage is actually complete. The agent cannot declare itself done.
 
