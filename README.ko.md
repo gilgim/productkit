@@ -30,10 +30,7 @@ ProductKit은 아이디어와 명세 사이에 안전장치를 둔다.
 
 ## 동작 방식
 
-```text
-Prompt → Clarify → Model → Graph → Challenge → Propose & Decide → Define → Validate & Approve → OpenSpec
- (사람)  (에이전트) (에이전트) (에이전트) (에이전트)    (사람이 결정)      (에이전트)  (CLI 게이트, 사람)    (내보내기)
-```
+<p align="center"><img src="docs/assets/how-it-works.ko.svg" alt="ProductKit 동작 방식: 사람이 결정하고, 에이전트가 추론하고, CLI가 판정·기록한다" width="100%"></p>
 
 각 단계가 정말 끝났는지는 CLI가 판정한다. 에이전트가 스스로 완료를 선언할 수 없다.
 

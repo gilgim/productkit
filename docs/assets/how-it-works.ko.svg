@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 784" width="1200" height="784" role="img" aria-labelledby="t d">
+<title id="t">ProductKit은 이렇게 돌아간다</title><desc id="d">역할 셋, 파일 흔적 하나. 단계가 끝났는지는 AI가 아니라 CLI가 판정한다.</desc>
+<style>.bg{fill:#ffffff}.ink{fill:#1f2328}.mute{fill:#59636e}.warn{fill:#cf222e}.you{fill:#fff4dc}.ag{fill:#eee9ff}.cli{fill:#e2f5ea}.fil{fill:#f1f3f5}.card{fill:#ffffff}.s-you{stroke:#b07d00}.s-ag{stroke:#6e56cf}.s-cli{stroke:#1a7f4b}.s-fil{stroke:#6b7683}.t-you{fill:#b07d00}.t-ag{fill:#6e56cf}.t-cli{fill:#1a7f4b}.t-fil{fill:#6b7683}@media (prefers-color-scheme: dark){.bg{fill:#0d1117}.ink{fill:#e6edf3}.mute{fill:#9198a1}.warn{fill:#ff7b72}.you{fill:#2a2210}.ag{fill:#1d1838}.cli{fill:#0f2a1c}.fil{fill:#161b22}.card{fill:#0d1117}.s-you{stroke:#e3b341}.s-ag{stroke:#a48bff}.s-cli{stroke:#3fb96f}.s-fil{stroke:#8b949e}.t-you{fill:#e3b341}.t-ag{fill:#a48bff}.t-cli{fill:#3fb96f}.t-fil{fill:#8b949e}}text{font-family:-apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Segoe UI', sans-serif}</style>
+<rect class="bg" width="1200" height="784"/>
+<text class="ink" x="40" y="46" font-size="26" font-weight="700">ProductKit은 이렇게 돌아간다</text>
+<text class="mute" x="40" y="72" font-size="14.5">역할 셋, 파일 흔적 하나. 단계가 끝났는지는 AI가 아니라 CLI가 판정한다.</text>
+<path d="M152.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="233.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">1 · 입력</text>
+<path d="M323.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="404.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">2 · 명료화·분해</text>
+<path d="M494.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="575.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">3 · 반박</text>
+<path d="M665.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="746.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">4 · 제안·결정</text>
+<path d="M836.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="917.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">5 · 정의</text>
+<path d="M1007.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="1088.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">6 · 게이트·내보내기</text>
+<rect class="you s-you" x="24" y="150" width="1152" height="112" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-you" x="42" y="204.0" font-size="15" font-weight="800" letter-spacing=".8">사람</text>
+<text class="mute" x="42" y="223.0" font-size="11.5">유일한 결정자</text>
+<rect class="card s-you" x="156.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="234.5" y="201.0" font-size="12.5" text-anchor="middle">대충 쓴 아이디어를</text>
+<text class="ink" x="234.5" y="219.0" font-size="12.5" text-anchor="middle">프롬프트 하나로</text>
+<rect class="card s-you" x="327.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="201.0" font-size="12.5" text-anchor="middle">에이전트가 다시 쓴</text>
+<text class="ink" x="405.5" y="219.0" font-size="12.5" text-anchor="middle">해석을 확인</text>
+<rect class="card s-you" x="498.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="201.0" font-size="12.5" text-anchor="middle">열린 질문에</text>
+<text class="ink" x="576.5" y="219.0" font-size="12.5" text-anchor="middle">답한다</text>
+<rect class="card s-you" x="669.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="201.0" font-size="12.5" text-anchor="middle">대안을 고르고</text>
+<text class="ink" x="747.5" y="219.0" font-size="12.5" text-anchor="middle">이유를 말한다</text>
+<rect class="card s-you" x="840.0" y="186.0" width="157.0" height="40" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="210.0" font-size="12.5" text-anchor="middle">초안을 검토</text>
+<rect class="card s-you" x="1011.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="201.0" font-size="12.5" text-anchor="middle">"승인"이라고</text>
+<text class="ink" x="1089.5" y="219.0" font-size="12.5" text-anchor="middle">명시적으로 말한다</text>
+<rect class="ag s-ag" x="24" y="272" width="1152" height="124" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-ag" x="42" y="332.0" font-size="15" font-weight="800" letter-spacing=".8">에이전트</text>
+<text class="mute" x="42" y="351.0" font-size="11.5">Claude Code / Codex</text>
+<text class="mute" x="234.5" y="338.0" font-size="16" text-anchor="middle">–</text>
+<rect class="card s-ag" x="327.0" y="296.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="320.0" font-size="12.5" text-anchor="middle">6단계로 다시 풀고</text>
+<text class="ink" x="405.5" y="338.0" font-size="12.5" text-anchor="middle">원자 단위로 쪼개</text>
+<text class="ink" x="405.5" y="356.0" font-size="12.5" text-anchor="middle">관계를 잇는다</text>
+<rect class="card s-ag" x="498.0" y="296.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="320.0" font-size="12.5" text-anchor="middle">허점·모순을 찾아</text>
+<text class="ink" x="576.5" y="338.0" font-size="12.5" text-anchor="middle">추측하지 않고</text>
+<text class="ink" x="576.5" y="356.0" font-size="12.5" text-anchor="middle">Finding으로 남긴다</text>
+<rect class="card s-ag" x="669.0" y="296.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="320.0" font-size="12.5" text-anchor="middle">이점·비용·위험이 있는</text>
+<text class="ink" x="747.5" y="338.0" font-size="12.5" text-anchor="middle">대안을 낸다.</text>
+<text class="ink" x="747.5" y="356.0" font-size="12.5" text-anchor="middle">추천만 하고 고르지 않음</text>
+<rect class="card s-ag" x="840.0" y="305.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="329.0" font-size="12.5" text-anchor="middle">여정·정책·인수</text>
+<text class="ink" x="918.5" y="347.0" font-size="12.5" text-anchor="middle">기준 초안을 쓴다</text>
+<rect class="card s-ag" x="1011.0" y="305.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="329.0" font-size="12.5" text-anchor="middle">확정 시점 스냅샷을</text>
+<text class="ink" x="1089.5" y="347.0" font-size="12.5" text-anchor="middle">의미 검토한다</text>
+<rect class="cli s-cli" x="24" y="406" width="1152" height="112" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-cli" x="42" y="460.0" font-size="15" font-weight="800" letter-spacing=".8">CLI</text>
+<text class="mute" x="42" y="479.0" font-size="11.5">내부에 LLM 없음</text>
+<rect class="card s-cli" x="156.0" y="433.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="234.5" y="457.0" font-size="12.5" text-anchor="middle">프롬프트를 원문 그대로</text>
+<text class="ink" x="234.5" y="475.0" font-size="12.5" text-anchor="middle">해시와 함께 저장</text>
+<rect class="card s-cli" x="327.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="448.0" font-size="12.5" text-anchor="middle">"끝났나?" 판정</text>
+<text class="ink" x="405.5" y="466.0" font-size="12.5" text-anchor="middle">확인이 없으면</text>
+<text class="ink" x="405.5" y="484.0" font-size="12.5" text-anchor="middle">'confirmed' 불가</text>
+<rect class="card s-cli" x="498.0" y="433.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="457.0" font-size="12.5" text-anchor="middle">검토 영역 8개를</text>
+<text class="ink" x="576.5" y="475.0" font-size="12.5" text-anchor="middle">다 봤는지 확인</text>
+<rect class="card s-cli" x="669.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="448.0" font-size="12.5" text-anchor="middle">사용자 발언과 근거가</text>
+<text class="ink" x="747.5" y="466.0" font-size="12.5" text-anchor="middle">있을 때만</text>
+<text class="ink" x="747.5" y="484.0" font-size="12.5" text-anchor="middle">결정을 기록</text>
+<rect class="card s-cli" x="840.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="448.0" font-size="12.5" text-anchor="middle">모든 항목이 결정을</text>
+<text class="ink" x="918.5" y="466.0" font-size="12.5" text-anchor="middle">거쳐 프롬프트까지</text>
+<text class="ink" x="918.5" y="484.0" font-size="12.5" text-anchor="middle">추적되는지 확인</text>
+<rect class="card s-cli" x="1011.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="448.0" font-size="12.5" text-anchor="middle">모든 검사를 다시 돌려</text>
+<text class="ink" x="1089.5" y="466.0" font-size="12.5" text-anchor="middle">승인을 해시에 묶고</text>
+<text class="ink" x="1089.5" y="484.0" font-size="12.5" text-anchor="middle">명세를 내보낸다</text>
+<rect class="fil s-fil" x="24" y="528" width="1152" height="84" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-fil" x="42" y="568.0" font-size="15" font-weight="800" letter-spacing=".8">파일</text>
+<text class="mute" x="42" y="587.0" font-size="11.5">저장소의 product/</text>
+<rect class="card s-fil" x="156.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="234.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">sources/</text>
+<text class="ink" x="234.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">PRM-001</text>
+<rect class="card s-fil" x="327.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">discovery/ nodes/</text>
+<text class="ink" x="405.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">graph/</text>
+<rect class="card s-fil" x="498.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">findings/</text>
+<text class="ink" x="576.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">reviews/</text>
+<rect class="card s-fil" x="669.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">proposals/</text>
+<text class="ink" x="747.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">decisions/</text>
+<rect class="card s-fil" x="840.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">definition.yaml</text>
+<text class="ink" x="918.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">journeys/ policies/</text>
+<rect class="card s-fil" x="1011.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">validations/ approvals/</text>
+<text class="ink" x="1089.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">OpenSpec change</text>
+<rect class="card s-cli" x="24.0" y="634" width="374.6666666666667" height="92" rx="10" stroke-width="1.2"/>
+<text class="t-cli" x="40.0" y="662" font-size="14" font-weight="750">CLI는 LLM을 호출하지 않는다</text>
+<text class="mute" x="40.0" y="684" font-size="12">파일·스키마·해시·게이트만 다룬다. 추론은 쓰는</text>
+<text class="mute" x="40.0" y="701" font-size="12">에이전트 세션에서 일어난다.</text>
+<rect class="card s-cli" x="412.6666666666667" y="634" width="374.6666666666667" height="92" rx="10" stroke-width="1.2"/>
+<text class="t-cli" x="428.6666666666667" y="662" font-size="14" font-weight="750">에이전트는 "끝"을 선언할 수 없다</text>
+<text class="mute" x="428.6666666666667" y="684" font-size="12">완료 여부는 CLI가 매번 파일에서 다시 계산한다.</text>
+<rect class="card s-cli" x="801.3333333333334" y="634" width="374.6666666666667" height="92" rx="10" stroke-width="1.2"/>
+<text class="t-cli" x="817.3333333333334" y="662" font-size="14" font-weight="750">입력이 바뀌면 승인도 무효</text>
+<text class="mute" x="817.3333333333334" y="684" font-size="12">승인은 내용 해시에 묶여 있어 상류를 고치면</text>
+<text class="mute" x="817.3333333333334" y="701" font-size="12">STALE이 된다.</text>
+<text class="warn" x="600.0" y="756" font-size="13.5" font-weight="650" text-anchor="middle">↺  FAIL 또는 STALE(종료 코드 1)이면 내보내기가 막힌다. 깨진 단계로 돌아간다.</text>
+</svg>

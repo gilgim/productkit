@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 784" width="1200" height="784" role="img" aria-labelledby="t d">
+<title id="t">How ProductKit works</title><desc id="d">Three roles, one file trail. The CLI, not the AI, decides when a stage is done.</desc>
+<style>.bg{fill:#ffffff}.ink{fill:#1f2328}.mute{fill:#59636e}.warn{fill:#cf222e}.you{fill:#fff4dc}.ag{fill:#eee9ff}.cli{fill:#e2f5ea}.fil{fill:#f1f3f5}.card{fill:#ffffff}.s-you{stroke:#b07d00}.s-ag{stroke:#6e56cf}.s-cli{stroke:#1a7f4b}.s-fil{stroke:#6b7683}.t-you{fill:#b07d00}.t-ag{fill:#6e56cf}.t-cli{fill:#1a7f4b}.t-fil{fill:#6b7683}@media (prefers-color-scheme: dark){.bg{fill:#0d1117}.ink{fill:#e6edf3}.mute{fill:#9198a1}.warn{fill:#ff7b72}.you{fill:#2a2210}.ag{fill:#1d1838}.cli{fill:#0f2a1c}.fil{fill:#161b22}.card{fill:#0d1117}.s-you{stroke:#e3b341}.s-ag{stroke:#a48bff}.s-cli{stroke:#3fb96f}.s-fil{stroke:#8b949e}.t-you{fill:#e3b341}.t-ag{fill:#a48bff}.t-cli{fill:#3fb96f}.t-fil{fill:#8b949e}}text{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif}</style>
+<rect class="bg" width="1200" height="784"/>
+<text class="ink" x="40" y="46" font-size="26" font-weight="700">How ProductKit works</text>
+<text class="mute" x="40" y="72" font-size="14.5">Three roles, one file trail. The CLI, not the AI, decides when a stage is done.</text>
+<path d="M152.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="233.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">1 · Capture</text>
+<path d="M323.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="404.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">2 · Clarify &amp; model</text>
+<path d="M494.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="575.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">3 · Challenge</text>
+<path d="M665.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="746.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">4 · Propose &amp; decide</text>
+<path d="M836.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="917.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">5 · Define</text>
+<path d="M1007.0 92 h153.0 l14 22.0 l-14 22.0 h-153.0 l0 0 z" class="fil s-fil" stroke-width="1.2"/>
+<text class="ink" x="1088.5" y="119.0" font-size="13.5" font-weight="650" text-anchor="middle">6 · Gate &amp; export</text>
+<rect class="you s-you" x="24" y="150" width="1152" height="112" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-you" x="42" y="204.0" font-size="15" font-weight="800" letter-spacing=".8">YOU</text>
+<text class="mute" x="42" y="223.0" font-size="11.5">the only decider</text>
+<rect class="card s-you" x="156.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="234.5" y="201.0" font-size="12.5" text-anchor="middle">Drop in a rough idea</text>
+<text class="ink" x="234.5" y="219.0" font-size="12.5" text-anchor="middle">(one prompt)</text>
+<rect class="card s-you" x="327.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="201.0" font-size="12.5" text-anchor="middle">Confirm the agent's</text>
+<text class="ink" x="405.5" y="219.0" font-size="12.5" text-anchor="middle">restated meaning</text>
+<rect class="card s-you" x="498.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="201.0" font-size="12.5" text-anchor="middle">Answer the open</text>
+<text class="ink" x="576.5" y="219.0" font-size="12.5" text-anchor="middle">questions</text>
+<rect class="card s-you" x="669.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="201.0" font-size="12.5" text-anchor="middle">Pick an option</text>
+<text class="ink" x="747.5" y="219.0" font-size="12.5" text-anchor="middle">and say why</text>
+<rect class="card s-you" x="840.0" y="186.0" width="157.0" height="40" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="210.0" font-size="12.5" text-anchor="middle">Review the draft</text>
+<rect class="card s-you" x="1011.0" y="177.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="201.0" font-size="12.5" text-anchor="middle">Say "approve"</text>
+<text class="ink" x="1089.5" y="219.0" font-size="12.5" text-anchor="middle">(an explicit sentence)</text>
+<rect class="ag s-ag" x="24" y="272" width="1152" height="124" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-ag" x="42" y="332.0" font-size="15" font-weight="800" letter-spacing=".8">AGENT</text>
+<text class="mute" x="42" y="351.0" font-size="11.5">Claude Code / Codex</text>
+<text class="mute" x="234.5" y="338.0" font-size="16" text-anchor="middle">–</text>
+<rect class="card s-ag" x="327.0" y="296.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="320.0" font-size="12.5" text-anchor="middle">Restates in 6 steps,</text>
+<text class="ink" x="405.5" y="338.0" font-size="12.5" text-anchor="middle">splits into atomic nodes,</text>
+<text class="ink" x="405.5" y="356.0" font-size="12.5" text-anchor="middle">maps relations</text>
+<rect class="card s-ag" x="498.0" y="296.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="320.0" font-size="12.5" text-anchor="middle">Hunts gaps and</text>
+<text class="ink" x="576.5" y="338.0" font-size="12.5" text-anchor="middle">contradictions: findings,</text>
+<text class="ink" x="576.5" y="356.0" font-size="12.5" text-anchor="middle">never guesses</text>
+<rect class="card s-ag" x="669.0" y="296.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="320.0" font-size="12.5" text-anchor="middle">Options with benefits,</text>
+<text class="ink" x="747.5" y="338.0" font-size="12.5" text-anchor="middle">costs and risks.</text>
+<text class="ink" x="747.5" y="356.0" font-size="12.5" text-anchor="middle">Recommends, never picks</text>
+<rect class="card s-ag" x="840.0" y="296.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="320.0" font-size="12.5" text-anchor="middle">Drafts journeys,</text>
+<text class="ink" x="918.5" y="338.0" font-size="12.5" text-anchor="middle">policies, acceptance</text>
+<text class="ink" x="918.5" y="356.0" font-size="12.5" text-anchor="middle">criteria</text>
+<rect class="card s-ag" x="1011.0" y="305.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="329.0" font-size="12.5" text-anchor="middle">Semantic review of</text>
+<text class="ink" x="1089.5" y="347.0" font-size="12.5" text-anchor="middle">the exact snapshot</text>
+<rect class="cli s-cli" x="24" y="406" width="1152" height="112" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-cli" x="42" y="460.0" font-size="15" font-weight="800" letter-spacing=".8">CLI</text>
+<text class="mute" x="42" y="479.0" font-size="11.5">no LLM inside</text>
+<rect class="card s-cli" x="156.0" y="433.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="234.5" y="457.0" font-size="12.5" text-anchor="middle">Stores the prompt</text>
+<text class="ink" x="234.5" y="475.0" font-size="12.5" text-anchor="middle">verbatim + hash</text>
+<rect class="card s-cli" x="327.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="448.0" font-size="12.5" text-anchor="middle">Judges "done?"</text>
+<text class="ink" x="405.5" y="466.0" font-size="12.5" text-anchor="middle">No confirmation, no</text>
+<text class="ink" x="405.5" y="484.0" font-size="12.5" text-anchor="middle">"confirmed"</text>
+<rect class="card s-cli" x="498.0" y="433.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="457.0" font-size="12.5" text-anchor="middle">Checks all 8 review</text>
+<text class="ink" x="576.5" y="475.0" font-size="12.5" text-anchor="middle">areas were covered</text>
+<rect class="card s-cli" x="669.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="448.0" font-size="12.5" text-anchor="middle">Records a decision</text>
+<text class="ink" x="747.5" y="466.0" font-size="12.5" text-anchor="middle">only with your words</text>
+<text class="ink" x="747.5" y="484.0" font-size="12.5" text-anchor="middle">+ a rationale</text>
+<rect class="card s-cli" x="840.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="448.0" font-size="12.5" text-anchor="middle">Checks every item</text>
+<text class="ink" x="918.5" y="466.0" font-size="12.5" text-anchor="middle">traces Decision to</text>
+<text class="ink" x="918.5" y="484.0" font-size="12.5" text-anchor="middle">Prompt</text>
+<rect class="card s-cli" x="1011.0" y="424.0" width="157.0" height="76" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="448.0" font-size="12.5" text-anchor="middle">Re-runs every check,</text>
+<text class="ink" x="1089.5" y="466.0" font-size="12.5" text-anchor="middle">binds approval to a</text>
+<text class="ink" x="1089.5" y="484.0" font-size="12.5" text-anchor="middle">hash, exports the spec</text>
+<rect class="fil s-fil" x="24" y="528" width="1152" height="84" rx="12" stroke-width="1.2" fill-opacity=".55"/>
+<text class="t-fil" x="42" y="568.0" font-size="15" font-weight="800" letter-spacing=".8">FILES</text>
+<text class="mute" x="42" y="587.0" font-size="11.5">product/ in your repo</text>
+<rect class="card s-fil" x="156.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="234.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">sources/</text>
+<text class="ink" x="234.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">PRM-001</text>
+<rect class="card s-fil" x="327.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="405.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">discovery/ nodes/</text>
+<text class="ink" x="405.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">graph/</text>
+<rect class="card s-fil" x="498.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="576.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">findings/</text>
+<text class="ink" x="576.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">reviews/</text>
+<rect class="card s-fil" x="669.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="747.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">proposals/</text>
+<text class="ink" x="747.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">decisions/</text>
+<rect class="card s-fil" x="840.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="918.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">definition.yaml</text>
+<text class="ink" x="918.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">journeys/ policies/</text>
+<rect class="card s-fil" x="1011.0" y="541.0" width="157.0" height="58" rx="8" stroke-width="1"/>
+<text class="ink" x="1089.5" y="565.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">validations/ approvals/</text>
+<text class="ink" x="1089.5" y="583.0" font-size="11.5" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">OpenSpec change</text>
+<rect class="card s-cli" x="24.0" y="634" width="374.6666666666667" height="92" rx="10" stroke-width="1.2"/>
+<text class="t-cli" x="40.0" y="662" font-size="14" font-weight="750">The CLI never calls an LLM</text>
+<text class="mute" x="40.0" y="684" font-size="12">Files, schemas, hashes and gates only. Reasoning runs in</text>
+<text class="mute" x="40.0" y="701" font-size="12">your own agent session.</text>
+<rect class="card s-cli" x="412.6666666666667" y="634" width="374.6666666666667" height="92" rx="10" stroke-width="1.2"/>
+<text class="t-cli" x="428.6666666666667" y="662" font-size="14" font-weight="750">The agent can't declare "done"</text>
+<text class="mute" x="428.6666666666667" y="684" font-size="12">Completion is recomputed from the files by the CLI,</text>
+<text class="mute" x="428.6666666666667" y="701" font-size="12">every time.</text>
+<rect class="card s-cli" x="801.3333333333334" y="634" width="374.6666666666667" height="92" rx="10" stroke-width="1.2"/>
+<text class="t-cli" x="817.3333333333334" y="662" font-size="14" font-weight="750">Change an input, lose the approval</text>
+<text class="mute" x="817.3333333333334" y="684" font-size="12">Approvals are bound to content hashes. Upstream edits</text>
+<text class="mute" x="817.3333333333334" y="701" font-size="12">make them STALE.</text>
+<text class="warn" x="600.0" y="756" font-size="13.5" font-weight="650" text-anchor="middle">↺  FAIL or STALE (exit code 1) blocks export. Go back to the stage that broke.</text>
+</svg>
