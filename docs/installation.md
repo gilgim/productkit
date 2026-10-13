@@ -1,11 +1,11 @@
 # ProductKit beta installation
 
-This guide installs the same immutable ProductKit Git tag in personal and company development environments. Replace `<OWNER>` with the private repository owner selected by the repository administrator; do not put a token or password in the URL.
+This guide installs the same immutable ProductKit Git tag in personal and company development environments. Do not put a token or password in the URL.
 
 ## Access and prerequisites
 
 - Node.js 20.19 or newer and npm.
-- Access to the private `productkit` repository through an authentication method approved for that account and device, such as Git Credential Manager, `gh` authentication, or the company's approved SSH agent.
+- Git, with access to the GitHub repository. The repository is public; if you use a private fork, authenticate with an approved method such as Git Credential Manager, `gh` authentication, or the company's approved SSH agent.
 - Claude Code or Codex installed and authenticated according to the user's own organization policy.
 
 Company users must use the company-approved GitHub identity, repository access route, and AI tools. Never copy personal GitHub tokens, SSH private keys, Claude credentials, Codex credentials, or local `.env`, `.npmrc`, `.claude/settings.local.json`, `.aws`, or `.ssh` data between environments. Do not embed credentials in Git URLs or shell history.
@@ -15,11 +15,11 @@ Company users must use the company-approved GitHub identity, repository access r
 Authenticate to GitHub with the approved method, then install the tag:
 
 ```sh
-npm install --global "git+https://github.com/<OWNER>/productkit.git#v0.1.0-beta.1"
+npm install --global "git+https://github.com/gilgim/productkit.git#v0.1.0-beta.1"
 productkit --version
 ```
 
-The expected version output is `0.1.0-beta.1`. The package's `prepare` script compiles TypeScript during npm's Git dependency packaging step; the installed package contains the compiled CLI and Skills, but not development dependencies. The Git install requires npm and Git to be able to access the private repository.
+The expected version output is `0.1.0-beta.1`. The package's `prepare` script compiles TypeScript during npm's Git dependency packaging step; the installed package contains the compiled CLI and Skills, but not development dependencies. The Git install requires npm and Git to be able to access the repository.
 
 To update, install the next approved tag explicitly using the same command and replace the tag. To roll back, install a previously approved tag the same way. Avoid an unpinned branch URL for repeatable environments.
 
