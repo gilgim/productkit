@@ -231,7 +231,7 @@ export function computeImpactReport(input: ImpactInput): ImpactReport {
   };
   confirmedImpacts.sort((a, b) => a.depth - b.depth || a.node_ref.localeCompare(b.node_ref));
   potentialImpacts.sort((a, b) => a.depth - b.depth || a.node_ref.localeCompare(b.node_ref));
-  const fingerprint = sha256Hex(canonicalJson({ workspace: workspace.fingerprint, graphEdges, candidates, rules_version: 'graph-impact/1' }));
+  const fingerprint = sha256Hex(canonicalJson({ seed_node_ref: seedNodeId, workspace: workspace.fingerprint, graphEdges, candidates, rules_version: 'graph-impact/1' }));
   return impactReportSchema.parse({
     schema_version: 1,
     analysis_id: `IMP-${fingerprint.slice(0, 16)}`,
