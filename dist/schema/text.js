@@ -14,6 +14,8 @@ export function forbiddenTextIssue(text) {
         return 'contains an HTML/XML tag opener (<tag); write "<" with a space after it';
     if (/javascript:/i.test(text))
         return 'contains a javascript: URL';
+    if (/&#|\]\(|!\[/.test(text))
+        return 'contains markdown link/image syntax or an HTML entity';
     return undefined;
 }
 /**
@@ -23,10 +25,14 @@ export function forbiddenTextIssue(text) {
  */
 /** Fields that hold one sentence may not hold a line break: a line break is how an exported document grows a fake section. */
 export function multilineIssue(text) {
-    return /[\r\n]/.test(text) ? 'contains a line break' : undefined;
+    if (/[\r\n]/.test(text))
+        return 'contains a line break';
+    if (text.length > 2000)
+        return `is ${text.length} characters long (limit 2000)`;
+    return undefined;
 }
 export function saysNo(statement) {
-    return /(않|안\s|안돼|안됨|못|불가|반대|거부|거절|반려|보류|대기|철회|중단|나중|넘어가|패스|다시|수정|미승인|아니|틀렸|취소|싫|ㄴㄴ|^n$|\bno\b|\bnot\b|never|reject|disagree|disapprove|wrong|hold|pending|defer|decline|denied|nope|nah|stop|abort|skip|don't)/i.test(statement.trim());
+    return /(않|안\s|안돼|안됨|안함|못|불가|불승인|비승인|불허|기각|부결|유보|반대|거부|거절|반려|보류|대기|철회|중단|나중|아직|검토 중|넘어가|패스|다시|수정|미승인|조건부|아니|아님|아닙|틀렸|틀림|취소|싫|별로|글쎄|모르|하지마|그만|ㄴㄴ|\?|^n$|\bno\b|\bnot\b|never|reject|disagree|disapprove|wrong|\bhold\b|on hold|pending|defer|decline|denied|nope|nah|stop|abort|skip|don't|maybe|conditional|unsure|\bwait\b|postpone|veto|oppose|refuse|cancel|revise|needs work|incomplete|unapproved|\bfalse\b|nothing|\bnone\b|\bnull\b|guess|opposite)/i.test(statement.trim());
 }
 export function isMeaningfulText(value) {
     if (typeof value !== 'string')

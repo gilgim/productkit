@@ -302,7 +302,7 @@ export function renderPresentation(clarification: Pick<Clarification, 'steps' | 
  * clauses. Neither is forbidden; both need a reason the user will see.
  */
 /** A reason must say something: not a placeholder, not "x". */
-export const isReason = (value: unknown): value is string => isMeaningfulText(value) && value.trim().length >= 6 && contentTokens(value).size >= 2;
+export const isReason = (value: unknown): value is string => isMeaningfulText(value) && value.trim().length >= 6 && contentTokens(value).size >= 2 && [...contentTokens(value)].some(t => t.length >= 3);
 
 export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined {
   const items = clarification.steps.decomposition;
