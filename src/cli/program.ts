@@ -22,7 +22,7 @@ const DESCRIPTION = [
   'ProductKit never calls an LLM. It manages files, schemas and validation;',
   'Claude Code or Codex handles the conversation and the reasoning.',
   '',
-  'Implemented in this release: init, intake, clarify, model, graph, challenge, propose, decide, assumption, migrate, define, validate, approve and export openspec.',
+  'Implemented in this release: init, intake, clarify, atomize, graph, challenge, propose, decide, assumption, migrate, define, validate, approve and export openspec.',
 ].join('\n');
 
 /**
@@ -113,7 +113,7 @@ export function buildProgram(output: Output = consoleOutput): Command {
     });
 
   program
-    .command('model')
+    .command('atomize')
     .description('report Node modeling status, or announce the instruction to run it')
     .option('--clarification <id>', 'target a specific Clarification (defaults to the latest)')
     .exitOverride()

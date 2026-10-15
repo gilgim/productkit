@@ -62,7 +62,7 @@ productkit --version
 productkit init [path]
 productkit intake "<아이디어 프롬프트>"
 productkit clarify
-productkit model
+productkit atomize
 productkit challenge
 productkit propose add --input proposal.yaml
 productkit decide record --input decision.yaml --user-statement "<사용자의 실제 답변>" --rationale "<근거>" --scope "<적용 범위>"
@@ -162,7 +162,7 @@ instruction을 따라 Agent가 작성한다. 사용자의 명시적 해석 확�
 |---|---|
 | `--prompt <id>` | 특정 Prompt를 지정(생략하면 가장 최근 Prompt) |
 
-### `productkit model`
+### `productkit atomize`
 
 confirmed 상태인 Clarification을 단일 검증 대상·분해 가능성·의미 보존 세
 기준으로 원자적 Node로 변환했는지 판정한다. Node 내용 자체는 CLI가 생성하지
@@ -191,7 +191,7 @@ Clarification이 바뀌었으면 완료(`modeled`)로 판정하지 않는다.
 - `productkit intake <text>` — Prompt 원문 보존(append-only), 해시·span 기록
 - `productkit clarify` — Clarification 완료 여부 판정(해석 확인 해시를 매번
   다시 계산, 저장된 상태를 신뢰하지 않음)
-- `productkit model` — Node/NodeGroup 완료 여부 판정(단일 검증 대상·분해
+- `productkit atomize` — Node/NodeGroup 완료 여부 판정(단일 검증 대상·분해
   가능성·의미 보존 세 기준, 위험 신호 게이트, 소스 변경 시 자동 무효화)
 - `productkit graph` — 6종 관계, RelationCandidate 보존, 구조 검증, provenance trace, 영향 분석
 - `productkit challenge` — Finding 및 검토 범위 기록, 완료 coverage 구조 검증

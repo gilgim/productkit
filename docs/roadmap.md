@@ -59,7 +59,7 @@ export.
 
 ## Change 03 — Atomic Node Modeling (구현됨)
 
-- `productkit model` — confirmed Clarification을 입력받아 Node/NodeGroup
+- `productkit atomize` — confirmed Clarification을 입력받아 Node/NodeGroup
   완료 여부를 판정(CLI는 Node 내용을 생성하지 않는다)
 - Node 스키마(`fact`/`inference`/`requirement`/`policy`), `derived_from` 추적
   (Clarification까지만, Prompt는 체인으로 조회)

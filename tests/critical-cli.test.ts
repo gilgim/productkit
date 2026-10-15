@@ -40,14 +40,14 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     const result = cli(w.cwd, 'clarify');
     expect(result.exit).toBe(0); // Existing clarification progress-report convention.
     expect(result.stdout).toContain('not yet complete');
-    expect(cli(w.cwd, 'model').exit).toBe(2);
+    expect(cli(w.cwd,'atomize').exit).toBe(2);
     expect(await readFile(w.clrPath, 'utf8')).toBe(stringify(empty));
   });
   it('accepts complete current artifacts without changing original or Nodes', async () => {
     const w = await workspace();
     const before = await Promise.all([w.sourcePath,w.clrPath,w.groupPath].map(p => readFile(p,'utf8')));
     expect(cli(w.cwd,'clarify').stdout).toContain('Clarification confirmed:');
-    expect(cli(w.cwd,'model').stdout).toContain('NodeGroup modeled:');
+    expect(cli(w.cwd,'atomize').stdout).toContain('NodeGroup modeled:');
     expect(await Promise.all([w.sourcePath,w.clrPath,w.groupPath].map(p => readFile(p,'utf8')))).toEqual(before);
   });
   it('blocks a split-required final Node and accepts preserved lineage after splitting', async () => {
@@ -61,7 +61,7 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     parent.atomicity.single_verifiable_subject.verdict='no'; parent.atomicity.decomposability.verdict='valid_split'; parent.atomicity.final=evaluateAtomicityFinal(parent.atomicity);
     const group = nodeGroupSchema.parse({ ...groupFixture(steps,[parent]), clarification_content_hash: clarificationContentHash(clarification) });
     await writeFile(w.groupPath,stringify(group));
-    const blocked = cli(w.cwd,'model');
+    const blocked = cli(w.cwd,'atomize');
     expect(blocked.stdout).toContain('still requires splitting');
     expect(blocked.stdout).not.toContain('NodeGroup modeled:');
     const originalParent = structuredClone(parent);
@@ -69,7 +69,7 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     group.nodes=['결제가 완료되면 주문을 확정한다.','결제가 완료되면 이메일을 보낸다.'].map((s,i)=>({...atomicNodeFixture(s),id:`NOD-001-${i+2}`,split_from:parent.id}));
     group.distortion_checks=[preservedCheck(0,steps.decomposition[0]!.statement)];
     await writeFile(w.groupPath,stringify(group));
-    expect(cli(w.cwd,'model').stdout).toContain('NodeGroup modeled:');
+    expect(cli(w.cwd,'atomize').stdout).toContain('NodeGroup modeled:');
     expect(group.retired_nodes[0]).toEqual(originalParent);
     expect(group.retired_nodes[0]!.atomicity.final).toBe('split_required');
   });
@@ -78,7 +78,7 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     w.clarification.prompt_ref='PRM-999';
     await writeFile(w.clrPath,stringify(w.clarification));
     expect(cli(w.cwd,'clarify').exit).toBe(2);
-    const result=cli(w.cwd,'model');
+    const result=cli(w.cwd,'atomize');
     expect(result.exit).toBe(2); expect(result.stderr).toContain('missing_prompt');
   });
   it('invalidates clarification and group after raw Prompt change without overwriting downstream', async () => {
@@ -86,15 +86,15 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     await writeFile(w.sourcePath,stringify(changed));
     const before=await Promise.all([w.clrPath,w.groupPath].map(p=>readFile(p,'utf8')));
     expect(cli(w.cwd,'clarify').stdout).toContain('text/hash/spans are inconsistent');
-    expect(cli(w.cwd,'model').exit).toBe(2);
+    expect(cli(w.cwd,'atomize').exit).toBe(2);
     expect(await Promise.all([w.clrPath,w.groupPath].map(p=>readFile(p,'utf8')))).toEqual(before);
   });
   it('invalidates the group after Clarification changes even with a new valid agreement', async () => {
     const w = await workspace(); const steps=validSteps(); steps.definition[0]!.meaning='새롭게 확인한 주문 확정의 정의';
     await writeFile(w.clrPath,stringify(confirmedFixture(steps)));
     expect(cli(w.cwd,'clarify').stdout).toContain('Clarification confirmed:');
-    expect(cli(w.cwd,'model').stdout).toContain('changed');
-    expect(cli(w.cwd,'model').stdout).not.toContain('NodeGroup modeled:');
+    expect(cli(w.cwd,'atomize').stdout).toContain('changed');
+    expect(cli(w.cwd,'atomize').stdout).not.toContain('NodeGroup modeled:');
   });
   it('invalidates the group when only approval history is replaced', async () => {
     const w=await workspace(); const entry=w.clarification.interpretation_check[0]!;
@@ -102,7 +102,7 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     w.clarification.interpretation_check.push({...next,entry_hash:computeEntryHash(next)});
     await writeFile(w.clrPath,stringify(w.clarification));
     expect(cli(w.cwd,'clarify').stdout).toContain('Clarification confirmed:');
-    expect(cli(w.cwd,'model').stdout).not.toContain('NodeGroup modeled:');
+    expect(cli(w.cwd,'atomize').stdout).not.toContain('NodeGroup modeled:');
   });
   it('preserves readable legacy artifacts and requires re-review instead of auto-filling snapshots', async () => {
     const w=await workspace(); delete w.clarification.prompt_content_hash;

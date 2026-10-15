@@ -17,7 +17,7 @@ Codex가 공유한다. CLI는 이 내용을 생성하지 않는다 — 이 instr
 
 ## 진입 조건과 실패 시 대안
 
-1. `productkit model` 실행 결과가 "does not exist"(nodes/ 없음) → 이
+1. `productkit atomize` 실행 결과가 "does not exist"(nodes/ 없음) → 이
    workspace는 Change 03 이전에 만들어진 것이다. `productkit init`을 다시
    실행하라고 안내한다(기존 파일은 안 건드리고 `nodes/`만 추가된다).
 2. "No Clarification found" → `productkit intake`와 `productkit clarify`를
@@ -99,7 +99,7 @@ import('productkit').then(({ evaluateAtomicityFinal }) => {
 "
 ```
 
-`productkit model`은 이 값을 **다시 계산해서 대조**한다 — 세 필드와 안 맞는
+`productkit atomize`은 이 값을 **다시 계산해서 대조**한다 — 세 필드와 안 맞는
 `final`을 적으면(직접 판단해서 끼워 넣으면) `atomicity_final_mismatch`로
 거부된다. AI는 세 필드의 `verdict`/`reason`/`confidence`만 성실하게 채우고,
 `final`은 반드시 함수 결과를 그대로 옮겨 적는다.
@@ -146,13 +146,13 @@ Node별 재확인은 생략하지만(일상적 분해는 그냥 진행), 아래 
 
 ## 완료 조건
 
-`productkit model`을 실행했을 때 "NodeGroup modeled"로 보고되는 것만이
+`productkit atomize`을 실행했을 때 "NodeGroup modeled"로 보고되는 것만이
 완료다. 그 전까지는 몇 번이든 다시 시도할 수 있다.
 
 ## 후속 검증 방법
 
 ```sh
-productkit model [--clarification CLR-xxx]
+productkit atomize [--clarification CLR-xxx]
 ```
 
 이 명령이 완료 여부와 막힌 이유(커버리지 누락/원자성 미확정/열린 위험

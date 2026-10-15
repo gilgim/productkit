@@ -110,7 +110,7 @@ async function model(extra: Record<string, unknown> = {}) {
   return output;
 }
 
-describe('productkit model — entry flow', () => {
+describe('productkit atomize — entry flow', () => {
   it('announces the instruction when no NodeGroup exists yet', async () => {
     await writeConfirmedClarification();
     const output = await model();
@@ -165,7 +165,7 @@ describe('productkit model — entry flow', () => {
   });
 });
 
-describe('productkit model — completion judgement', () => {
+describe('productkit atomize — completion judgement', () => {
   it('[독립 행동 3개 분해] a NodeGroup with three action Nodes sharing the trigger is modeled', async () => {
     await writeConfirmedClarification();
     const nodes: Node[] = [0, 1, 2].map((i) =>
@@ -486,7 +486,7 @@ describe('productkit model — completion judgement', () => {
     expect(text).toMatch(/1, 2/);
   });
 
-  it('[쓰기 실패] `productkit model` itself never writes to product/nodes/ (read + judge only)', async () => {
+  it('[쓰기 실패] `productkit atomize` itself never writes to product/nodes/ (read + judge only)', async () => {
     await writeConfirmedClarification();
     const nodes = [0, 1, 2].map((i) =>
       atomicNode({
@@ -507,7 +507,7 @@ describe('productkit model — completion judgement', () => {
     });
     const before = await readFile(path.join(root, 'product', 'nodes', 'NDG-001.yaml'), 'utf8');
 
-    // Even if product/nodes/ is made read-only, `model` still succeeds —
+    // Even if product/nodes/ is made read-only, `atomize` still succeeds —
     // it only reads and reports. Only the Agent (via SKILL.md) writes NodeGroup files.
     await chmod(path.join(root, 'product', 'nodes'), 0o500);
     const output = await model();
@@ -534,7 +534,7 @@ describe('productkit model — completion judgement', () => {
   });
 });
 
-describe('productkit model — CLI does not generate Node content', () => {
+describe('productkit atomize — CLI does not generate Node content', () => {
   it('model.ts contains no statement-generation logic (only reads, judges, and reports)', async () => {
     const source = await readFile(
       new URL('../src/cli/commands/model.ts', import.meta.url),
