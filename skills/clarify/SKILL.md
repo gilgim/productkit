@@ -1,157 +1,97 @@
 ---
 name: productkit-clarify
-description: Clarify a raw product idea saved by `productkit intake` into confirmed, traceable Clarification artifacts (definition, decomposition, specifics, relations, counter-examples, interpretation). Use after intake, or when the user wants to sharpen a vague product idea.
+description: Clarify a raw product idea saved by `productkit intake` into a confirmed, traceable Clarification (definition, decomposition, elaboration, relations, counter-examples, span coverage, interpretation check). Use after intake, or when the user wants to sharpen a vague product idea.
 ---
 
 # Clarify Skill
 
-ProductKit의 Phase 2(Clarification) instruction이다. Claude Code와 Codex가 공유한다.
-`docs/architecture.md` 3장의 원칙 그대로 CLI는 이 내용을 생성하지 않는다 — 이
-instruction을 읽고 따르는 건 Agent의 일이다.
+ProductKit의 Phase 2(Clarification) instruction이다. CLI는 이 내용을 생성하지
+않는다 — 이 instruction을 읽고 따르는 건 Agent의 일이다. 정확한 필드 목록은
+이 문서가 아니라 `productkit schema clarification` 이 원본이다. 이 문서와 CLI
+출력이 다르면 CLI 가 맞다.
 
 ## 목적
 
-`product/sources/`에 저장된 프롬프트 원문을 정의·분해·구체화·관계검증·반례검증·
-해석확인 6단계로 명료화해, 원문과 추론이 분리되고 사용자가 명시적으로 확인한
-Clarification artifact를 만든다.
+`product/sources/PRM-xxx.yaml` 의 원문을 **빠짐없이** 다룬 Clarification 을 만들고,
+사용자가 CLI 가 그려 준 내용을 보고 직접 동의하게 한다. 원문과 추론을 분리하고,
+원문의 어떤 문장도 조용히 사라지지 않게 하는 것이 이 단계의 전부다.
 
-## 진입 조건과 실패 시 대안
+## 진입
 
-이 Skill은 Claude Code의 네이티브 자동선택 기능 없이도 동작해야 한다 — 사용자가
-자연어로 아이디어를 설명하면 Agent가 직접 판단해 아래 명령을 실행한다.
+1. `productkit` 이 없다 → 설치 안내(`README.md`). 더 진행하지 않는다.
+2. `productkit clarify` 가 "No ProductKit workspace found" → `productkit init`.
+3. "No prompt found" → `productkit intake -- "<프롬프트>"` (원문이 `-` 로 시작하면 `--` 가 필요하다).
+4. 그 외는 CLI 가 알려주는 입력·출력 경로를 따른다.
 
-1. `productkit` 명령을 찾을 수 없다 → 사용자에게 설치를 안내한다(`README.md`
-   참고). 이 instruction을 더 진행할 수 없다.
-2. `productkit clarify` 실행 결과가 "No ProductKit workspace found" → 먼저
-   `productkit init`을 실행하라고 안내한다.
-3. `productkit clarify` 실행 결과가 "No prompt found" → 먼저 `productkit intake
-   "<프롬프트>"`를 실행하라고 안내한다.
-4. 위 세 경우가 아니면 CLI가 안내하는 입력 경로·출력 경로를 그대로 따른다.
+## 입력 · 출력
 
-## 입력 파일
+- 입력 `product/sources/PRM-xxx.yaml` — **수정하지 않는다.** `spans` 가 원문을
+  문장 단위로 자른 목록이다.
+- 출력 `product/discovery/CLR-xxx.yaml` (xxx 는 Prompt 와 같은 번호). 정확한 형식:
+  `productkit schema clarification`. Agent 가 쓰는 부분은 `steps` 와
+  `finding_candidates` 뿐이다. `interpretation_check` 는 손으로 쓰지 않는다
+  (아래 "해석 확인").
 
-- `product/sources/PRM-xxx.yaml` — 프롬프트 원문(`raw_text`), span 목록. **수정하지
-  않는다.**
+## steps 를 쓰는 규칙
 
-## 출력 파일
+- `definition[].origin` 은 `user_stated`(사용자가 직접 말함) 또는
+  `ai_inferred`. 추측한 정의를 `user_stated` 로 적지 **않는다**.
+- `decomposition[]` — 요구사항 하나에 항목 하나. `span_refs` 는 그 문장이 나온
+  Prompt span id.
+  - span 여러 개를 한 항목에 묶으면 `merge_reason` 필수.
+  - 쉼표·접속어가 많은 span(CLI 가 3개 이상이면 지적한다)을 혼자 한 문장으로
+    읽으면 `single_statement_reason` 필수. 이유를 못 대면 나눈다.
+  - 원문에 없는 내용을 지어내 넣지 않는다.
+- `elaboration[]` — decomposition 의 각 `statement` 와 **글자 그대로 같은**
+  `statement` 로 하나씩. actor·object·condition·action·result 를 채운다.
+- `relation_check[]` — `statement_a`·`statement_b` 는 서로 다른 두 decomposition
+  `statement` 를 글자 그대로. 후보가 없으면 목록을 비우고
+  `relation_check_no_items_reason` 에 왜 없는지 적는다(둘 다 있으면 거부).
+- `counterexample[]` — 모호한 문장마다 해석 후보 2개 이상. 없으면 비우고
+  `counterexample_no_items_reason`.
+- **원문 전수 처리 (Constitution 11).** Prompt 의 모든 span 은 셋 중 한 곳에 있어야
+  한다. 하나라도 빠지면 `uncovered_spans` 로 거부된다.
+  1. `decomposition[].span_refs` — 요구사항으로 읽었다.
+  2. `finding_candidates[].span_refs` — 모호·모순·전제 누락이라 질문으로 남겼다.
+     이 후보는 나중에 Challenge 에서 **사용자가 확인한 Finding** 으로 올라가야
+     validate 를 통과한다. 쓰레기통이 아니다.
+  3. `steps.span_coverage` — 요구사항이 아니다(제목·비유·예시·서술). `reason` 한 줄.
+- 모호성·모순은 임의로 하나를 골라 확정하지 않고 `finding_candidates` 에 남긴다.
+- YAML 문자열 안에 `"..."` 인용부호를 그대로 넣지 않는다(파싱 오류). 작은따옴표
+  규칙(`''`) 을 쓰거나 따옴표 없이 쓴다.
 
-- `product/discovery/CLR-xxx.yaml` (xxx는 입력 Prompt와 같은 번호) — 아래 schema를
-  그대로 따르는 YAML 하나.
+## 해석 확인 (완료 조건)
 
-```yaml
-id: CLR-001
-prompt_ref: PRM-001
-steps:
-  definition: []        # [{term, meaning, origin: user_stated | ai_inferred}]
-  decomposition: []     # [{statement, span_refs: [Prompt의 spans id, ...]}]
-  elaboration: []        # [{statement, actor?, object?, condition?, action?, result?}]
-  relation_check: []     # [{statement_a, statement_b, relation_candidate}]
-  relation_check_no_items_reason: ""   # relation_check가 비면 필수 — 왜 후보가 없는지
-  counterexample: []     # [{ambiguity, possible_interpretations: [...]}]
-  counterexample_no_items_reason: ""   # counterexample이 비면 필수
-  span_coverage: []      # [{span_ref, disposition: non_requirement, reason}] — 아래 "원문 전수 처리"
-status: in_progress      # in_progress | awaiting_confirmation | confirmed
-interpretation_check: [] # 아래 "해석 확인" 참고 — 이력 목록, 과거 항목 수정 금지
-finding_candidates: []   # [{statement, type: ambiguity|contradiction|missing_premise, span_refs}]
-```
+사용자에게 보여주는 문장은 **CLI 가 만든다.** Agent 가 요약해서 보여주지 않는다.
 
-## 원문 전수 처리 (Constitution 11)
+1. `productkit clarify` 를 실행한다. steps 가 온전하면 `Show the user` 아래에
+   원문 → 해석 쌍, 요구사항 아님 목록, 질문 후보 목록이 찍힌다. steps 에 문제가
+   있으면 이유(`uncovered_spans`, `missing_merge_reason`, …)가 찍힌다. 고치고 다시
+   실행한다.
+2. 그 블록을 **그대로** 사용자에게 보여주고 동의를 구한다. 여기서 사용자가 틀린
+   해석·잘못 제외된 문장을 잡는다.
+3. 사용자 응답 기록은 `productkit clarify confirm --response agreed|disagreed|partially_agreed`
+   이다. 이 명령은 블록을 다시 그리고, `presented_hash`·`entry_hash` 를 계산하고,
+   사용자 발언을 **실행한 터미널에서 직접** 읽어 `interpretation_check` 에 붙인다.
+   - Agent 는 터미널이 없어 이 명령을 끝낼 수 없다("No terminal is attached").
+     그게 정상이다. 명령을 사용자에게 넘기고 멈춘다.
+   - `product/config.yaml` 이 `attestation: flag` 일 때만 `--user-statement "<사용자
+     발언 원문>"` 을 Agent 가 넘길 수 있고, 그 워크스페이스의 모든 검증 보고에
+     경고가 붙는다. 그 줄을 Agent 가 바꾸지 않는다.
+4. 동의하지 않으면 steps 를 고치고 1~3 을 반복한다. 이전 항목은 그대로 둔다.
+   steps 가 바뀌면 이전 동의는 무효다(해시가 안 맞는다).
 
-Prompt의 모든 span은 셋 중 하나에 반드시 들어간다. 하나라도 빠지면 CLI가
-`uncovered_spans`로 완료를 거부한다.
-
-1. `decomposition[].span_refs` — 요구사항으로 분해했다.
-2. `finding_candidates[].span_refs` — 모호·모순·전제 누락이라 질문으로 남겼다.
-3. `steps.span_coverage` — 요구사항이 아니다(제목·비유·예시·서술). `reason`에
-   왜 요구사항이 아닌지 한 줄로 적는다.
-
-`span_coverage`는 `steps` 안에 있으므로 사용자가 해석 확인에서 같이 동의한다.
-"이 문장은 요구사항이 아니다"도 AI 혼자 정하지 않는다. 긴 원문에서 span이
-수십 개여도 전부 처리한다 — 그게 이 단계의 일이다. 처리 안 한 span을 CLI가
-목록으로 알려준다(`productkit clarify`).
-
-## 필수 필드와 금지 행동
-
-- `definition[].origin`은 반드시 `user_stated`(사용자가 직접 말함) 또는
-  `ai_inferred`(AI 추론)여야 한다. AI가 추측한 정의를 `user_stated`로 적지
-  **않는다**.
-- `decomposition[].span_refs`는 입력 Prompt의 `spans` id를 가리켜야 한다. Prompt에
-  없는 내용을 새로 지어내 넣지 않는다.
-- 모호성이나 모순을 발견하면 임의로 하나를 골라 확정하지 않고
-  `finding_candidates`에 남긴다. **추측으로 메우지 않는다.**
-- `relation_check`는 참고 메모일 뿐이다. 확정된 관계(Graph edge)인 것처럼
-  취급하지 않는다 — 그건 이후 Change의 범위다.
-- CLI가 완료를 판정한다. 이 파일에 `status: confirmed`라고 적는다고 해서
-  완료로 인정되지 않는다 — `productkit clarify`를 다시 실행해 실제 판정을
-  확인한다.
-- YAML 문자열 안에 인용부호(`"..."`)를 그대로 넣지 않는다. `"마감일이 지나면"`
-  처럼 겹따옴표로 특정 표현을 인용하면 YAML 파싱 오류가 난다(실제로 겪은
-  문제). 따옴표 없이 쓰거나, 정 필요하면 YAML 작은따옴표 규칙(`''`로 이스케이프)
-  을 따른다.
-
-## 해석 확인 (완료의 핵심 조건)
-
-1. `steps`를 바탕으로 사용자 의도를 논리 구조 그대로 재구성한 문장을 만들어
-   (`presented_statement`) 원문과 나란히 사용자에게 보여주고 동의를 구한다.
-2. `steps` 전체를 정규화(키 정렬 JSON)해 해시한다. 설치된 `productkit` 패키지의
-   `stepsContentHashFromYaml(yamlText)` 함수를 그대로 쓴다 — 직접 구현하거나
-   다른 YAML 파서를 따로 불러오지 않는다(해시 방식이 CLI의 검증 로직과
-   반드시 같아야 하고, `yaml` 패키지를 이 프로젝트가 별도로 의존하지 않아도
-   되게 하기 위함). 예:
-
-   ```sh
-   node -e "
-   const fs = require('fs');
-   import('productkit').then(({ stepsContentHashFromYaml }) => {
-     const text = fs.readFileSync(process.argv[1], 'utf8');
-     console.log(stepsContentHashFromYaml(text));
-   });
-   " product/discovery/CLR-001.yaml
-   ```
-
-3. 사용자의 실제 응답을 받는다 — `agreed`, `disagreed`, `partially_agreed` 중
-   하나와 **실제 발언 원문**(`user_statement`, 반드시 채운다).
-4. 새 `interpretation_check` 항목을 **추가**한다(기존 항목을 고치지 않는다):
-
-   ```yaml
-   - id: IC-001
-     presented_statement: "..."
-     presented_hash: "<2번에서 계산한 해시>"
-     user_response: agreed
-     user_statement: "<사용자의 실제 발언>"
-     checked_at: "2026-10-12T00:00:00Z"
-     entry_hash: "<computeEntryHash로 계산한 값>"
-   ```
-
-   `entry_hash`도 같은 방식으로 `productkit` 패키지의 `computeEntryHash({id 제외,
-   entry_hash 제외한 나머지 필드})`를 써서 계산한다.
-5. 사용자가 동의하지 않으면 관련 단계를 다시 수행하고 2~4를 반복한다. **기존
-   `interpretation_check` 항목은 그대로 둔다.**
-6. `steps`를 수정한 뒤에는 이전 `interpretation_check`가 더는 현재 내용을
-   대표하지 않는다 — 반드시 새 라운드로 다시 확인받는다.
-
-**중요한 한계**: 이 해시들은 "기록이 바뀌지 않았는지" 확인하는 용도일 뿐이다.
-사용자가 실제로 그렇게 말했는지, 또는 누군가 파일을 직접 고쳤는지를 막거나
-증명하지 않는다 — 들키지 않고 고칠 수 없게 할 뿐, 고치는 행위 자체를 막지는
-못한다.
+`interpretation_check` 항목을 손으로 조립해야 하는 경우(테스트 등)에만
+`productkit hash steps` 와 `productkit hash entry --input <yaml>` 을 쓴다.
 
 ## 질문 조건
 
-반례 검증에서 모호성을 발견했거나, 구체화에 필요한 정보(주체·대상·조건·행동·
-결과)가 원문에 없을 때 사용자에게 질문한다. "더 자세히 알려주세요" 같은
-일반적인 질문은 반복하지 않는다 — 구체적으로 무엇이 불명확한지 말한다.
+반례 검증에서 모호성을 발견했거나 구체화에 필요한 정보(주체·대상·조건·행동·
+결과)가 원문에 없을 때 질문한다. "더 자세히 알려주세요" 같은 일반 질문은
+하지 않는다 — 무엇이 불명확한지 말한다. 질문으로 남긴 것은 `finding_candidates`
+에 남겨야 뒤 단계가 잊지 않는다.
 
-## 완료 조건
+## 완료
 
-`productkit clarify`를 실행했을 때 "Clarification confirmed"로 보고되는 것만이
-완료다. 그 전까지는 몇 번이든 다시 시도할 수 있다.
-
-## 후속 검증 방법
-
-```sh
-productkit clarify
-```
-
-이 명령이 완료 여부와 그 이유(미확인/해시불일치/무결성위반 등)를 그대로
-알려준다. AI는 이 출력을 신뢰하되, 이 출력 자체도 "기록이 무결하다"는 뜻이지
-"사용자가 실제로 동의했음을 증명한다"는 뜻이 아님을 기억한다.
+`productkit clarify` 가 "Clarification confirmed" 를 찍는 것만이 완료다. 그
+출력은 기록이 무결하다는 뜻이지 사용자의 동의 자체를 증명하지는 않는다.

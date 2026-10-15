@@ -35,13 +35,19 @@ Codex가 공유한다. CLI는 이 내용을 생성하지 않는다 — 이 instr
 
 ## 출력 파일
 
-- `product/nodes/NDG-xxx.yaml`(xxx는 입력 Clarification과 같은 번호) — 아래
-  schema를 따르는 YAML 하나.
+- `product/nodes/NDG-xxx.yaml`(xxx는 입력 Clarification과 같은 번호). **정확한
+  필드 목록은 `productkit schema node-group`** 이다 — 아래 예시는 뼈대일 뿐이고,
+  schema 명령 출력에 있는 필드(예: `distortion_checks[].condition_preservation` ·
+  `operator_preservation` · `exception_preservation`, 각각 `{verdict, reason}`)는
+  예시에 없어도 전부 채운다.
+- `source_content_hash` 와 `clarification_content_hash` 는 손으로 계산하지 않는다.
+  `productkit hash node-group --clarification CLR-xxx` 가 둘 다 찍어 준다.
 
 ```yaml
 id: NDG-001
 clarification_ref: CLR-001
-source_content_hash: "<steps 전체의 정규화 해시>"
+source_content_hash: "<productkit hash node-group 출력>"
+clarification_content_hash: "<productkit hash node-group 출력>"
 nodes:
   - id: NOD-001-1
     kind: fact | inference | requirement | policy
@@ -84,19 +90,14 @@ status: in_progress   # in_progress | needs_review | modeled — CLI가 다시 �
 
 **`final`을 직접 지어내지 않는다.** `productkit` CLI는 NodeGroup 파일을 쓰지
 않으므로(읽고 판정만 한다), `final`도 AI가 채워야 한다 — 단, 값을 스스로
-고르지 말고 설치된 `productkit` 패키지의 `evaluateAtomicityFinal()` 함수에
-위 세 필드값을 그대로 넣어 나온 결과를 적는다:
+고르지 말고 세 필드를 YAML 파일에 적어 CLI 에 넣고 나온 값을 그대로 옮긴다:
 
 ```sh
-node -e "
-import('productkit').then(({ evaluateAtomicityFinal }) => {
-  console.log(evaluateAtomicityFinal({
-    single_verifiable_subject: { verdict: 'yes', reason: '...' },
-    decomposability: { verdict: 'not_applicable', reason: '...' },
-    meaning_preservation: { verdict: 'preserved', confidence: 'high', reason: '...' },
-  }));
-});
-"
+productkit hash atomicity --input atomicity.yaml
+# atomicity.yaml:
+#   single_verifiable_subject: { verdict: "yes", reason: "..." }
+#   decomposability: { verdict: "not_applicable", reason: "..." }
+#   meaning_preservation: { verdict: "preserved", confidence: "high", reason: "..." }
 ```
 
 `productkit atomize`은 이 값을 **다시 계산해서 대조**한다 — 세 필드와 안 맞는

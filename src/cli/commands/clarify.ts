@@ -1,15 +1,22 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { stringify as stringifyYaml } from 'yaml';
+
 import { CliError, ExitCode, describeCause } from '../../errors.js';
-import { latestId } from '../../clarification/io.js';
+import { atomicReplaceIfUnchanged, latestId } from '../../clarification/io.js';
 import { SKILLS_ROOT } from '../../clarification/skills.js';
-import { ensureWorkspace, markStage, readSourcePrompt } from '../../clarification/workspace.js';
+import { ensureWorkspace, markStage, readAttestationPolicy, readSourcePrompt, readStatementFromTerminal } from '../../clarification/workspace.js';
 import {
   type CompletionBlockReason,
+  clarificationStepsIssue,
+  computeEntryHash,
   judgeCompletion,
+  mergeReasonIssue,
   parseClarification,
   renderPresentation,
+  stepsContentHash,
+  uncoveredSpans,
 } from '../../schema/clarification.js';
 import type { Output } from '../output.js';
 
@@ -67,6 +74,71 @@ function printSkippedSpans(clarification: { steps: { span_coverage?: Array<{ spa
     const text = span ? prompt.raw_text.slice(span.start, span.end).trim().replace(/\s+/g, ' ') : '(span not found)';
     output.out(`    ${item.span_ref}  "${text.length > 80 ? `${text.slice(0, 77)}...` : text}"  — ${item.reason}`);
   }
+}
+
+export interface ClarifyConfirmOptions {
+  prompt?: string | undefined;
+  response: 'agreed' | 'disagreed' | 'partially_agreed';
+  /** Omit to read the statement from the terminal (required under attestation: tty). */
+  userStatement?: string | undefined;
+  cwd?: string | undefined;
+  now?: Date | undefined;
+}
+
+/**
+ * Appends one interpretation_check entry. The CLI renders the presentation,
+ * computes presented_hash and entry_hash, and — with no --user-statement —
+ * reads the user's words from the controlling terminal after printing the
+ * rendered block there. The agent never assembles the entry by hand.
+ */
+export async function runClarifyConfirm(options: ClarifyConfirmOptions, output: Output): Promise<void> {
+  const cwd = options.cwd ?? process.cwd();
+  const productRoot = path.join(cwd, 'product');
+  await ensureWorkspace(productRoot);
+  const sourcesDir = path.join(productRoot, 'sources');
+  const promptId = options.prompt ?? (await latestId(sourcesDir, 'PRM'));
+  if (!promptId) throw new CliError('No prompt found.', ExitCode.USAGE_OR_IO);
+  const sourcePrompt = await readSourcePrompt(productRoot, promptId);
+  if (!sourcePrompt) throw new CliError(`Prompt ${promptId} does not exist.`, ExitCode.USAGE_OR_IO);
+  const clarificationId = `CLR-${promptId.slice('PRM-'.length)}`;
+  const clarificationPath = path.join(productRoot, 'discovery', `${clarificationId}.yaml`);
+  const before = await readFile(clarificationPath, 'utf8').catch(() => { throw new CliError(`${clarificationPath} does not exist; write the Clarification steps first.`, ExitCode.USAGE_OR_IO); });
+  const clarification = parseClarification(before);
+  if (clarification.prompt_ref !== promptId) throw new CliError('Clarification does not reference the selected Prompt.', ExitCode.USAGE_OR_IO);
+
+  // The steps must already be sound; a confirmation of broken steps is noise.
+  const stepsIssue = clarificationStepsIssue(clarification.steps);
+  if (stepsIssue) throw new CliError(`Clarification steps are not complete: ${stepsIssue.detail ?? stepsIssue.reason}`, ExitCode.GATE_BLOCKED);
+  const uncovered = uncoveredSpans(clarification, sourcePrompt);
+  if (uncovered.length) throw new CliError(`Prompt spans not accounted for: ${uncovered.join(', ')}`, ExitCode.GATE_BLOCKED, ['Decompose them, raise them as finding candidates, or list them in steps.span_coverage with a reason.']);
+  const merge = mergeReasonIssue(clarification, sourcePrompt);
+  if (merge) throw new CliError(merge, ExitCode.GATE_BLOCKED);
+
+  const presented = renderPresentation(clarification, sourcePrompt);
+  const policy = await readAttestationPolicy(productRoot);
+  const attestation: 'tty' | 'flag' = options.userStatement === undefined ? 'tty' : 'flag';
+  if (policy.policy === 'tty' && attestation !== 'tty') throw new CliError('This workspace requires the confirmation to be typed on a terminal (config attestation: tty).', ExitCode.GATE_BLOCKED, [`Run \`productkit clarify confirm --response ${options.response}\` without --user-statement, in a terminal; the CLI shows the rendered block and asks for the statement.`, 'An agent cannot do this step; hand the command to the user.']);
+  const statement = options.userStatement ?? await readStatementFromTerminal(`${presented}\n\n위 내용에 대한 응답: ${options.response}\n당신의 말로 한 줄 적고 Enter (비우면 취소): `);
+  if (!statement.trim()) throw new CliError('Confirmation cancelled: empty statement.', ExitCode.USAGE_OR_IO);
+
+  const index = clarification.interpretation_check.length + 1;
+  const base = {
+    id: `IC-${String(index).padStart(3, '0')}`,
+    presented_statement: presented,
+    presented_hash: stepsContentHash(clarification.steps),
+    prompt_ref: sourcePrompt.id,
+    prompt_content_hash: sourcePrompt.content_hash,
+    user_response: options.response,
+    user_statement: statement.trim(),
+    attestation,
+    checked_at: (options.now ?? new Date()).toISOString(),
+  };
+  const entry = { ...base, entry_hash: computeEntryHash(base) };
+  const next = { ...clarification, prompt_content_hash: sourcePrompt.content_hash, interpretation_check: [...clarification.interpretation_check, entry], status: options.response === 'agreed' ? 'confirmed' as const : 'awaiting_confirmation' as const };
+  await atomicReplaceIfUnchanged(clarificationPath, before, stringifyYaml(next));
+  output.out(`Recorded ${entry.id} (${options.response}, attestation: ${attestation}) on ${clarificationId}.`);
+  const judgement = judgeCompletion(parseClarification(stringifyYaml(next)), sourcePrompt);
+  output.out(judgement.confirmed ? `Clarification confirmed: ${clarificationId}` : `Clarification not yet complete: ${REASON_MESSAGES[judgement.reason]}`);
 }
 
 export async function runClarify(options: ClarifyOptions, output: Output): Promise<void> {

@@ -18,6 +18,6 @@ If the user says no, continue normally and do not ask again this session.
 ## If yes
 
 1. No `product/` folder in the working directory → run `productkit init`. If `productkit` is not found, run `npx --yes github:gilgim/productkit init` or tell the user to install it.
-2. Save the user's raw words: `productkit intake "<idea, verbatim>"`.
-3. Follow the skills in order: `productkit-clarify` → `productkit-model` → `productkit-graph` → `productkit-challenge` → `productkit-propose` → `productkit-define` → `productkit-validate`.
-4. Never confirm, approve or decide on the user's behalf.
+2. Save the user's raw words: `productkit intake -- "<idea, verbatim>"` (the `--` keeps a leading `-` from being read as an option).
+3. Follow the skills in order: `productkit-clarify` (command `clarify`) → `productkit-model` (command `atomize`) → `productkit-graph` → `productkit-challenge` → `productkit-propose` → `productkit-define` → `productkit-validate`. Exact artifact shapes: `productkit schema <name>`; hashes: `productkit hash ...`.
+4. Never confirm, approve or decide on the user's behalf. `clarify confirm`, `challenge finding confirm`, `decide record` and `approve record` read the user's words from the terminal; when they refuse you with "No terminal is attached", show the user the exact command and stop.

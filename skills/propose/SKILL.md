@@ -9,7 +9,7 @@ Use this skill after Challenge has produced Findings. The CLI validates local st
 
 ## Review sequence
 
-1. Read current Findings, their review state, evidence and linked Challenge/Graph inputs. Work only from current hashes; report stale inputs instead of reusing them.
+1. Read current Findings, their review state, evidence and linked Challenge/Graph inputs. A Proposal may only target Findings with `review_status: confirmed`; if the user has not confirmed a Finding, hand them `productkit challenge finding confirm <id> ...` and wait. Work only from current hashes; report stale inputs instead of reusing them. Input shapes: `productkit schema proposal`, `productkit schema decision`.
 2. Present alternatives with evidence, expected impacts, side effects, benefits, costs, risks, assumptions and residual issues. For every Proposal option, state its approach for every targeted Finding.
 3. Keep an AI recommendation separate from the user's choice. Save Proposal input with `productkit propose add --input <yaml>`; this records alternatives only.
 4. Ask the user to choose an option or state a different decision. Preserve the user's exact words in `--user-statement`; if no answer is given, stop without creating a Decision.

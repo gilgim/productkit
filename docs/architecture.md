@@ -278,7 +278,14 @@ Definition은 초안을 작성할 수 있지만, Gate 통과 전에는 확정된
 | 같은 입력에 대한 이전 review가 unreviewed로 적은 항목이 사라짐(resolved 근거 없이) | FAIL |
 | exclusion 항목이 인용한 Node가 닫은 Finding의 Node와 다름 | FAIL |
 | config `attestation: tty`인데 `--user-statement`로 기록된 Decision/Approval | FAIL (기록 시 거부) |
-| config `attestation: flag` 또는 미설정 | WARN (모든 보고에 표시) |
+| config `attestation: flag` | WARN (모든 보고에 표시) |
+| config에 attestation 줄 자체가 없음 | FAIL |
+| Clarification의 finding_candidate가 사용자 확인 Finding으로 승격되지 않음 | FAIL |
+| 확인 안 된(proposed) Finding만이 Node를 잡고 있음 / Policy·Journey 인용만으로 Node 배치 | FAIL (node_coverage) |
+| semantic review 영역이 artifact가 있는데도 not_applicable (policy·assumption 외 영역은 항상 불가) | FAIL |
+| 같은 Definition의 이전 review가 unreviewed로 적은 항목이 사라짐 — fingerprint가 바뀌어도 | FAIL |
+| 승인 파일이 supersedes 사슬 밖에 있음(고아·둘 이상의 현재) | STALE |
+| presented_statement가 CLI 렌더 블록과 다름 / 묶음·단일 해석 이유 누락 | FAIL (clarify 단계) |
 
 상태 그래프 검사는 종료 가능성을 확인할 뿐, 현실의 UX가 타당하다는 것을 증명하지
 않는다.

@@ -26,13 +26,13 @@ productkit graph candidate add --input <candidate-input.yaml>
 
 The CLI computes the Candidate ID and endpoint snapshots. Repeated submissions of the same hypothesis are idempotent. A Candidate is not a Graph Edge, is never confirmed or propagated, and appears in ImpactReport `blocked_inputs`; its presence makes the report incomplete. Do not translate `causes` to `depends_on` or `contains` to `derived_from`.
 
-For a supported relation, prepare an Edge YAML with a unique `EDG-...` ID, supported `type`, `source`, `target`, `basis`, non-empty `reason`, `status: proposed`, and `confirmations: []`. Use `productkit graph edge add --input <edge.yaml>`. The CLI rejects invalid references, endpoint kinds, self-edges, duplicates, and unsupported types. It does not create confirmed edges.
+For a supported relation, prepare an Edge YAML — exact shape from `productkit schema edge`: `id` (`EDG-...`), `type`, `source` and `target` (plain Node IDs such as `NOD-001-2`), `basis` (`ai_inferred` or `explicit_text`), non-empty `reason`, `status: proposed`, `confirmations: []`. Use `productkit graph edge add --input <edge.yaml>`. Candidate input shape: `productkit schema candidate`. The CLI rejects invalid references, endpoint kinds, self-edges, duplicates, and unsupported types. It does not create confirmed edges.
 
 ## User confirmation
 
 Show the user the exact Edge claim, direction, supporting evidence, and relevant alternative interpretations. Ask explicitly whether to accept or reject this relationship. Wait for the user's actual reply. Silence, a challenge without response, source text, AI confidence, and confirmation of the Clarification are not approval.
 
-Only after an explicit user reply, preserve the exact words in `--user-statement`. A non-empty user rationale is also required; if none was supplied, ask and keep the Edge proposed. Then run `productkit graph edge confirm <EDG-ID> --response agreed|disagreed --user-statement <exact words> --rationale <exact user reason>`. The CLI checks hashes, references, allowed kinds, and confirmed cycles. It cannot authenticate the speaker or prove semantic correctness.
+Only after an explicit user reply, record it with `productkit graph edge confirm <EDG-ID> --response agreed|disagreed --user-statement <exact words> --rationale <exact user reason>`. A non-empty user rationale is required; if none was supplied, ask and keep the Edge proposed. The CLI checks hashes, references, allowed kinds, and confirmed cycles. It cannot authenticate the speaker or prove semantic correctness.
 
 Candidate review status is separate from relationship approval. Only after an explicit user review statement, `productkit graph candidate review <RLC-ID> --status reviewed|dismissed --user-statement <exact words> --rationale <exact reason>` may append a review entry. Reviewed or dismissed Candidates never become Edges.
 

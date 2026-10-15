@@ -120,16 +120,22 @@ ProductKit was fuzzed against its own gate. Everything in the left column once r
 | A Finding marked resolved by a Decision that does not target it | A fidelity verdict of `same` that is a lie — each item/Node pair gets its own line, so the lie has to be written N times, with a reason each time |
 | A Definition with no requirement or acceptance criterion | A person at the terminal who types what the agent dictated |
 | A review that quietly drops an item an earlier review listed as unreviewed | A prompt that was already wrong when it was taken in |
-| A `--user-statement` passed by whoever ran the command, when the workspace requires it typed on a terminal | |
+| A `--user-statement` passed by whoever ran the command, when the workspace requires it typed on a terminal | A file an agent forges by hand with the right hashes (`attestation: tty` is a field like any other) — visible only in `git diff` |
+| A sentence of the prompt parked as a "finding candidate" and never promoted to a Finding the user confirmed | |
+| An agent-written Finding "holding" a Node out of the Definition; a Policy citing Nodes as cover | |
+| A review area marked not-applicable when the artifact exists; a later review that drops an earlier unreviewed item | |
+| A second Approval outside the supersedes chain posing as current | |
 | Any input edited after approval (hash goes stale) | |
 
 How the right column got short: the first fuzz left "distortion" and "impersonation" to a human reader. That was a process gap, not a limit. The process now forces the shape of what the human reads and who types:
 
-- **The user agrees to the original, not a summary.** The statement confirmed in `clarify` must quote every sentence it decomposed or set aside, verbatim, or it does not count.
+- **The user reads what the CLI renders, not what the agent summarizes.** `productkit clarify` prints the block the user is asked to agree to: every sentence of the prompt paired with its reading, every sentence set aside with its reason, every question left open. `clarify confirm` records the answer from the user's terminal. A confirmation whose text differs from that block does not count. Merging several sentences into one reading, or reading a many-clause sentence as one statement, needs a stated reason the user sees.
 - **One verdict per pair.** The semantic review must say, for every Definition item and every Node it cites, whether the item is the same, narrower, broader or contradicts — and why. Blanket "all preserved" cannot be written.
 - **Evidence must be the right kind.** `graph_impact` needs an ImpactReport, `traceability` needs a Decision and the Prompt, and so on. "Cited something" is not enough.
 - **Nothing falls off the unreviewed list.** A later review of the same inputs must keep each earlier unreviewed item or resolve it with evidence.
-- **Statements are typed, not passed.** With `attestation: tty` (the default), `decide record` and `approve record` read the user's words from the terminal that runs them. An agent has no terminal and is refused; it hands the command to the user. Setting `attestation: flag` is allowed, visible in `git diff`, and warned on every report.
+- **Statements are typed, not passed.** With `attestation: tty` (the default), `clarify confirm`, `challenge finding confirm`, `decide record` and `approve record` read the user's words from the terminal that runs them. An agent has no terminal and is refused; it hands the command to the user. Setting `attestation: flag` is allowed, visible in `git diff`, and warned on every report.
+
+The skills no longer carry hand-maintained field lists either: `productkit schema <artifact>` prints the exact JSON Schema the gate validates, `productkit hash ...` prints the hashes it recomputes, and a test fails the build if a skill names a command the CLI does not have.
 
 What is left is a person who reads what is put in front of them and types what they mean. That is the floor ProductKit stands on, and it is now the only floor.
 
@@ -148,7 +154,7 @@ ProductKit holds eleven rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones tha
 
 ## Honest limits
 
-- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 277 automated tests, including a regression suite built from adversarial attacks that once reached READY.
+- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 291 automated tests, including a regression suite built from adversarial attacks that once reached READY.
 - Passing validation proves **structure**, not that the product is right. Semantic quality depends on the agent and on you.
 - The coverage gates catch **omission**, not **distortion**. A sentence can be marked "not a requirement" with a wrong reason, or a Definition item can say the opposite of its source Node, and the CLI will not notice; it only puts the source text next to the item in the export so a reader can. Read the comparison.
 - A review must cite evidence to count as reviewed, but the CLI cannot tell whether the cited artifact is the right one for that area. "Cited something" is the floor, not the bar.

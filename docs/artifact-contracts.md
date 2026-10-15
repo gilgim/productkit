@@ -70,6 +70,7 @@ raw_text        사용자가 입력한 원문, 수정 없이 그대로
 received_at     ISO 8601
 content_hash    raw_text의 SHA-256
 spans           [{id, start, end}]   # 문자 오프셋 구간
+segmentation    2                    # 분할 규칙 버전. 없으면 1(옛 규칙: 모든 `.`에서 자름)
 ```
 
 ### Clarification
@@ -79,7 +80,9 @@ id            CLR-001
 prompt_ref    PRM-001
 steps:
   definition      [{term, meaning, origin: user_stated | ai_inferred}]
-  decomposition   [{statement, span_refs: [spans의 id, ...]}]
+  decomposition   [{statement, span_refs: [spans의 id, ...], merge_reason?, single_statement_reason?}]
+                  span 둘 이상이면 merge_reason 필수. 쉼표·접속어 3개 이상인 span을 혼자
+                  한 문장으로 읽으면 single_statement_reason 필수 (missing_merge_reason)
   elaboration     [{statement, actor, object, condition, action, result}]
   relation_check  [{statement_a, statement_b, relation_candidate}]
   relation_check_no_items_reason   relation_check가 비어 있으면 필수(검토했는데 없음을 명시)
@@ -90,7 +93,9 @@ steps:
                   있으므로 presented_hash에 포함되어 사용자가 같이 확인한다
   interpretation_check:      # 단일 값이 아니라 이력 목록. 과거 항목은 수정하지 않는다
     - id                     IC-001
-      presented_statement    분해 결과를 논리 구조 그대로 재구성해 사용자에게 보여준 문장
+      presented_statement    CLI가 steps·finding_candidates·Prompt에서 그린 블록과 글자 그대로
+                             같아야 한다(presented_statement_not_rendered). Agent가 쓰지 않는다
+      attestation            tty | flag — `productkit clarify confirm`이 기록. 옛 항목엔 없음
       presented_hash         이 항목 생성 시점의 steps 전체를 정규화(키 정렬 JSON)해 해시한 값
       user_response          agreed | disagreed | partially_agreed
       user_statement         실제 사용자 발언(비어 있으면 agreed로 확정 못함)
@@ -133,6 +138,9 @@ finding_candidates  [{statement, type: ambiguity | contradiction | missing_premi
   `finding_candidates[].span_refs`, `steps.span_coverage` 중 한 곳에 있어야 한다. 하나라도
   없으면 CLI는 `uncovered_spans`로 `confirmed`를 거부하고 빠진 span id를 나열한다.
   `span_coverage.reason`이 맞는지는 CLI가 판단하지 않는다 — 빠짐없이 이름을 댔는지만 본다.
+- `finding_candidates`는 쓰레기통이 아니다. validate의 `source.candidates`는 각 후보가
+  `candidate_refs`로 그 후보를 가리키는 **사용자 확인(confirmed) Finding**으로 올라갔는지 본다.
+  안 올라간 후보가 하나라도 있으면 readiness가 막힌다.
 
 ---
 
@@ -462,7 +470,8 @@ Finding 해결 또는 최종 승인을 의미하지 않는다.
 Node 배치(Constitution 11): 현재 workspace의 모든 Node는 Definition 항목·Policy·Journey의
 `source_refs`, 그 Node를 `input_snapshot`에 담은 `scope_exclusion` Decision(+ 대응 `exclusion`
 항목), 또는 `related_refs`로 그 Node를 가리키는 unresolved Finding 중 한 곳에 있어야 한다.
-어디에도 없는 Node는 `definition.node_coverage` FAIL이다. `exclusion` 항목은
+어디에도 없는 Node는 `definition.node_coverage` FAIL이다. Policy·Journey가 Node를 인용하는 것은
+배치로 치지 않고, Finding은 `review_status: confirmed`인 것만 Node를 잡는다. `exclusion` 항목은
 `exclusion.decision_ref`가 현재의 `scope_exclusion` Decision으로 풀려야 하고 `excluded_scope`·
 `impact`·`residual_risk`를 그 Decision과 글자 그대로 같게 적어야 하며, 그 Decision을
 `provenance.decision_refs`에도 둔다. Definition에는 `functional_requirement`·

@@ -60,10 +60,14 @@ node dist/cli/bin.js --help
 productkit --help
 productkit --version
 productkit init [path]
-productkit intake "<아이디어 프롬프트>"
+productkit intake -- "<아이디어 프롬프트>"
 productkit clarify
+productkit clarify confirm --response agreed|disagreed|partially_agreed   # 사용자가 터미널에서 직접 입력
 productkit atomize
+productkit schema [name]                 # 게이트가 검사하는 정확한 JSON Schema
+productkit hash node-group|atomicity|steps|entry   # 게이트가 다시 계산하는 해시
 productkit challenge
+productkit challenge finding confirm <FND-id> --response confirmed|rejected --rationale "<근거>"   # 사용자가 터미널에서 직접 입력
 productkit propose add --input proposal.yaml
 productkit decide record --input decision.yaml --rationale "<근거>" --scope "<적용 범위>"   # 사용자가 터미널에서 직접 답변을 입력
 productkit decide status
@@ -78,8 +82,8 @@ productkit approve status
 productkit export openspec --change <change-id> --capability <capability-id>
 ```
 
-`decide record`와 `approve record`는 `--user-statement`를 생략하면 **실행한 터미널에서** 사용자
-발언을 직접 읽는다. 에이전트는 터미널이 없어 이 명령을 못 끝내고 "No terminal is attached"로
+`clarify confirm`·`challenge finding confirm`·`decide record`·`approve record`는 `--user-statement`를
+생략하면 **실행한 터미널에서** 사용자 발언을 직접 읽는다. 에이전트는 터미널이 없어 이 명령을 못 끝내고 "No terminal is attached"로
 멈춘다 — 그게 의도다. 명령을 사용자에게 넘긴다. `product/config.yaml`의 `attestation: flag`일
 때만 `--user-statement`를 받으며, 그 워크스페이스의 모든 검증 보고에 경고가 붙는다.
 
@@ -163,7 +167,11 @@ Journey는 만들지 않는다.
 ### `productkit clarify`
 
 Prompt의 모든 span이 `decomposition`·`finding_candidates`·`steps.span_coverage` 중 한
-곳에 있어야 완료다. 빠진 span은 `uncovered_spans`로 나열한다.
+곳에 있어야 완료다. 빠진 span은 `uncovered_spans`로 나열한다. 사용자에게 보여줄 문장은
+CLI가 그린다(`Show the user` 블록): 원문 → 해석 쌍, 요구사항 아님 목록, 질문 후보 목록.
+`interpretation_check`의 `presented_statement`는 이 블록과 글자 그대로 같아야 한다.
+`productkit clarify confirm`이 블록을 그리고 해시를 계산하고 사용자 발언을 터미널에서 읽어
+항목을 붙인다.
 
 프롬프트가 6단계(정의·분해·구체화·관계검증·반례검증·해석확인)로 명료화됐는지
 판정한다. 명료화 내용 자체는 CLI가 생성하지 않는다 — `skills/clarify/SKILL.md`

@@ -2,7 +2,8 @@ import { Command, CommanderError } from 'commander';
 
 import { CliError, ExitCode, describeCause, type ExitCodeValue } from '../errors.js';
 import { VERSION } from '../version.js';
-import { runClarify } from './commands/clarify.js';
+import { runClarify, runClarifyConfirm } from './commands/clarify.js';
+import { registerSchemaHashCommands } from './commands/schema-hash.js';
 import { runInit } from './commands/init.js';
 import { runInstallSkills } from './commands/install-skills.js';
 import { runIntake } from './commands/intake.js';
@@ -94,7 +95,7 @@ export function buildProgram(output: Output = consoleOutput): Command {
       await runIntake({ text, file: opts.file }, output);
     });
 
-  program
+  const clarify = program
     .command('clarify')
     .description('report Clarification status, or announce the instruction to run it')
     .option('--prompt <id>', 'target a specific prompt (defaults to the latest)')
@@ -110,6 +111,17 @@ export function buildProgram(output: Output = consoleOutput): Command {
     .exitOverride()
     .action(async (opts: { prompt?: string }) => {
       await runClarify({ prompt: opts.prompt }, output);
+    });
+  clarify
+    .command('confirm')
+    .description("append the user's interpretation check; the CLI renders the block, hashes it, and reads the statement from the terminal")
+    .option('--prompt <id>', 'target a specific prompt (defaults to the latest)')
+    .requiredOption('--response <response>', 'agreed, disagreed or partially_agreed')
+    .option('--user-statement <text>', "the user's words; omit it to type them on the terminal (required when config attestation is tty)")
+    .exitOverride()
+    .action(async (opts: { prompt?: string; response: string; userStatement?: string }) => {
+      if (!['agreed', 'disagreed', 'partially_agreed'].includes(opts.response)) throw new CliError('--response must be agreed, disagreed or partially_agreed.', ExitCode.USAGE_OR_IO);
+      await runClarifyConfirm({ prompt: opts.prompt, response: opts.response as 'agreed' | 'disagreed' | 'partially_agreed', userStatement: opts.userStatement }, output);
     });
 
   program
@@ -127,6 +139,7 @@ export function buildProgram(output: Output = consoleOutput): Command {
   registerProposalDecisionCommands(program, output);
   registerDefinitionCommand(program, output);
   registerValidationCommands(program, output);
+  registerSchemaHashCommands(program, output);
   registerExportCommand(program, output);
 
   return program;

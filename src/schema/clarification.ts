@@ -101,6 +101,8 @@ export const interpretationCheckEntrySchema = z.object({
   prompt_content_hash: hashHex.optional(),
   user_response: z.enum(['agreed', 'disagreed', 'partially_agreed']),
   user_statement: z.string(),
+  /** Where user_statement came from; absent on entries written before `productkit clarify confirm` existed. */
+  attestation: z.enum(['tty', 'flag']).optional(),
   checked_at: z.string().min(1),
   entry_hash: hashHex,
 });
