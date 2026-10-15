@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -21,6 +21,7 @@ export async function runInstallSkills(
   output: Output,
 ): Promise<void> {
   const home = options.home ?? os.homedir();
+  await removeLegacySkills(home);
   let written = 0;
   let kept = 0;
 
@@ -53,5 +54,29 @@ export async function ensureGlobalSkills(home: string = os.homedir()): Promise<v
     await runInstallSkills({ home }, { out: () => {}, err: () => {} } as unknown as Output);
   } catch {
     // best effort
+  }
+}
+
+/**
+ * Earlier builds installed unprefixed names (model, graph, ...) that collide
+ * with built-in commands. Remove them, but only a folder holding nothing but a
+ * ProductKit SKILL.md so a user's own skill of the same name is never touched.
+ */
+async function removeLegacySkills(home: string): Promise<void> {
+  for (const agentDir of AGENT_SKILL_DIRS) {
+    for (const skill of SKILL_NAMES) {
+      if (skill === 'productkit') continue;
+      const dir = path.join(home, agentDir, skill);
+      try {
+        const files = await readdir(dir);
+        if (files.length !== 1 || files[0] !== 'SKILL.md') continue;
+        const text = await readFile(path.join(dir, 'SKILL.md'), 'utf8');
+        if (new RegExp(`^---\\nname: ${skill}\\n`).test(text) && /productkit/i.test(text)) {
+          await rm(dir, { recursive: true });
+        }
+      } catch {
+        // not there
+      }
+    }
   }
 }
