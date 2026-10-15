@@ -272,6 +272,13 @@ Definition은 초안을 작성할 수 있지만, Gate 통과 전에는 확정된
 | exclusion 항목의 Decision이 없거나 current가 아니거나 내용이 다름 | FAIL |
 | reviewed로 표시했는데 evidence_refs가 비었거나 skill 파일만 인용(semantic review·ChallengeRun) | FAIL |
 | resolved/dismissed/deferred Finding을 가리키는 Decision이 그 Finding을 대상으로 하지 않음 | FAIL |
+| 사용자가 동의한 presented_statement가 분해·제외한 원문 span을 그대로 인용하지 않음 | FAIL (clarify 단계) |
+| semantic review에 Definition 항목×Node 쌍마다 fidelity 판정이 없음 / `contradicts` 있음 | FAIL |
+| semantic review 영역이 그 영역에 맞는 artifact 종류를 인용하지 않음 | FAIL |
+| 같은 입력에 대한 이전 review가 unreviewed로 적은 항목이 사라짐(resolved 근거 없이) | FAIL |
+| exclusion 항목이 인용한 Node가 닫은 Finding의 Node와 다름 | FAIL |
+| config `attestation: tty`인데 `--user-statement`로 기록된 Decision/Approval | FAIL (기록 시 거부) |
+| config `attestation: flag` 또는 미설정 | WARN (모든 보고에 표시) |
 
 상태 그래프 검사는 종료 가능성을 확인할 뿐, 현실의 UX가 타당하다는 것을 증명하지
 않는다.

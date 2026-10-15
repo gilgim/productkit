@@ -3,7 +3,7 @@ import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { Command } from 'commander';
 import { CliError, ExitCode } from '../../errors.js';
-import { ensureWorkspace } from '../../clarification/workspace.js';
+import { ensureWorkspace, readStatementFromTerminal } from '../../clarification/workspace.js';
 import { addDecision, addProposal, decisionStaleness, readDecisions, readProposals } from '../../clarification/proposal-decision-store.js';
 import { decisionInputSchema } from '../../schema/decision.js';
 import { proposalInputSchema } from '../../schema/proposal.js';
@@ -18,9 +18,11 @@ export function registerProposalDecisionCommands(program:Command,output:Output):
  propose.command('add').requiredOption('--input <yaml>').description('validate and store a Proposal input YAML').action(async(opts:{input:string})=>{const root=path.join(process.cwd(),'product');await ensureWorkspace(root);const input=proposalInputSchema.parse(parseYaml(await readFile(path.resolve(opts.input),'utf8')));const result=await addProposal(root,input);output.out(`${result.created?'Created':'Existing'} Proposal ${result.proposal.id} (${result.proposal.options.length} alternatives; pending).`);output.out('AI recommendation, if present, is not a user selection.');});
  propose.command('validate').argument('<file>').description('validate a Proposal input without writing').action(async(file:string)=>{proposalInputSchema.parse(parseYaml(await readFile(path.resolve(file),'utf8')));output.out('Proposal structure: PASS. Current workspace references were not checked.');});
  const decide=program.command('decide').description('record explicit user choices as pending application; never applies or resolves Findings');
- decide.command('record').requiredOption('--input <yaml>').requiredOption('--user-statement <text>').requiredOption('--rationale <text>').requiredOption('--scope <text>').description('record the user response and validate current Finding/Proposal references').action(async(opts:{input:string;userStatement:string;rationale:string;scope:string})=>{
+ decide.command('record').requiredOption('--input <yaml>').option('--user-statement <text>','the user\'s words; omit it to type them on the terminal (required when config attestation is tty)').requiredOption('--rationale <text>').requiredOption('--scope <text>').description('record the user response and validate current Finding/Proposal references').action(async(opts:{input:string;userStatement?:string;rationale:string;scope:string})=>{
    const root=path.join(process.cwd(),'product');await ensureWorkspace(root);const raw=parseYaml(await readFile(path.resolve(opts.input),'utf8')) as Record<string,unknown>;
-   const input=decisionInputSchema.parse({...raw,user_statement:exactStatement(opts.userStatement),rationale:required(opts.rationale,'--rationale'),scope:required(opts.scope,'--scope')});
+   // No flag → read from the controlling terminal, which an agent does not have.
+   const attestation=opts.userStatement===undefined?'tty':'flag';const statement=opts.userStatement??await readStatementFromTerminal(`Record a Decision from ${path.basename(opts.input)} (scope: ${opts.scope}).\nType the user's statement and press Enter (empty cancels): `);
+   const input=decisionInputSchema.parse({...raw,user_statement:exactStatement(statement),rationale:required(opts.rationale,'--rationale'),scope:required(opts.scope,'--scope'),attestation});
    const result=await addDecision(root,input);output.out(`${result.created?'Recorded':'Existing'} Decision ${result.decision.id}: pending_application.`);output.out('No Finding status or Product Definition was changed.');output.out('The CLI validates record structure and hashes; it cannot authenticate who spoke or prove semantic correctness.');
  });
  decide.command('validate').argument('<file>').requiredOption('--user-statement <text>').requiredOption('--rationale <text>').requiredOption('--scope <text>').description('validate a Decision input without writing').action(async(file:string,opts:{userStatement:string;rationale:string;scope:string})=>{const raw=parseYaml(await readFile(path.resolve(file),'utf8')) as Record<string,unknown>;decisionInputSchema.parse({...raw,user_statement:exactStatement(opts.userStatement),rationale:required(opts.rationale,'--rationale'),scope:required(opts.scope,'--scope')});output.out('Decision structure: PASS. User identity and statement authenticity are not verified.');});

@@ -187,6 +187,23 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect((await createValidationReport(w.root, second.id)).readiness).toBe('ready');
   });
 
+  it('under attestation: tty, a statement passed as a flag is refused for Decisions and Approvals', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    // The builder records its Decision through addDecision with attestation 'flag'.
+    await expect(buildLeakWorkspace(temp, { keepTtyAttestation: true })).rejects.toThrow(/typed on a terminal \(config attestation: tty\)/);
+    const g = await gate();
+    expect(g.check('attestation.policy')?.status).toBe('warn');
+    await expect(recordApproval(g.root, g.report.id, 'SYNTHETIC USER ONLY: approve', 'synthetic', 'flag')).resolves.toMatchObject({ attestation: 'flag' });
+    // Flip the policy back to tty: the flag-recorded Decision now fails the gate by name.
+    const { readFile: rf, writeFile: wf } = await import('node:fs/promises');
+    const cfg = path.join(g.root, 'config.yaml');
+    await wf(cfg, (await rf(cfg, 'utf8')).replace(/^attestation:\s*flag\s*$/m, 'attestation: tty'));
+    await expect(recordApproval(g.root, g.report.id, 'SYNTHETIC USER ONLY: approve again', 'synthetic', 'flag')).rejects.toThrow(/typed on a terminal/);
+    const report = await createValidationReport(g.root, g.review.id);
+    expect(report.readiness).toBe('blocked');
+    expect(report.checks.find((c) => c.id === `decision.attestation.${g.decisionId}`)?.status).toBe('fail');
+  });
+
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {
     const g = await gate({ challengeEvidence: [] });
     expect(g.report.readiness).toBe('blocked');

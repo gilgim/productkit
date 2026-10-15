@@ -116,12 +116,22 @@ ProductKit was fuzzed against its own gate. Everything in the left column once r
 | A sentence of the prompt that is neither decomposed, raised as a question, nor set aside with a reason | A decomposition that cites the right span but says something else |
 | A Node that is in neither the Definition, an exclusion Decision, nor an open Finding | A Definition item that contradicts the Node it cites |
 | An exclusion item whose Decision does not exist, is stale, or says something different | An exclusion whose scope text does not actually match the Finding it closes |
-| A review area marked reviewed with no evidence, or with only the skill file as evidence | Evidence that resolves but is the wrong artifact for that area |
-| A Finding marked resolved by a Decision that does not target it | A `user_statement` typed by the agent instead of the user |
-| A Definition with no requirement or acceptance criterion | A review whose "unreviewed scope" was quietly redefined to fit |
-| Any input edited after approval (hash goes stale) | A prompt that was already wrong when it was taken in |
+| A review area marked reviewed with no evidence, with only the skill file, or with the wrong kind of artifact for that area | A reason for "not a requirement" that is wrong but plausible — the user sees the sentence and the reason side by side, and still has to read |
+| A Finding marked resolved by a Decision that does not target it | A fidelity verdict of `same` that is a lie — each item/Node pair gets its own line, so the lie has to be written N times, with a reason each time |
+| A Definition with no requirement or acceptance criterion | A person at the terminal who types what the agent dictated |
+| A review that quietly drops an item an earlier review listed as unreviewed | A prompt that was already wrong when it was taken in |
+| A `--user-statement` passed by whoever ran the command, when the workspace requires it typed on a terminal | |
+| Any input edited after approval (hash goes stale) | |
 
-So: **omission is now structural; distortion and impersonation are not.** The CLI narrows the places a person has to look — `productkit clarify` prints every sentence set aside and why, and the export prints each Node's text next to the item built from it — but someone still has to look. A leak that gets past this gate is a human decision, recorded, with a name on it. That is the design goal, not a guarantee of correctness.
+How the right column got short: the first fuzz left "distortion" and "impersonation" to a human reader. That was a process gap, not a limit. The process now forces the shape of what the human reads and who types:
+
+- **The user agrees to the original, not a summary.** The statement confirmed in `clarify` must quote every sentence it decomposed or set aside, verbatim, or it does not count.
+- **One verdict per pair.** The semantic review must say, for every Definition item and every Node it cites, whether the item is the same, narrower, broader or contradicts — and why. Blanket "all preserved" cannot be written.
+- **Evidence must be the right kind.** `graph_impact` needs an ImpactReport, `traceability` needs a Decision and the Prompt, and so on. "Cited something" is not enough.
+- **Nothing falls off the unreviewed list.** A later review of the same inputs must keep each earlier unreviewed item or resolve it with evidence.
+- **Statements are typed, not passed.** With `attestation: tty` (the default), `decide record` and `approve record` read the user's words from the terminal that runs them. An agent has no terminal and is refused; it hands the command to the user. Setting `attestation: flag` is allowed, visible in `git diff`, and warned on every report.
+
+What is left is a person who reads what is put in front of them and types what they mean. That is the floor ProductKit stands on, and it is now the only floor.
 
 ## Principles
 
@@ -138,7 +148,7 @@ ProductKit holds eleven rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones tha
 
 ## Honest limits
 
-- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 270 automated tests, including a regression suite built from adversarial attacks that once reached READY.
+- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 277 automated tests, including a regression suite built from adversarial attacks that once reached READY.
 - Passing validation proves **structure**, not that the product is right. Semantic quality depends on the agent and on you.
 - The coverage gates catch **omission**, not **distortion**. A sentence can be marked "not a requirement" with a wrong reason, or a Definition item can say the opposite of its source Node, and the CLI will not notice; it only puts the source text next to the item in the export so a reader can. Read the comparison.
 - A review must cite evidence to count as reviewed, but the CLI cannot tell whether the cited artifact is the right one for that area. "Cited something" is the floor, not the bar.

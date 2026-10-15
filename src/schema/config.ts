@@ -25,12 +25,24 @@ const stageSchema = (names: readonly string[]) => z.object(
 
 export const definitionStatusSchema = z.enum(['not_started', 'draft', 'confirmed']);
 
+/**
+ * How a user statement may reach a Decision or Approval.
+ * `tty`  — typed by a person on the terminal that runs the command. An agent
+ *          running the CLI non-interactively has no terminal and is refused.
+ * `flag` — accepted from `--user-statement`; anyone (including an agent) can
+ *          pass it. The gate warns on every report while this is set.
+ * Missing means `flag` for workspaces made before this field existed.
+ */
+export const attestationPolicySchema = z.enum(['tty', 'flag']);
+export type AttestationPolicy = z.infer<typeof attestationPolicySchema>;
+
 const configFields = {
   product: z.object({
     name: z.string().min(1, 'product.name must not be empty'),
     created_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'product.created_at must be a YYYY-MM-DD date'),
   }),
   definition: z.object({ status: definitionStatusSchema }),
+  attestation: attestationPolicySchema.optional(),
 };
 
 export const productConfigV0Schema = z.object({
@@ -60,6 +72,7 @@ export function initialConfig(name: string, createdAt: string): ProductConfigV1 
     product: { name, created_at: createdAt },
     stages: stagesFor(STAGE_NAMES) as Record<StageName, StageStatus>,
     definition: { status: 'not_started' },
+    attestation: 'tty',
   };
 }
 

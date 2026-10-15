@@ -2,6 +2,20 @@ import { clarificationContentHash, clarificationSchema, interpretationCheckEntry
 import { computePromptHash, type Prompt } from '../../src/schema/prompt.js';
 import { segmentSpans } from '../../src/clarification/spans.js';
 
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+/**
+ * Tests have no terminal, so they switch the workspace to `attestation: flag`
+ * the same way a user would — by editing config.yaml. The gate then WARNs on
+ * every report, which is the intended visible trace of that choice.
+ */
+export async function allowFlagAttestation(productRoot: string): Promise<void> {
+  const file = path.join(productRoot, 'config.yaml');
+  const text = await readFile(file, 'utf8');
+  await writeFile(file, text.replace(/^attestation:\s*tty\s*$/m, 'attestation: flag'));
+}
+
 // All confirmations in this helper are SYNTHETIC TEST DATA, never user consent.
 export function promptFixture(raw_text = '사용자가 결제를 완료하면 주문을 확정한다.'): Prompt {
   return { id: 'PRM-001', raw_text, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(raw_text), spans: segmentSpans(raw_text) };

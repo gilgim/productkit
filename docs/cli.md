@@ -65,7 +65,7 @@ productkit clarify
 productkit atomize
 productkit challenge
 productkit propose add --input proposal.yaml
-productkit decide record --input decision.yaml --user-statement "<사용자의 실제 답변>" --rationale "<근거>" --scope "<적용 범위>"
+productkit decide record --input decision.yaml --rationale "<근거>" --scope "<적용 범위>"   # 사용자가 터미널에서 직접 답변을 입력
 productkit decide status
 productkit assumption add --input assumption.yaml
 productkit define status
@@ -73,10 +73,15 @@ productkit define application plan --input application.yaml
 productkit define application apply <APP-id>
 productkit validate
 productkit validate review --input semantic-review.yaml
-productkit approve record --validation <VAL-id> --user-statement "<사용자의 실제 승인 문장>" --scope "<승인 범위>"
+productkit approve record --validation <VAL-id> --scope "<승인 범위>"   # 사용자가 터미널에서 직접 승인 문장을 입력
 productkit approve status
 productkit export openspec --change <change-id> --capability <capability-id>
 ```
+
+`decide record`와 `approve record`는 `--user-statement`를 생략하면 **실행한 터미널에서** 사용자
+발언을 직접 읽는다. 에이전트는 터미널이 없어 이 명령을 못 끝내고 "No terminal is attached"로
+멈춘다 — 그게 의도다. 명령을 사용자에게 넘긴다. `product/config.yaml`의 `attestation: flag`일
+때만 `--user-statement`를 받으며, 그 워크스페이스의 모든 검증 보고에 경고가 붙는다.
 
 `validate`는 현재 snapshot과 구조를 재검증한다. 구조 검증 PASS는 의미적 정확성을
 증명하지 않는다. 누락을 잡는 검사 네 가지가 있다 — `source.coverage`(intake된 Prompt

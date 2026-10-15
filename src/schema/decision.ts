@@ -13,6 +13,8 @@ export const decisionInputSchema=z.object({
     z.object({kind:z.literal('direct_user_decision'),text:z.string().refine(s=>s.trim().length>0,'Decision text must not be blank.').min(1)}).strict(),
   ]),
   user_statement:z.string().refine(s=>s.trim().length>0,'User statement must not be blank.').min(1), rationale:z.string().trim().min(1), scope:z.string().trim().min(1),
+  /** How user_statement reached the CLI: typed on a terminal, or passed as a flag by whoever ran the command. */
+  attestation:z.enum(['tty','flag']).default('flag'),
   input_snapshot:z.array(proposalRefSchema).min(1),
   scope_exclusion:z.object({excluded_scope:z.string().trim().min(1),impact:z.string().trim().min(1),residual_risk:z.string().trim().min(1)}).strict().optional(),
   supersedes_decision_ref:z.string().regex(/^DEC-[0-9a-f]{16}$/).optional(),
@@ -26,7 +28,7 @@ export const decisionInputSchema=z.object({
 });
 export type DecisionInput=z.infer<typeof decisionInputSchema>;
 export const decisionSchema=decisionInputSchema.extend({schema_version:z.literal(1),id:z.string().regex(/^DEC-[0-9a-f]{16}$/),decision_hash:hash,application_status:z.literal('pending_application'),created_at:z.string().datetime({offset:true}),history:z.array(z.object({event:z.literal('recorded'),at:z.string().datetime({offset:true}),decision_hash:hash}).strict()).min(1)}).strict().superRefine((d,ctx)=>{
-  const input={decision_type:d.decision_type,...(d.proposal_ref?{proposal_ref:d.proposal_ref}:{}),...(d.option_ref?{option_ref:d.option_ref}:{}),finding_refs:d.finding_refs,selection:d.selection,user_statement:d.user_statement,rationale:d.rationale,scope:d.scope,input_snapshot:d.input_snapshot,...(d.scope_exclusion?{scope_exclusion:d.scope_exclusion}:{}),...(d.supersedes_decision_ref?{supersedes_decision_ref:d.supersedes_decision_ref}:{})};
+  const input={decision_type:d.decision_type,...(d.proposal_ref?{proposal_ref:d.proposal_ref}:{}),...(d.option_ref?{option_ref:d.option_ref}:{}),finding_refs:d.finding_refs,selection:d.selection,user_statement:d.user_statement,rationale:d.rationale,scope:d.scope,attestation:d.attestation,input_snapshot:d.input_snapshot,...(d.scope_exclusion?{scope_exclusion:d.scope_exclusion}:{}),...(d.supersedes_decision_ref?{supersedes_decision_ref:d.supersedes_decision_ref}:{})};
   const h=sha256Hex(canonicalJson(input)); if(d.decision_hash!==h||d.id!==`DEC-${h.slice(0,16)}`) ctx.addIssue({code:'custom',path:['decision_hash'],message:'Decision ID/hash mismatch.'});
   if(d.history[0]?.decision_hash!==h)ctx.addIssue({code:'custom',path:['history'],message:'Decision creation history must bind the immutable Decision hash.'});
 });

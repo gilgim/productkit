@@ -511,4 +511,9 @@ risk, not mark the Finding resolved or risk-free.
 `product/approvals/APR-<16 hex>.yaml` is an append-only user statement bound to one
 current ready ValidationReport, Definition hash, and input fingerprint. `productkit
 approve record` validates the record and hashes only; it cannot authenticate the speaker
-or statement. Input or rule changes make current approval stale while retaining history.
+or statement. It can, however, say *where the statement came from*: `attestation: tty`
+means it was typed on the controlling terminal of the process (an agent running the CLI
+has none); `attestation: flag` means it arrived via `--user-statement` from whoever ran
+the command. Decisions carry the same field. `product/config.yaml` `attestation: tty`
+(the `init` default) makes the stores refuse `flag` statements; `flag` accepts them and
+every ValidationReport carries an `attestation.policy` WARN. Input or rule changes make current approval stale while retaining history.

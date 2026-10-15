@@ -24,6 +24,7 @@ import { currentValidationFingerprint } from '../../src/clarification/validation
 import { sha256Hex } from '../../src/clarification/hash.js';
 import { runInit } from '../../src/cli/commands/init.js';
 import { createMemoryOutput } from '../../src/cli/output.js';
+import { allowFlagAttestation } from './gate-fixtures.js';
 
 export const RAW = '결제를 완료하면 주문을 확정한다. 공물은 현금과 별도로 납부하며 자동 누적되지 않는다. 실제 현금 구매와 환전은 없다. 보스는 3층에 등장하며 즉사탄을 막지 못한다.';
 const SENTENCES = RAW.split(/(?<=\.)\s+/);
@@ -49,6 +50,8 @@ export interface LeakOptions {
   resolvedByUnrelatedDecision?: boolean;
   /** Challenge area evidence (default cites NOD-001-1). */
   challengeEvidence?: Array<{ kind: 'node'; ref: string }>;
+  /** Leave config attestation: tty (default is to switch to flag, since tests have no terminal). */
+  keepTtyAttestation?: boolean;
   /** Semantic review area evidence kinds; default node. */
   semanticEvidence?: 'node' | 'none' | 'skill';
 }
@@ -64,6 +67,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   await rm(temp, { recursive: true, force: true }); await mkdir(temp, { recursive: true });
   await runInit({ cwd: temp, name: 'Leak' }, createMemoryOutput());
   const root = path.join(temp, 'product');
+  if (!o.keepTtyAttestation) await allowFlagAttestation(root);
   await mkdir(path.join(temp, 'openspec', 'changes'), { recursive: true });
   await writeFile(path.join(temp, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
   try { execFileSync('ln', ['-s', path.resolve('node_modules'), path.join(temp, 'node_modules')]); } catch { /* exists */ }

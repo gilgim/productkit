@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { allowFlagAttestation } from './helpers/gate-fixtures.js';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -20,7 +21,7 @@ let temp='';
 afterEach(async()=>{if(temp)await rm(temp,{recursive:true,force:true});});
 
 async function setup(){
-  temp=await mkdtemp(path.join(os.tmpdir(),'productkit-application-'));await runInit({cwd:temp,now:new Date('2026-10-13T00:00:00Z')},createMemoryOutput());const root=path.join(temp,'product');
+  temp=await mkdtemp(path.join(os.tmpdir(),'productkit-application-'));await runInit({cwd:temp,now:new Date('2026-10-13T00:00:00Z')},createMemoryOutput());await allowFlagAttestation(path.join(temp,'product'));const root=path.join(temp,'product');
   const prompt=promptFixture();const clarification=confirmedFixture(undefined,prompt);const group=groupFixture(clarification.steps);await writeFile(path.join(root,'sources',`${prompt.id}.yaml`),stringify(prompt));await writeFile(path.join(root,'discovery',`${clarification.id}.yaml`),stringify(clarification));await writeFile(path.join(root,'nodes',`${group.id}.yaml`),stringify(group));
   const finding=appendFindingConfirmation(createFinding({issue_key:'cancel-flow',type:'flow_gap',severity:'major',statement:'취소 가능 기간이 정의되지 않았다.',related_refs:[{kind:'node',ref:'NOD-001-1'}],evidence_refs:[{kind:'prompt',ref:prompt.id,detail:'취소 문장'}],counterexamples:[],ai_assessment:{is_ai_judgment:true,rationale:'기간 조건이 없다.',confidence:'medium',uncertainty:['정책 파일이 추가로 존재할 수 있다.']},questions:['취소 기간은 얼마인가?']}),'confirmed','SYNTHETIC TEST: 확인','SYNTHETIC TEST: 확인했습니다.');
   await writeFile(path.join(root,'findings',`${finding.id}.yaml`),stringify(finding));const current=await currentChallengeInputs(root);const find=(kind:string,id:string)=>current.inputs.find(x=>x.kind===kind&&x.ref===id)!.content_hash;
