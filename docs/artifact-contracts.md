@@ -82,7 +82,12 @@ steps:
   decomposition   [{statement, span_refs: [spans의 id, ...]}]
   elaboration     [{statement, actor, object, condition, action, result}]
   relation_check  [{statement_a, statement_b, relation_candidate}]
+  relation_check_no_items_reason   relation_check가 비어 있으면 필수(검토했는데 없음을 명시)
   counterexample  [{ambiguity, possible_interpretations: []}]
+  counterexample_no_items_reason   counterexample이 비어 있으면 필수
+  span_coverage   [{span_ref, disposition: non_requirement, reason}]
+                  decomposition·finding_candidates 어디에도 없는 span의 처분. steps 안에
+                  있으므로 presented_hash에 포함되어 사용자가 같이 확인한다
   interpretation_check:      # 단일 값이 아니라 이력 목록. 과거 항목은 수정하지 않는다
     - id                     IC-001
       presented_statement    분해 결과를 논리 구조 그대로 재구성해 사용자에게 보여준 문장
@@ -124,6 +129,10 @@ finding_candidates  [{statement, type: ambiguity | contradiction | missing_premi
   판정은 Change 04의 범위다.
 - `presented_statement`에 대한 사용자 동의는 의미 보존을 증명하지 않는다.
   사람이 원문과 직접 대조해 확인했다는 기록일 뿐이다 — 이게 유일한 안전장치다.
+- **원문 전수 처리(Constitution 11)**: Prompt의 모든 span은 `decomposition[].span_refs`,
+  `finding_candidates[].span_refs`, `steps.span_coverage` 중 한 곳에 있어야 한다. 하나라도
+  없으면 CLI는 `uncovered_spans`로 `confirmed`를 거부하고 빠진 span id를 나열한다.
+  `span_coverage.reason`이 맞는지는 CLI가 판단하지 않는다 — 빠짐없이 이름을 댔는지만 본다.
 
 ---
 
@@ -450,6 +459,16 @@ CAS 및 같은 디렉터리 atomic publish로 적용한다. 저널은 부분 적
 Application `applied`는 target 구조/hash 검증 완료만 의미하며 post-application verification,
 Finding 해결 또는 최종 승인을 의미하지 않는다.
 
+Node 배치(Constitution 11): 현재 workspace의 모든 Node는 Definition 항목·Policy·Journey의
+`source_refs`, 그 Node를 `input_snapshot`에 담은 `scope_exclusion` Decision(+ 대응 `exclusion`
+항목), 또는 `related_refs`로 그 Node를 가리키는 unresolved Finding 중 한 곳에 있어야 한다.
+어디에도 없는 Node는 `definition.node_coverage` FAIL이다. `exclusion` 항목은
+`exclusion.decision_ref`가 현재의 `scope_exclusion` Decision으로 풀려야 하고 `excluded_scope`·
+`impact`·`residual_risk`를 그 Decision과 글자 그대로 같게 적어야 하며, 그 Decision을
+`provenance.decision_refs`에도 둔다. Definition에는 `functional_requirement`·
+`nonfunctional_requirement`·`acceptance_criterion` 중 하나 이상이 있어야 한다
+(`definition.normative`).
+
 AI가 구조화 과정에서 새로운 제품 행동을 발견하면 몰래 추가하지 않고 다시
 Finding/Proposal로 되돌린다. 사용자에게 항목별 수십 번의 승인을 요구하기보다, 명확히
 나열한 항목 묶음을 한 번에 확정할 수 있게 한다.
@@ -478,7 +497,14 @@ snapshot of current upstream artifacts, the rules version, individual check resu
 structural status, semantic-review status, and readiness. Structural PASS never implies
 semantic correctness. Semantic review records live separately under
 `product/semantic-reviews/SEM-<16 hex>.yaml`, cover eight required areas, and disclose
-uncertainty and unreviewed scope. In-scope unresolved Critical Findings block readiness;
+uncertainty and unreviewed scope. An area marked `reviewed` must cite at least one product
+artifact in `evidence_refs`; an empty list, or a `skill`/`workspace` ref, makes the review
+hollow and the gate fails it whether it came through `validate review` or was written by
+hand. The same holds for ChallengeRun areas. The CLI checks that evidence exists and resolves,
+not that it is the right evidence for the area. Readiness also requires `source.coverage`
+(every Prompt clarified and modeled), `definition.node_coverage` (every Node placed) and
+`definition.normative` (at least one requirement or acceptance criterion); a Finding that is
+`resolved`/`dismissed`/`deferred` must be targeted by its cited Decision's `finding_refs`. In-scope unresolved Critical Findings block readiness;
 an applied and verified scope exclusion can only preserve a warning with its residual
 risk, not mark the Finding resolved or risk-free.
 

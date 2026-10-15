@@ -23,9 +23,12 @@ Turn current, hash-valid Nodes and explicit user Decisions into a draft Product 
 4. Draft goals, scope, stakeholders, functional and non-functional requirements, Journeys, policies, edge cases, and testable Acceptance Criteria. Keep the user's condition grouping, quantities, units, time scope, audience, and exception coverage intact. If uncertain, retain the source text and ask a question.
 5. Structure policies as Context, Actor, Condition, Action, Outcome, Exceptions, and Priority. Use only the supported condition AST. Priority must cite a current user Decision. Never infer precedence from an `exception_of` edge.
 6. Review policy pairs for conflict, exception, replacement, duplicate, independent constraints, and inconclusive cases. A shared condition region alone does not prove conflict. Record semantic concerns as proposed Finding candidates with evidence, counterexamples, and uncertainty; do not claim they are confirmed.
-7. Preserve explicit scope exclusions and their residual risk. Keep unresolved Critical Findings and accepted-risk Assumptions visible.
-8. Draft an Application preview only when a current explicit Decision calls for applying a change. Report all target hashes and before/after impact evidence; never claim applied until the CLI verifies every target after hash.
-9. Run CLI structural validation and report errors, blocked inputs, stale data, unreviewed scope, and semantic uncertainties separately.
+7. Place every current Node (Constitution 11). Each Node must end up in exactly one of: a Definition item / Policy / Journey `source_refs`; a `scope_exclusion` Decision whose `input_snapshot` lists the Node, with a matching `exclusion` item; or an unresolved Finding whose `related_refs` name the Node. The CLI check `definition.node_coverage` lists any Node that is in none of these and blocks readiness. "Only the core items" is not a placement; it is an omission.
+8. An `exclusion` item must cite its `scope_exclusion` Decision in `exclusion.decision_ref` and in `provenance.decision_refs`, and repeat `excluded_scope`, `impact` and `residual_risk` verbatim from that Decision. The CLI rejects an exclusion whose Decision does not resolve, is not current, or says something else.
+9. The Definition must contain at least one `functional_requirement`, `nonfunctional_requirement` or `acceptance_criterion` item. Goals, scope and Policies alone do not pass `definition.normative`.
+10. Preserve explicit scope exclusions and their residual risk. Keep unresolved Critical Findings and accepted-risk Assumptions visible.
+11. Draft an Application preview only when a current explicit Decision calls for applying a change. Report all target hashes and before/after impact evidence; never claim applied until the CLI verifies every target after hash.
+12. Run CLI structural validation and report errors, blocked inputs, stale data, unreviewed scope, and semantic uncertainties separately.
 
 ## Output
 

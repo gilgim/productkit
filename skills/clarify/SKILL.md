@@ -46,11 +46,29 @@ steps:
   decomposition: []     # [{statement, span_refs: [Prompt의 spans id, ...]}]
   elaboration: []        # [{statement, actor?, object?, condition?, action?, result?}]
   relation_check: []     # [{statement_a, statement_b, relation_candidate}]
+  relation_check_no_items_reason: ""   # relation_check가 비면 필수 — 왜 후보가 없는지
   counterexample: []     # [{ambiguity, possible_interpretations: [...]}]
+  counterexample_no_items_reason: ""   # counterexample이 비면 필수
+  span_coverage: []      # [{span_ref, disposition: non_requirement, reason}] — 아래 "원문 전수 처리"
 status: in_progress      # in_progress | awaiting_confirmation | confirmed
 interpretation_check: [] # 아래 "해석 확인" 참고 — 이력 목록, 과거 항목 수정 금지
 finding_candidates: []   # [{statement, type: ambiguity|contradiction|missing_premise, span_refs}]
 ```
+
+## 원문 전수 처리 (Constitution 11)
+
+Prompt의 모든 span은 셋 중 하나에 반드시 들어간다. 하나라도 빠지면 CLI가
+`uncovered_spans`로 완료를 거부한다.
+
+1. `decomposition[].span_refs` — 요구사항으로 분해했다.
+2. `finding_candidates[].span_refs` — 모호·모순·전제 누락이라 질문으로 남겼다.
+3. `steps.span_coverage` — 요구사항이 아니다(제목·비유·예시·서술). `reason`에
+   왜 요구사항이 아닌지 한 줄로 적는다.
+
+`span_coverage`는 `steps` 안에 있으므로 사용자가 해석 확인에서 같이 동의한다.
+"이 문장은 요구사항이 아니다"도 AI 혼자 정하지 않는다. 긴 원문에서 span이
+수십 개여도 전부 처리한다 — 그게 이 단계의 일이다. 처리 안 한 span을 CLI가
+목록으로 알려준다(`productkit clarify`).
 
 ## 필수 필드와 금지 행동
 

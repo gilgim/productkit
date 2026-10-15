@@ -79,7 +79,11 @@ productkit export openspec --change <change-id> --capability <capability-id>
 ```
 
 `validate`는 현재 snapshot과 구조를 재검증한다. 구조 검증 PASS는 의미적 정확성을
-증명하지 않는다. 승인 명령은 사용자가 명시적으로 응답한 다음에만 실행해야 하며,
+증명하지 않는다. 누락을 잡는 검사 네 가지가 있다 — `source.coverage`(intake된 Prompt
+전부가 Clarification·NodeGroup까지 갔는가), `definition.node_coverage`(모든 Node가
+Definition·제외 Decision·unresolved Finding 중 한 곳에 있는가), `definition.normative`
+(요구사항·AC 항목이 하나라도 있는가), `semantic.*`(reviewed 영역마다 제품 artifact 증거가
+있는가). 이 검사는 "빠짐"을 잡지, "틀림"을 잡지 않는다. 승인 명령은 사용자가 명시적으로 응답한 다음에만 실행해야 하며,
 로컬 CLI는 발언자의 신원이나 기록의 진위를 인증하지 못한다. 입력이 바뀌면 기존 승인은
 stale 처리된다.
 
@@ -152,6 +156,9 @@ Journey는 만들지 않는다.
 | `--file <path>` | 텍스트 대신 파일에서 원문을 읽음 |
 
 ### `productkit clarify`
+
+Prompt의 모든 span이 `decomposition`·`finding_candidates`·`steps.span_coverage` 중 한
+곳에 있어야 완료다. 빠진 span은 `uncovered_spans`로 나열한다.
 
 프롬프트가 6단계(정의·분해·구체화·관계검증·반례검증·해석확인)로 명료화됐는지
 판정한다. 명료화 내용 자체는 CLI가 생성하지 않는다 — `skills/clarify/SKILL.md`

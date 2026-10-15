@@ -24,7 +24,7 @@ ProductKit puts a guard rail between the idea and the spec:
 
 - **AI guesses never become decisions.** A `DEC-xxx` exists only when *you* said so, with a rationale.
 - **Unknowns stay visible.** What the AI can't resolve becomes a `FND-xxx` finding and a question, not an invented requirement.
-- **Everything traces back, both ways.** Definition → Decision → Prompt, and every part of the prompt lands somewhere: included, excluded on record, or an open finding. Your original words are preserved verbatim.
+- **Everything traces back, both ways.** Definition → Decision → Prompt, and every sentence of the prompt lands somewhere: decomposed, raised as a question, or marked not-a-requirement with a reason you agree to. Every Node lands in the Definition, in an exclusion on record, or in an open finding. Nothing drops out silently — the gate lists what did.
 - **Approval goes stale.** Change an input after approving and the approval is invalidated.
 - **No LLM inside the CLI.** The CLI only handles files, schemas and validation. Reasoning happens in your own Claude Code or Codex session, so there is no extra API key and no hidden model call.
 
@@ -121,9 +121,10 @@ ProductKit holds eleven rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones tha
 
 ## Honest limits
 
-- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 248 automated tests.
+- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 270 automated tests, including a regression suite built from adversarial attacks that once reached READY.
 - Passing validation proves **structure**, not that the product is right. Semantic quality depends on the agent and on you.
-- Rule 5 (nothing silently drops out of the prompt) is a principle today, not yet a machine check. Until the coverage gate ships, an omission from the original prompt is caught only by the agent's own review.
+- The coverage gates catch **omission**, not **distortion**. A sentence can be marked "not a requirement" with a wrong reason, or a Definition item can say the opposite of its source Node, and the CLI will not notice; it only puts the source text next to the item in the export so a reader can. Read the comparison.
+- A review must cite evidence to count as reviewed, but the CLI cannot tell whether the cited artifact is the right one for that area. "Cited something" is the floor, not the bar.
 - The CLI cannot verify who typed a confirmation. Only record a decision or approval after a real human said it.
 
 ## Docs
