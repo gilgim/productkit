@@ -43,6 +43,9 @@ const REASON_MESSAGES: Record<CompletionBlockReason, string> = {
   presented_statement_not_rendered:
     'presented_statement must be exactly the block printed below under "Show the user"; the CLI ' +
     'renders what the user sees, the agent does not.',
+  reading_incomplete:
+    'A reading labels its sentence instead of restating it: numbers or most content words of the ' +
+    'span are missing from the statements that cite it.',
   missing_merge_reason:
     'A decomposition item merges several spans, or reads a many-clause span as one statement, ' +
     'without saying why.',

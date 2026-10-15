@@ -19,9 +19,10 @@ import {
   type NodeGroup,
 } from '../src/schema/node.js';
 
+const nodePrompt = promptFixture('A single atomic requirement.');
 const completeSteps: ClarificationSteps = validSteps(['A single atomic requirement.']);
 function judgeNodeSetCompletion(group: NodeGroup, steps: ClarificationSteps) {
-  return judgeWithSource(group, steps, { clarification: confirmedFixture(steps), prompt: promptFixture() });
+  return judgeWithSource(group, steps, { clarification: confirmedFixture(steps, nodePrompt), prompt: nodePrompt });
 }
 
 function atomicity(overrides: Partial<Atomicity> = {}): Atomicity {
@@ -53,7 +54,7 @@ function buildGroup(overrides: Partial<NodeGroup> = {}): NodeGroup {
     id: 'NDG-001',
     clarification_ref: 'CLR-001',
     source_content_hash: nodeSetContentHash(completeSteps),
-    clarification_content_hash: clarificationContentHash(confirmedFixture(completeSteps)),
+    clarification_content_hash: clarificationContentHash(confirmedFixture(completeSteps, nodePrompt)),
     nodes: [buildNode()],
     coverage: { complete: true, uncovered_decomposition_indices: [] },
     distortion_checks: [preservedCheck(0, completeSteps.decomposition[0]!.statement)],

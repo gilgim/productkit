@@ -56,7 +56,7 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(judgement.confirmed).toBe(false);
     if (!judgement.confirmed) { expect(judgement.reason).toBe('uncovered_spans'); expect(judgement.detail).toContain('SPN-002, SPN-003'); }
     const steps = validSteps(['첫 문장이다.']);
-    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '비유 문장' }, { span_ref: 'SPN-003', disposition: 'non_requirement', reason: '예시' }];
+    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '비유로 쓴 문장' }, { span_ref: 'SPN-003', disposition: 'non_requirement', reason: '예시로 든 문장' }];
     expect(judgeCompletion(confirmedFixture(steps, prompt), prompt).confirmed).toBe(true);
   });
 
@@ -68,7 +68,7 @@ describe('leak regression: source content cannot vanish silently', () => {
     await runInit({ cwd: temp, name: 'Leak' }, createMemoryOutput());
     const prompt = promptFixture('결제를 완료하면 주문을 확정한다. 마치 카드 긁듯이 간단해야 한다. 예를 들어 세 번 탭이면 끝.');
     const steps = validSteps(['결제를 완료하면 주문을 확정한다.']);
-    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '비유' }, { span_ref: 'SPN-003', disposition: 'non_requirement', reason: '예시' }];
+    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '비유로 쓴 문장' }, { span_ref: 'SPN-003', disposition: 'non_requirement', reason: '예시로 든 문장' }];
     await writeFile(path.join(temp, 'product', 'sources', 'PRM-001.yaml'), stringify(prompt));
     await writeFile(path.join(temp, 'product', 'discovery', 'CLR-001.yaml'), stringify(confirmedFixture(steps, prompt)));
     const output = createMemoryOutput();
@@ -76,8 +76,8 @@ describe('leak regression: source content cannot vanish silently', () => {
     const text = output.stdout.join('\n');
     expect(text).toContain('Clarification confirmed');
     expect(text).toContain('Spans set aside as non_requirement (2)');
-    expect(text).toContain('SPN-002  "마치 카드 긁듯이 간단해야 한다."  — 비유');
-    expect(text).toContain('SPN-003  "예를 들어 세 번 탭이면 끝."  — 예시');
+    expect(text).toContain('SPN-002  "마치 카드 긁듯이 간단해야 한다."  — 비유로 쓴 문장');
+    expect(text).toContain('SPN-003  "예를 들어 세 번 탭이면 끝."  — 예시로 든 문장');
   });
 
   it('a Node left out of the Definition with no exclusion Decision and no open Finding blocks readiness', async () => {
@@ -133,14 +133,13 @@ describe('leak regression: source content cannot vanish silently', () => {
   it('the statement the user agrees to is rendered by the CLI; an agent-written one, even a quoting one, is refused', () => {
     const prompt = promptFixture('첫 문장이다. 둘째 문장이다.');
     const steps = validSteps(['첫 문장이다.']);
-    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '서술' }];
+    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '설명하는 서술 문장' }];
     const good = confirmedFixture(steps, prompt);
     expect(judgeCompletion(good, prompt).confirmed).toBe(true);
     const rendered = good.interpretation_check[0]!.presented_statement;
-    expect(rendered).toContain('[1] 원문 SPN-001: "첫 문장이다."');
-    expect(rendered).toContain('해석: 첫 문장이다.');
-    expect(rendered).toContain('요구사항 아님 (1):');
-    expect(rendered).toContain('- SPN-002 "둘째 문장이다." — 서술');
+    expect(rendered).toContain('SPN-001 "첫 문장이다."\n  → 해석 [1]: 첫 문장이다.');
+    expect(rendered).toContain('SPN-002 "둘째 문장이다."\n  → 요구사항 아님: 설명하는 서술 문장');
+    expect(rendered).toContain('요구사항 아님: 1 문장 / 질문으로 남김: 0 건');
     const { entry_hash: _e, ...entry } = good.interpretation_check[0]!;
     for (const presented of ['SYNTHETIC: 첫 번째 문장만 요구사항이고 나머지는 서술이다.', `${rendered}\n해석 요약: 위 내용 중 1번만 요구사항`, `사용자는 아래 문장을 말한 적이 없다: ${rendered}`]) {
       const forged = { ...entry, presented_statement: presented };
@@ -155,23 +154,24 @@ describe('leak regression: source content cannot vanish silently', () => {
     const prompt = promptFixture('첫 문장이다. 둘째 문장이다.');
     const steps = validSteps(['첫 문장이다.']);
     const rendered = renderPresentation({ steps, finding_candidates: [{ statement: '둘째 문장의 주체가 불명확하다', type: 'ambiguity', span_refs: ['SPN-002'] }] }, prompt);
-    expect(rendered).toContain('질문으로 남김 (1):');
-    expect(rendered).toContain('[Q1] SPN-002 "둘째 문장이다." — ambiguity: 둘째 문장의 주체가 불명확하다');
+    expect(rendered).toContain('SPN-002 "둘째 문장이다."\n  → 질문 [Q1] ambiguity: 둘째 문장의 주체가 불명확하다');
+    expect(rendered).toContain('질문으로 남김: 1 건');
   });
 
   it('merging several spans into one reading, or reading a many-clause span as one statement, needs a stated reason', () => {
     const prompt = promptFixture('가입은 닉네임만으로 된다. 기록은 오프라인에서도 저장된다.');
-    const merged = validSteps(['가입과 기록 요구를 만든다.']);
+    const merged = validSteps(['가입은 닉네임만으로 되고 기록은 오프라인에서도 저장된다.']);
     merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002'];
     let j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.reason).toBe('missing_merge_reason');
     merged.decomposition[0]!.merge_reason = '두 문장이 같은 가입 흐름의 한 요구다';
     j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
     expect(j.confirmed).toBe(true);
-    expect(confirmedFixture(merged, prompt).interpretation_check[0]!.presented_statement).toContain('묶은 이유: 두 문장이 같은 가입 흐름의 한 요구다');
+    expect(confirmedFixture(merged, prompt).interpretation_check[0]!.presented_statement).toContain('묶음 SPN-001, SPN-002 — 두 문장이 같은 가입 흐름의 한 요구다');
+    expect(confirmedFixture(merged, prompt).interpretation_check[0]!.presented_statement).toContain('→ 해석 [1] 과 함께 읽음 (SPN-001, SPN-002)');
 
     const long = promptFixture('닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 7일 이내 전액');
-    const one = validSteps(['운동 앱의 가입·기록·친구·결제·환불 요구를 만든다.']);
+    const one = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 7일 이내 전액']);
     j = judgeCompletion(confirmedFixture(one, long), long);
     expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('missing_merge_reason'); expect(j.detail).toMatch(/clause separators/); }
     one.decomposition[0]!.single_statement_reason = '사용자가 한 줄로 쓴 목록이라 묶어서 확인받고 Node 단계에서 나눈다';
@@ -332,6 +332,49 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(spec).toContain('statement attestation: flag');
     expect(proposal).toContain("## Set aside from the user's prompt");
     expect(proposal).toContain('- Nothing was set aside.');
+  });
+
+  it('a reading that labels a sentence instead of restating it is refused', () => {
+    const long = promptFixture('닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 7일 이내 전액');
+    const label = validSteps(['운동 앱의 요구사항']);
+    label.decomposition[0]!.single_statement_reason = '원문이 한 문장이라 하나로 읽음';
+    const j = judgeCompletion(confirmedFixture(label, long), long);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('reading_incomplete'); expect(j.detail).toMatch(/drop these numbers|content words/); }
+    // Dropping one number is enough to fail.
+    const partial = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 전액']);
+    partial.decomposition[0]!.single_statement_reason = '한 줄 목록이라 묶어 확인받는다';
+    const j2 = judgeCompletion(confirmedFixture(partial, long), long);
+    expect(j2.confirmed).toBe(false); if (!j2.confirmed) expect(j2.detail).toContain('7일');
+  });
+
+  it('merging spans does not exempt a many-clause span from the clause rule; a question cannot be set aside; reasons must say something', () => {
+    const prompt = promptFixture('닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만. 그런데 알림을 끄면?');
+    const merged = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만. 그런데 알림을 끄면?']);
+    merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002'];
+    merged.decomposition[0]!.merge_reason = '같은 흐름의 문장들이라 묶음';
+    let j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('missing_merge_reason'); expect(j.detail).toMatch(/only reading of SPN-001/); }
+    const aside = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만.']);
+    aside.decomposition[0]!.single_statement_reason = '한 줄 목록이라 묶어 확인받는다';
+    aside.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '질문 형태 서술' }];
+    j = judgeCompletion(confirmedFixture(aside, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/is a question/);
+    aside.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: 'x' }];
+    j = judgeCompletion(confirmedFixture(aside, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/6\+ characters/);
+  });
+
+  it('the rendered block follows the order of the prompt, so a heading set aside sits above its items', () => {
+    const prompt = promptFixture('## 결제 화면\n카드 결제를 지원한다.\n계좌이체도 지원한다.');
+    const steps = validSteps(['카드 결제를 지원한다.', '계좌이체도 지원한다.']);
+    steps.decomposition[0]!.span_refs = ['SPN-002']; steps.decomposition[1]!.span_refs = ['SPN-003'];
+    steps.elaboration = steps.decomposition.map((d) => ({ statement: d.statement, actor: '사용자', object: '결제', condition: '결제 시', action: '지원', result: '결제 완료' }));
+    steps.span_coverage = [{ span_ref: 'SPN-001', disposition: 'non_requirement', reason: '절 제목이라 요구사항 아님' }];
+    const rendered = renderPresentation({ steps, finding_candidates: [] }, prompt);
+    const i1 = rendered.indexOf('SPN-001 "## 결제 화면"'); const i2 = rendered.indexOf('SPN-002 "카드 결제를 지원한다."'); const i3 = rendered.indexOf('SPN-003 "계좌이체도 지원한다."');
+    expect(i1).toBeGreaterThan(-1); expect(i1).toBeLessThan(i2); expect(i2).toBeLessThan(i3);
+    expect(rendered).toContain('관계 후보: 없음 — 각 행동 사이의 필수 의존이나 순서는 원문에 명시되어 있지 않다.');
+    expect(rendered).toContain('달리 읽힐 수 있는 곳: 없음 —');
   });
 
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {

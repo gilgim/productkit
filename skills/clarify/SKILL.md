@@ -37,7 +37,10 @@ ProductKit의 Phase 2(Clarification) instruction이다. CLI는 이 내용을 생
 - `definition[].origin` 은 `user_stated`(사용자가 직접 말함) 또는
   `ai_inferred`. 추측한 정의를 `user_stated` 로 적지 **않는다**.
 - `decomposition[]` — 요구사항 하나에 항목 하나. `span_refs` 는 그 문장이 나온
-  Prompt span id.
+  Prompt span id. `statement` 는 그 문장을 **다시 말한 것**이지 이름표가 아니다.
+  span 의 숫자·단위는 전부, 내용 단어는 60% 이상이 그 span 을 읽은 statement 들에
+  있어야 한다(`reading_incomplete`). "운동 앱의 요구사항" 같은 라벨은 거부된다.
+  거의 그대로 옮겨 적는 것이 맞고, 나누는 일은 atomize 에서 한다.
   - span 여러 개를 한 항목에 묶으면 `merge_reason` 필수.
   - 쉼표·접속어가 많은 span(CLI 가 3개 이상이면 지적한다)을 혼자 한 문장으로
     읽으면 `single_statement_reason` 필수. 이유를 못 대면 나눈다.
@@ -55,7 +58,8 @@ ProductKit의 Phase 2(Clarification) instruction이다. CLI는 이 내용을 생
   2. `finding_candidates[].span_refs` — 모호·모순·전제 누락이라 질문으로 남겼다.
      이 후보는 나중에 Challenge 에서 **사용자가 확인한 Finding** 으로 올라가야
      validate 를 통과한다. 쓰레기통이 아니다.
-  3. `steps.span_coverage` — 요구사항이 아니다(제목·비유·예시·서술). `reason` 한 줄.
+  3. `steps.span_coverage` — 요구사항이 아니다(제목·비유·예시·서술). `reason` 한 줄
+     (6자 이상). `?` 로 끝나는 문장은 여기 둘 수 없다 — 분해하거나 질문으로.
 - 모호성·모순은 임의로 하나를 골라 확정하지 않고 `finding_candidates` 에 남긴다.
 - YAML 문자열 안에 `"..."` 인용부호를 그대로 넣지 않는다(파싱 오류). 작은따옴표
   규칙(`''`) 을 쓰거나 따옴표 없이 쓴다.
@@ -65,7 +69,8 @@ ProductKit의 Phase 2(Clarification) instruction이다. CLI는 이 내용을 생
 사용자에게 보여주는 문장은 **CLI 가 만든다.** Agent 가 요약해서 보여주지 않는다.
 
 1. `productkit clarify` 를 실행한다. steps 가 온전하면 `Show the user` 아래에
-   원문 → 해석 쌍, 요구사항 아님 목록, 질문 후보 목록이 찍힌다. steps 에 문제가
+   용어, 원문 순서대로 문장마다 해석·요구사항 아님·질문, 관계 후보, 달리 읽힐 수
+   있는 곳이 찍힌다. steps 에 문제가
    있으면 이유(`uncovered_spans`, `missing_merge_reason`, …)가 찍힌다. 고치고 다시
    실행한다.
 2. 그 블록을 **그대로** 사용자에게 보여주고 동의를 구한다. 여기서 사용자가 틀린

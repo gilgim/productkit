@@ -3,6 +3,7 @@ import { judgeCompletion, clarificationContentHash, type Clarification, type Cla
 import type { Prompt } from './prompt.js';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
+import { clauseSignalCount } from '../clarification/spans.js';
 
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 
@@ -246,6 +247,8 @@ export type NodeGroupBlockReason =
   | 'open_risk_findings'
   | 'unresolved_distortion_check'
   | 'source_changed_since_modeling'
+  | 'structural_signal_mismatch'
+  | 'split_review_required'
   | 'invalid_reference';
 
 export type NodeGroupJudgement =
@@ -325,6 +328,13 @@ export function judgeNodeSetCompletion(
     detail.push(`decomposition items not covered by any Node: ${uncovered.join(', ')}`);
   }
 
+  // Structural signals are the CLI's numbers, not the author's. A statement
+  // that still carries several clauses cannot be waved through with
+  // decomposability: not_applicable — it must be split or defended.
+  const signalMismatch = group.nodes.filter(n => { const c = computeStructuralSignal(n.statement); return c.conjunction_count !== n.structural_signal.conjunction_count || c.multiple_predicates !== n.structural_signal.multiple_predicates; });
+  if (signalMismatch.length) { reasons.push('structural_signal_mismatch'); detail.push(`structural_signal must equal what the CLI computes from the statement (productkit hash atomicity --input prints it): ${signalMismatch.map(n => n.id).join(', ')}`); }
+  const clauseHeavy = group.nodes.filter(n => clauseSignalCount(n.statement) >= 3 && n.atomicity.decomposability.verdict === 'not_applicable');
+  if (clauseHeavy.length) { reasons.push('split_review_required'); detail.push(`Nodes whose statement carries 3+ clause separators need decomposability valid_split or would_orphan_pieces with a reason, not not_applicable: ${clauseHeavy.map(n => n.id).join(', ')}`); }
   const splitRequired = group.nodes.filter(n => n.atomicity.final === 'split_required');
   if (splitRequired.length) {
     reasons.push('split_required');

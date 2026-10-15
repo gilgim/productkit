@@ -22,6 +22,8 @@ export interface ModelOptions {
  */
 const REASON_MESSAGES: Record<NodeGroupBlockReason, string> = {
   invalid_split_lineage: 'Split replacements must trace to preserved split-required Nodes with new IDs and matching source references.',
+  structural_signal_mismatch: 'structural_signal must be what the CLI computes from the statement; run `productkit hash atomicity --input` with the statement to get it.',
+  split_review_required: 'A statement that still carries 3+ clause separators needs decomposability valid_split or would_orphan_pieces (with a reason), not not_applicable.',
   missing_preservation_review: 'Each source item requires a substantive conditions/operators/exceptions preservation review.',
   invalid_source: 'Current confirmed Clarification and its intact Prompt source are required.',
   split_required: 'A final Node still requires splitting; preserve it as retired history and create new atomic Nodes.',

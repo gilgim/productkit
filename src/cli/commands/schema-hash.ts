@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { CliError, ExitCode } from '../../errors.js';
 import { ensureWorkspace, readSourcePrompt } from '../../clarification/workspace.js';
 import { clarificationSchema, clarificationContentHash, interpretationCheckEntrySchema, parseClarification, renderPresentation, stepsContentHash } from '../../schema/clarification.js';
-import { atomicitySchema, evaluateAtomicityFinal, nodeGroupSchema, nodeSetContentHash } from '../../schema/node.js';
+import { atomicitySchema, computeStructuralSignal, evaluateAtomicityFinal, nodeGroupSchema, nodeSetContentHash } from '../../schema/node.js';
 import { findingInputSchema } from '../../schema/finding.js';
 import { graphEdgeSchema, relationCandidateSchema } from '../../schema/graph.js';
 import { proposalInputSchema } from '../../schema/proposal.js';
@@ -83,6 +83,7 @@ export function registerSchemaHashCommands(program: Command, output: Output): vo
       const { final: _ignored, ...rest } = raw;
       const parsed = atomicitySchema.omit({ final: true }).parse(rest);
       output.out(`final: ${evaluateAtomicityFinal(parsed) ?? 'null'}`);
+      if (typeof raw.statement === 'string') { const sig = computeStructuralSignal(raw.statement); output.out(`structural_signal: { conjunction_count: ${sig.conjunction_count}, multiple_predicates: ${sig.multiple_predicates} }`); }
     });
   hash
     .command('steps')

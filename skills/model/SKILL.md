@@ -56,7 +56,7 @@ nodes:
     derived_from:
       clarification_ref: CLR-001
       decomposition_index: 0   # steps.decomposition 배열의 0-based 인덱스
-    structural_signal:
+    structural_signal:          # CLI 계산값과 같아야 한다 — `productkit hash atomicity --input` 에 statement 를 같이 넣으면 찍어 준다
       conjunction_count: 0
       multiple_predicates: false
     atomicity:
@@ -112,6 +112,9 @@ productkit hash atomicity --input atomicity.yaml
   의미 보존 실패다.
 - 복합 조건 정책(예: "3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다") →
   조건을 쪼개지 않고 하나의 `policy` Node로 유지한다.
+- statement 에 쉼표·접속어가 3개 이상 남아 있으면 `decomposability` 를
+  `not_applicable` 로 둘 수 없다(`split_review_required`). `valid_split` 로 나누거나
+  `would_orphan_pieces` 로 이유를 댄다.
 
 판정이 불확실하면(`uncertain`) 임의로 `atomic`을 적지 않는다 — 아래 위험
 신호 절차를 따른다.

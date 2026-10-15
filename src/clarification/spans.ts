@@ -5,7 +5,7 @@ export interface Span {
 }
 
 /** Current segmentation rule. Prompts record the version they were cut with. */
-export const SEGMENTATION_VERSION = 2;
+export const SEGMENTATION_VERSION = 3;
 
 /**
  * Splits text at sentence-ending punctuation or line breaks so later steps
@@ -19,7 +19,7 @@ export const SEGMENTATION_VERSION = 2;
  * ASCII letter (an abbreviation like "e.g."). Version 1 stays available so
  * Prompts taken in under it still verify.
  */
-export function segmentSpans(text: string, version: 1 | 2 = SEGMENTATION_VERSION): Span[] {
+export function segmentSpans(text: string, version: 1 | 2 | 3 = SEGMENTATION_VERSION): Span[] {
   const spans: Span[] = [];
   const boundary = version === 1 ? /[.!?]+|\n+/g : /[.!?]+(?=\s|$)|\n+/g;
   let start = 0;
@@ -28,10 +28,16 @@ export function segmentSpans(text: string, version: 1 | 2 = SEGMENTATION_VERSION
 
   while ((match = boundary.exec(text)) !== null) {
     const end = match.index + match[0].length;
-    if (version === 2 && !match[0].startsWith('\n')) {
+    if (version >= 2 && !match[0].startsWith('\n')) {
       const before = text.slice(start, match.index);
       // "e.g." / "Dr." — a lone ASCII letter before the stop is not a sentence end.
       if (/(^|[\s(])[A-Za-z]$/.test(before)) continue;
+      if (version >= 3) {
+        // v3: short ASCII abbreviations ("vs.", "Dr.", "etc."), dotted ones
+        // ("U.S.", "i.e.", "e.g.") and list markers at line start ("1.", "12.")
+        // are not sentence ends either.
+        if (/(^|[\s(])[A-Za-z]{1,3}$/.test(before) || /[A-Za-z]\.[A-Za-z]$/.test(before) || /(^|\n)\s*\d{1,3}$/.test(before)) continue;
+      }
     }
     if (text.slice(start, end).trim().length > 0) {
       spans.push({ id: `SPN-${String(index).padStart(3, '0')}`, start, end });
@@ -45,6 +51,21 @@ export function segmentSpans(text: string, version: 1 | 2 = SEGMENTATION_VERSION
   }
 
   return spans;
+}
+
+/** Numbers with their units/currency — the most concrete content a sentence carries. */
+export function numberTokens(text: string): string[] {
+  return (text.match(/[$₩€£]?\d[\d.,:~\-]*\d?[%]?[가-힣A-Za-z]{0,3}/g) ?? []).map((t) => t.replace(/[.,]$/, ''));
+}
+
+/** Content tokens: 2+ chars, punctuation stripped, Korean particles trimmed loosely. */
+export function contentTokens(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const raw of text.split(/[\s,.;:!?()\[\]{}"'`“”‘’·/|]+/)) {
+    const t = raw.replace(/(은|는|이|가|을|를|의|에|에서|으로|로|와|과|도|만|까지|부터|마다)$/, '');
+    if (t.length >= 2) out.add(t.toLowerCase());
+  }
+  return out;
 }
 
 /** Verbatim text of one span, whitespace collapsed. */

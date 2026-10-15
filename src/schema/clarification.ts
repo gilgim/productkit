@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { promptIntegrityIssue, type Prompt } from './prompt.js';
 import { isMeaningfulText } from './text.js';
-import { clauseSignalCount, spanText } from '../clarification/spans.js';
+import { clauseSignalCount, contentTokens, numberTokens, spanText } from '../clarification/spans.js';
 
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 
@@ -179,6 +179,7 @@ export type CompletionBlockReason =
   | 'prompt_changed_since_clarification'
   | 'uncovered_spans'
   | 'missing_merge_reason'
+  | 'reading_incomplete'
   | 'presented_statement_not_rendered';
 
 export type CompletionJudgement =
@@ -239,6 +240,8 @@ export function judgeCompletion(clarification: Clarification, prompt?: Prompt): 
   if (uncovered.length) return { confirmed: false, reason: 'uncovered_spans', detail: `Prompt spans not decomposed, not raised as a finding candidate, and not dispositioned as non_requirement: ${uncovered.join(', ')}` };
   const merge = mergeReasonIssue(clarification, prompt);
   if (merge) return { confirmed: false, reason: 'missing_merge_reason', detail: merge };
+  const reading = readingCoverageIssue(clarification, prompt);
+  if (reading) return { confirmed: false, reason: 'reading_incomplete', detail: reading };
   if (squash(latest.presented_statement) !== squash(renderPresentation(clarification, prompt))) return { confirmed: false, reason: 'presented_statement_not_rendered', detail: 'presented_statement must be exactly the text `productkit clarify` renders from the current steps (run it and copy the block verbatim).' };
   return { confirmed: true };
 }
@@ -255,19 +258,38 @@ const spanTextById = (prompt: Prompt, id: string): string => { const span = prom
  * `presented_statement` to equal this render exactly.
  */
 export function renderPresentation(clarification: Pick<Clarification, 'steps' | 'finding_candidates'>, prompt: Prompt): string {
+  const { steps } = clarification;
   const lines: string[] = [];
-  clarification.steps.decomposition.forEach((item, i) => {
-    lines.push(`[${i + 1}] 원문 ${item.span_refs.join(', ')}: ${item.span_refs.map(id => `"${spanTextById(prompt, id)}"`).join(' / ')}`);
-    if (item.span_refs.length > 1) lines.push(`    묶은 이유: ${squash(item.merge_reason ?? '')}`);
-    if (item.single_statement_reason) lines.push(`    한 문장으로 읽은 이유: ${squash(item.single_statement_reason)}`);
-    lines.push(`    해석: ${squash(item.statement)}`);
-  });
-  const aside = clarification.steps.span_coverage ?? [];
-  lines.push(aside.length ? `요구사항 아님 (${aside.length}):` : '요구사항 아님: 없음');
-  for (const c of aside) lines.push(`  - ${c.span_ref} "${spanTextById(prompt, c.span_ref)}" — ${squash(c.reason)}`);
+  const defs = steps.definition;
+  lines.push(defs.length ? `용어 (${defs.length}):` : '용어: 없음');
+  for (const d of defs) lines.push(`  - ${squash(d.term)}: ${squash(d.meaning)} (${d.origin === 'user_stated' ? '사용자가 말함' : 'AI 추론'})`);
+  // Everything else in the order of the user's own text, so a heading set
+  // aside is seen right above the sentences it governs, and a merged reading
+  // is seen at every sentence it covers.
+  lines.push(`원문 순서 (${prompt.spans.length} 문장):`);
+  const aside = steps.span_coverage ?? [];
   const candidates = clarification.finding_candidates;
-  lines.push(candidates.length ? `질문으로 남김 (${candidates.length}):` : '질문으로 남김: 없음');
-  candidates.forEach((f, i) => lines.push(`  - [Q${i + 1}] ${f.span_refs.join(', ')} ${f.span_refs.map(id => `"${spanTextById(prompt, id)}"`).join(' / ')} — ${f.type}: ${squash(f.statement)}`));
+  for (const span of prompt.spans) {
+    lines.push(`${span.id} "${spanText(prompt.raw_text, span)}"`);
+    steps.decomposition.forEach((item, i) => {
+      if (!item.span_refs.includes(span.id)) return;
+      const first = item.span_refs[0] === span.id;
+      if (!first) { lines.push(`  → 해석 [${i + 1}] 과 함께 읽음 (${item.span_refs.join(', ')})`); return; }
+      const tags: string[] = [];
+      if (item.span_refs.length > 1) tags.push(`묶음 ${item.span_refs.join(', ')} — ${squash(item.merge_reason ?? '')}`);
+      if (item.single_statement_reason) tags.push(`한 문장으로 읽음 — ${squash(item.single_statement_reason)}`);
+      lines.push(`  → 해석 [${i + 1}]${tags.length ? ` (${tags.join('; ')})` : ''}: ${squash(item.statement)}`);
+    });
+    for (const c of aside) if (c.span_ref === span.id) lines.push(`  → 요구사항 아님: ${squash(c.reason)}`);
+    candidates.forEach((f, i) => { if (f.span_refs.includes(span.id)) lines.push(`  → 질문 [Q${i + 1}] ${f.type}: ${squash(f.statement)}${f.span_refs.length > 1 ? ` (${f.span_refs.join(', ')})` : ''}`); });
+  }
+  lines.push(`요구사항 아님: ${aside.length} 문장 / 질문으로 남김: ${candidates.length} 건`);
+  const rel = steps.relation_check;
+  lines.push(rel.length ? `관계 후보 (${rel.length}):` : `관계 후보: 없음 — ${squash(steps.relation_check_no_items_reason ?? '')}`);
+  for (const r of rel) lines.push(`  - ${squash(r.statement_a)} ↔ ${squash(r.statement_b)}: ${squash(r.relation_candidate)}`);
+  const cx = steps.counterexample;
+  lines.push(cx.length ? `달리 읽힐 수 있는 곳 (${cx.length}):` : `달리 읽힐 수 있는 곳: 없음 — ${squash(steps.counterexample_no_items_reason ?? '')}`);
+  for (const x of cx) lines.push(`  - ${squash(x.ambiguity)}: ${x.possible_interpretations.map(squash).join(' / ')}`);
   return lines.join('\n');
 }
 
@@ -279,15 +301,51 @@ export const CLAUSE_SIGNAL_THRESHOLD = 3;
  * item being the only reading of a span that plainly carries several
  * clauses. Neither is forbidden; both need a reason the user will see.
  */
+/** A reason must say something: not a placeholder, not "x". */
+export const isReason = (value: unknown): value is string => isMeaningfulText(value) && value.trim().length >= 6;
+
 export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined {
   const items = clarification.steps.decomposition;
   for (const [i, item] of items.entries()) {
-    if (item.span_refs.length > 1 && !isMeaningfulText(item.merge_reason)) return `decomposition[${i}] cites ${item.span_refs.length} spans (${item.span_refs.join(', ')}) but gives no merge_reason.`;
-    if (item.span_refs.length === 1) {
-      const id = item.span_refs[0]!;
+    if (item.span_refs.length > 1 && !isReason(item.merge_reason)) return `decomposition[${i}] cites ${item.span_refs.length} spans (${item.span_refs.join(', ')}) but gives no merge_reason (6+ characters).`;
+    // Merging several spans does not exempt any of them from the clause rule.
+    for (const id of item.span_refs) {
       const readers = items.filter(other => other.span_refs.includes(id));
       const signals = clauseSignalCount(spanTextById(prompt, id));
-      if (readers.length === 1 && signals >= CLAUSE_SIGNAL_THRESHOLD && !isMeaningfulText(item.single_statement_reason)) return `decomposition[${i}] is the only reading of ${id}, which carries ${signals} clause separators; give a single_statement_reason or split it.`;
+      if (readers.length === 1 && signals >= CLAUSE_SIGNAL_THRESHOLD && !isReason(item.single_statement_reason)) return `decomposition[${i}] is the only reading of ${id}, which carries ${signals} clause separators; give a single_statement_reason (6+ characters) or split it.`;
+    }
+  }
+  for (const [i, c] of (clarification.steps.span_coverage ?? []).entries()) {
+    if (!isReason(c.reason)) return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters.`;
+    if (/[?？]\s*$/.test(spanTextById(prompt, c.span_ref))) return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; decompose it or raise it as a finding candidate.`;
+  }
+  return undefined;
+}
+
+/** Share of a span's content that its readings must carry. */
+export const READING_COVERAGE_RATIO = 0.6;
+
+/**
+ * A reading must restate the sentence, not label it. Every number in the
+ * span must appear in the union of statements that cite it, and most of its
+ * content words must too. "운동 앱의 요구사항" for a six-requirement line fails
+ * here; a near-verbatim reading passes, and the split happens at atomize.
+ */
+export function readingCoverageIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined {
+  const items = clarification.steps.decomposition;
+  const cited = new Set(items.flatMap(d => d.span_refs));
+  for (const id of cited) {
+    const text = spanTextById(prompt, id);
+    const union = items.filter(d => d.span_refs.includes(id)).map(d => d.statement).join(' ');
+    const unionTokens = contentTokens(union);
+    const unionText = union.replace(/\s+/g, '');
+    const missingNumbers = numberTokens(text).filter(n => !unionText.includes(n.replace(/\s+/g, '')));
+    if (missingNumbers.length) return `readings of ${id} drop these numbers from the sentence: ${missingNumbers.join(', ')}`;
+    const spanTokens = [...contentTokens(text)];
+    if (spanTokens.length >= 3) {
+      const kept = spanTokens.filter(t => unionTokens.has(t) || unionText.toLowerCase().includes(t));
+      const ratio = kept.length / spanTokens.length;
+      if (ratio < READING_COVERAGE_RATIO) return `readings of ${id} carry ${Math.round(ratio * 100)}% of its content words (need ${READING_COVERAGE_RATIO * 100}%); missing e.g. ${spanTokens.filter(t => !kept.includes(t)).slice(0, 6).join(', ')}`;
     }
   }
   return undefined;
@@ -321,6 +379,8 @@ export function stepsReadinessIssue(clarification: Clarification, prompt: Prompt
   if (uncovered.length) return { confirmed: false, reason: 'uncovered_spans', detail: `Prompt spans not decomposed, not raised as a finding candidate, and not dispositioned as non_requirement: ${uncovered.join(', ')}` };
   const merge = mergeReasonIssue(clarification, prompt);
   if (merge) return { confirmed: false, reason: 'missing_merge_reason', detail: merge };
+  const reading = readingCoverageIssue(clarification, prompt);
+  if (reading) return { confirmed: false, reason: 'reading_incomplete', detail: reading };
   return undefined;
 }
 

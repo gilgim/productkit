@@ -18,7 +18,7 @@ import {
   computeEntryHash,
   stepsContentHash,
 } from '../src/schema/clarification.js';
-import { type Atomicity, type Node, type NodeGroup, evaluateAtomicityFinal, nodeSetContentHash } from '../src/schema/node.js';
+import { type Atomicity, type Node, type NodeGroup, evaluateAtomicityFinal, nodeSetContentHash, computeStructuralSignal } from '../src/schema/node.js';
 
 let root: string;
 
@@ -43,13 +43,13 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-function confirmedEntry(forSteps: ClarificationSteps) {
+function confirmedEntry(forSteps: ClarificationSteps, prompt = originalPrompt) {
   const base = {
     id: 'IC-001',
-    presented_statement: renderPresentation({ steps: forSteps, finding_candidates: [] }, originalPrompt),
+    presented_statement: renderPresentation({ steps: forSteps, finding_candidates: [] }, prompt),
     presented_hash: stepsContentHash(forSteps),
-    prompt_ref: originalPrompt.id,
-    prompt_content_hash: originalPrompt.content_hash,
+    prompt_ref: prompt.id,
+    prompt_content_hash: prompt.content_hash,
     user_response: 'agreed' as const,
     user_statement: '네 맞습니다',
     checked_at: '2026-10-12T00:00:00Z',
@@ -57,14 +57,15 @@ function confirmedEntry(forSteps: ClarificationSteps) {
   return { ...base, entry_hash: computeEntryHash(base) };
 }
 
-async function writeConfirmedClarification(forSteps: ClarificationSteps = steps): Promise<void> {
+async function writeConfirmedClarification(forSteps: ClarificationSteps = steps, prompt = originalPrompt): Promise<void> {
+  await writeFile(path.join(root, 'product', 'sources', 'PRM-001.yaml'), stringifyYaml(prompt));
   const clarification: Clarification = {
     id: 'CLR-001',
     prompt_ref: 'PRM-001',
-    prompt_content_hash: originalPrompt.content_hash,
+    prompt_content_hash: prompt.content_hash,
     steps: forSteps,
     status: 'confirmed',
-    interpretation_check: [confirmedEntry(forSteps)],
+    interpretation_check: [confirmedEntry(forSteps, prompt)],
     finding_candidates: [],
   };
   await writeFile(
@@ -236,10 +237,10 @@ describe('productkit atomize — completion judgement', () => {
     const lockSteps: ClarificationSteps = {
       ...validSteps(['3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다']),
       decomposition: [
-        { statement: '3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다', span_refs: ['SPN-001'], single_statement_reason: '결합 조건이 하나의 정책이라 한 문장으로 읽는다' },
+        { statement: '3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다', span_refs: ['SPN-001'] },
       ],
     };
-    await writeConfirmedClarification(lockSteps);
+    await writeConfirmedClarification(lockSteps, promptFixture('3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다'));
     const policyAtomicityBase: Omit<Atomicity, 'final'> = {
       single_verifiable_subject: { verdict: 'no', reason: '조건이 결합된 것처럼 보임' },
       decomposability: { verdict: 'would_orphan_pieces', reason: '조건 하나만 떼면 성립 안 함' },
@@ -251,7 +252,7 @@ describe('productkit atomize — completion judgement', () => {
       statement: '3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다',
       origin: 'source',
       derived_from: { clarification_ref: 'CLR-001', decomposition_index: 0 },
-      structural_signal: { conjunction_count: 1, multiple_predicates: false },
+      structural_signal: computeStructuralSignal('3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다'),
       atomicity: { ...policyAtomicityBase, final: evaluateAtomicityFinal(policyAtomicityBase) },
     };
     await writeNodeGroup({
