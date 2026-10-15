@@ -250,14 +250,15 @@ function validateTargetDecision(target, decisionId) {
         if (!definition.items.some(item => item.provenance.decision_refs.some(ref => ref.ref === decisionId)))
             throw new CliError('Definition application target does not cite the applying Decision.', ExitCode.GATE_BLOCKED);
     }
+    // A Policy/Journey built only from Node sentences cites no Decision; one that carries a Decision's words must cite the applying one.
     else if (target.path.startsWith('product/policies/')) {
         const policy = parsePolicy(target.after_content);
-        if (!policy.provenance.decision_refs.some(ref => ref.ref === decisionId))
+        if (policy.provenance.decision_refs.length && !policy.provenance.decision_refs.some(ref => ref.ref === decisionId))
             throw new CliError('Policy application target does not cite the applying Decision.', ExitCode.GATE_BLOCKED);
     }
     else {
         const journey = parseJourney(target.after_content);
-        if (!journey.provenance.decision_refs.some(ref => ref.ref === decisionId))
+        if (journey.provenance.decision_refs.length && !journey.provenance.decision_refs.some(ref => ref.ref === decisionId))
             throw new CliError('Journey application target does not cite the applying Decision.', ExitCode.GATE_BLOCKED);
     }
 }
@@ -619,10 +620,11 @@ export async function draftApplication(root, decisionId, input, now = new Date()
         if (e.code !== 'ENOENT')
             throw e;
     } targets.push({ ref: { kind, ref: id, content_hash: sha256Hex(canonicalJson(parseYaml(content))) }, path: rel, before_hash: before === null ? null : sha256Hex(before), before_content: before, after_hash: sha256Hex(content), after_content: content }); records.push(`${kind}:${id}`); };
+    const carriesDecisionWords = (v) => { const sqw = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, ''); const words = new Set(decisions.map(d => sqw(d.user_statement))); return JSON.stringify(v).length > 0 && [v.context, v.condition_text, v.action, v.outcome, v.goal, ...(Array.isArray(v.acceptance_criteria) ? v.acceptance_criteria : []), ...(Array.isArray(v.exceptions) ? v.exceptions : []).map(e => e.statement)].some(f => typeof f === 'string' && words.has(sqw(f))); };
     const policies = [];
     for (const raw of input.policies ?? []) {
         const v = raw;
-        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance), exceptions: (Array.isArray(v.exceptions) ? v.exceptions : []).map(e => { const x = e; return { ...x, source_refs: fill(x.source_refs) }; }) };
+        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance, carriesDecisionWords(v)), exceptions: (Array.isArray(v.exceptions) ? v.exceptions : []).map(e => { const x = e; return { ...x, source_refs: fill(x.source_refs) }; }) };
         delete body.content_hash;
         if (!body.id)
             body.id = `POL-${sha256Hex(canonicalJson({ ...body, id: undefined })).slice(0, 16)}`;
@@ -639,7 +641,8 @@ export async function draftApplication(root, decisionId, input, now = new Date()
     const journeys = [];
     for (const raw of input.journeys ?? []) {
         const v = raw;
-        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance), transitions: (Array.isArray(v.transitions) ? v.transitions : []).map(t => { const x = t; return { ...x, decision_refs: x.decision_refs ?? [decisionId] }; }) };
+        const cd = carriesDecisionWords(v);
+        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance, cd), transitions: (Array.isArray(v.transitions) ? v.transitions : []).map(t => { const x = t; return { ...x, decision_refs: x.decision_refs ?? (cd ? [decisionId] : []) }; }) };
         delete body.content_hash;
         delete body.id;
         const journey = createJourney(body);

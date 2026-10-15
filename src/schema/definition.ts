@@ -23,7 +23,8 @@ export const policyConditionSchema: z.ZodType<unknown> = z.lazy(() => z.discrimi
 const provenance = z.object({
   origin: z.enum(['source','ai_inference','user_decision']),
   source_refs: z.array(productArtifactRefSchema).min(1),
-  decision_refs: z.array(productArtifactRefSchema).min(1),
+  // A sentence taken from the prompt (a Node) needs no Decision; a sentence the user decided needs its Decision.
+  decision_refs: z.array(productArtifactRefSchema),
   prompt_refs: z.array(productArtifactRefSchema).min(1),
 }).strict().superRefine((value,ctx)=>{
   const allowed=new Set(['prompt','clarification','node_group','node','edge','relation_candidate','impact_report','finding','proposal','decision','assumption','policy','journey']);
@@ -49,7 +50,7 @@ export type Policy = z.infer<typeof policySchema>;
 export const journeySchema = z.object({
   schema_version:z.literal(1), id:id('JRN'), actor:z.string().trim().min(1), goal:z.string().trim().min(1),
   entry_state:z.string().trim().min(1), states:z.array(z.string().trim().min(1)).min(1),
-  transitions:z.array(z.object({from:z.string().trim().min(1),to:z.string().trim().min(1),trigger:z.string().trim().min(1),decision_refs:z.array(id('DEC')).min(1)}).strict()),
+  transitions:z.array(z.object({from:z.string().trim().min(1),to:z.string().trim().min(1),trigger:z.string().trim().min(1),decision_refs:z.array(id('DEC'))}).strict()),
   terminal_states:z.array(z.string().trim().min(1)).min(1), acceptance_criteria:z.array(z.string().trim().min(1)), provenance,
   content_hash:hash,
 }).strict().superRefine((journey,ctx)=>{

@@ -64,7 +64,7 @@ nodes:
       decomposability: { verdict: "not_applicable", reason: "..." }
       meaning_preservation: { verdict: "preserved", confidence: "high", reason: "..." }
       final: atomic   # split_required | null — 아래 "원자성 판정" 참고
-coverage:                # CLI가 다시 계산한다. 적어도 되지만 적힌 값은 믿지 않는다
+coverage:                # 필수 필드. CLI가 다시 계산해 비교하므로 적힌 값은 믿지 않는다
   complete: true
   uncovered_decomposition_indices: []
 distortion_checks:
