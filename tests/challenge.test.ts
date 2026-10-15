@@ -54,7 +54,7 @@ describe('Challenge coverage and freshness', () => {
     const { product } = await workspace(); const run = await createChallengeRun(product);
     expect(judgeChallengeCompletion(run)).toBe('incomplete');
     const complete = await updateChallengeRun(product, run.id, (current) => ({
-      ...current, areas: Object.fromEntries(challengeAreas.map((area) => [area, { status: 'reviewed', evidence_refs: [] }])) as never,
+      ...current, areas: Object.fromEntries(challengeAreas.map((area) => [area, { status: 'reviewed', evidence_refs: [{ kind: 'node', ref: 'NOD-001-1' }] }])) as never,
       finding_refs: ['FND-0000000000000000'], status: 'complete',
     }));
     expect(judgeChallengeCompletion(complete)).toBe('complete');

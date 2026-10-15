@@ -94,6 +94,16 @@ export async function loadGraphWorkspace(productRoot: string): Promise<GraphWork
     } catch (error) { issues.push({ code: 'invalid_clarification_or_group', ref: file, reason: String(error) }); }
   }
 
+  // A Prompt that was taken in but never clarified is the largest possible
+  // omission: none of its content enters the pipeline (Constitution 11).
+  const clarified = new Set<string>();
+  for (const file of await yamlFiles(clarificationDir)) {
+    try { clarified.add(parseClarification((await readYaml(clarificationDir, file)).text).prompt_ref); } catch { /* reported above */ }
+  }
+  for (const id of prompts.keys()) {
+    if (!clarified.has(id)) issues.push({ code: 'missing_clarification', ref: id, reason: `Prompt ${id} has no Clarification; run productkit clarify --prompt ${id}.` });
+  }
+
   for (const file of await yamlFiles(nodesDir)) {
     if (/^NDG-\d{3,}\.yaml$/.test(file) && !processedGroups.has(file)) {
       issues.push({ code: 'orphan_node_group', ref: file, reason: 'NodeGroup has no current confirmed Clarification source.' });

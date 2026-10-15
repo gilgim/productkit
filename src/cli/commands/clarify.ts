@@ -31,6 +31,9 @@ const REASON_MESSAGES: Record<CompletionBlockReason, string> = {
   prompt_changed_since_clarification: 'Prompt snapshot is missing or changed; review and re-confirm without overwriting the original.',
   incomplete_steps: 'Clarification has incomplete steps or placeholder output.',
   invalid_step_reference: 'Clarification step references do not resolve.',
+  uncovered_spans:
+    'Some Prompt spans are not accounted for. Every span must be decomposed, raised as a ' +
+    'finding candidate, or listed in steps.span_coverage as non_requirement with a reason.',
   no_confirmation: 'No interpretation_check entry yet — nothing has been confirmed.',
   not_agreed: 'The latest interpretation_check entry is not "agreed".',
   missing_user_statement: 'The latest interpretation_check entry has no user_statement.',
@@ -83,6 +86,7 @@ export async function runClarify(options: ClarifyOptions, output: Output): Promi
     output.out(`  Instruction: ${instructionPath}`);
     output.out(`  Write to:    ${path.relative(cwd, clarificationPath)}`);
     output.out('  Completion contract: all steps need outputs; empty relation/counterexample lists need reviewed-no-items reasons.');
+    output.out(`  Span coverage: all ${sourcePrompt.spans.length} Prompt spans must be decomposed, raised as finding candidates, or dispositioned in steps.span_coverage.`);
     output.out('  Bind prompt_ref + prompt_content_hash in the clarification and new confirmation; do not invent user agreement.');
     return;
   }

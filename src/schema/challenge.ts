@@ -60,6 +60,7 @@ export function judgeChallengeCompletion(run: Pick<ChallengeRun, 'areas' | 'scop
   if (!run.scope.included.length || !run.inputs.length) return 'incomplete';
   return challengeAreas.every((area) => {
     const result = run.areas[area];
-    return result && (result.status === 'reviewed' || (result.status === 'not_applicable' && Boolean(result.rationale?.trim())));
+    // "reviewed" with nothing cited is indistinguishable from "did not look".
+    return result && ((result.status === 'reviewed' && result.evidence_refs.length > 0) || (result.status === 'not_applicable' && Boolean(result.rationale?.trim())));
   }) ? 'complete' : 'incomplete';
 }

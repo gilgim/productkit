@@ -49,6 +49,19 @@ export const counterexampleItemSchema = z.object({
   possible_interpretations: z.array(z.string().min(1)),
 });
 
+/**
+ * A Prompt span that no decomposition item or finding candidate references.
+ * The only legal reason is that the span carries no requirement (a heading,
+ * an analogy, a worked example, narrative). Listing it here is the author's
+ * claim; it sits inside `steps` so the user agrees to it along with the
+ * decomposition (Constitution 11).
+ */
+export const spanCoverageItemSchema = z.object({
+  span_ref: z.string().min(1),
+  disposition: z.literal('non_requirement'),
+  reason: z.string().min(1),
+});
+
 export const clarificationStepsSchema = z.object({
   definition: z.array(definitionItemSchema).default([]),
   decomposition: z.array(decompositionItemSchema).default([]),
@@ -57,6 +70,10 @@ export const clarificationStepsSchema = z.object({
   counterexample: z.array(counterexampleItemSchema).default([]),
   relation_check_no_items_reason: z.string().optional(),
   counterexample_no_items_reason: z.string().optional(),
+  // Optional, not defaulted: a missing key must hash the same as before so
+  // Clarifications confirmed under earlier rules stay hash-stable and fail
+  // the coverage rule below for the real reason, not "content changed".
+  span_coverage: z.array(spanCoverageItemSchema).optional(),
 });
 
 export type ClarificationSteps = z.infer<typeof clarificationStepsSchema>;
@@ -152,7 +169,8 @@ export type CompletionBlockReason =
   | 'missing_prompt'
   | 'invalid_prompt_reference'
   | 'prompt_integrity_violation'
-  | 'prompt_changed_since_clarification';
+  | 'prompt_changed_since_clarification'
+  | 'uncovered_spans';
 
 export type CompletionJudgement =
   | { confirmed: true }
@@ -207,8 +225,26 @@ export function judgeCompletion(clarification: Clarification, prompt?: Prompt): 
   if (promptIssue) return { confirmed: false, reason: 'prompt_integrity_violation', detail: promptIssue };
   if (clarification.prompt_content_hash !== prompt.content_hash || latest.prompt_content_hash !== prompt.content_hash) return { confirmed: false, reason: 'prompt_changed_since_clarification', detail: 'Missing or stale Prompt snapshot; review against the current original and obtain a new confirmation.' };
   const spanIds = new Set(prompt.spans.map(s => s.id));
-  if (clarification.steps.decomposition.some(d => d.span_refs.some(ref => !spanIds.has(ref))) || clarification.finding_candidates.some(f => f.span_refs.some(ref => !spanIds.has(ref)))) return { confirmed: false, reason: 'invalid_step_reference', detail: 'A source span reference does not resolve in the current Prompt.' };
+  if (clarification.steps.decomposition.some(d => d.span_refs.some(ref => !spanIds.has(ref))) || clarification.finding_candidates.some(f => f.span_refs.some(ref => !spanIds.has(ref))) || (clarification.steps.span_coverage ?? []).some(c => !spanIds.has(c.span_ref))) return { confirmed: false, reason: 'invalid_step_reference', detail: 'A source span reference does not resolve in the current Prompt.' };
+  const uncovered = uncoveredSpans(clarification, prompt);
+  if (uncovered.length) return { confirmed: false, reason: 'uncovered_spans', detail: `Prompt spans not decomposed, not raised as a finding candidate, and not dispositioned as non_requirement: ${uncovered.join(', ')}` };
   return { confirmed: true };
+}
+
+/**
+ * Every span of the Prompt must land somewhere: in a decomposition statement,
+ * in a finding candidate, or in `span_coverage` with a reason (Constitution
+ * 11). This is the reverse direction of span_refs: span_refs prove that what
+ * was decomposed came from the Prompt; this proves that nothing in the Prompt
+ * was silently skipped. The CLI cannot judge whether a `non_requirement`
+ * reason is right — only that each skipped span was named and reasoned.
+ */
+export function uncoveredSpans(clarification: Clarification, prompt: Prompt): string[] {
+  const covered = new Set<string>();
+  for (const d of clarification.steps.decomposition) for (const ref of d.span_refs) covered.add(ref);
+  for (const f of clarification.finding_candidates) for (const ref of f.span_refs) covered.add(ref);
+  for (const c of clarification.steps.span_coverage ?? []) if (isMeaningfulText(c.reason)) covered.add(c.span_ref);
+  return prompt.spans.map(s => s.id).filter(id => !covered.has(id));
 }
 
 /** Completion requirements are stricter than parsing an editable, unfinished draft. */

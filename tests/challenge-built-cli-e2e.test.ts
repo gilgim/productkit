@@ -24,7 +24,7 @@ describe('built CLI Challenge E2E', () => {
     const start = cli(['challenge', 'review-start']); expect(start.status).toBe(0);
     const id = start.stdout.match(/Review (CHL-[0-9a-f]{16})/)?.[1]; expect(id).toBeTruthy();
     const blocked = cli(['challenge', 'review-complete', id!]); expect(blocked.status).toBe(1);
-    for (const area of challengeAreas) { const result = cli(['challenge', 'review-area', id!, area, '--status', 'reviewed']); expect(result.status, `${area}: ${result.stdout}\n${result.stderr}`).toBe(0); }
+    for (const area of challengeAreas) { const result = cli(['challenge', 'review-area', id!, area, '--status', 'reviewed', '--evidence', 'node:NOD-001-1']); expect(result.status, `${area}: ${result.stdout}\n${result.stderr}`).toBe(0); }
     const completed = cli(['challenge', 'review-complete', id!]); expect(completed.status).toBe(0);
     expect(completed.stdout).toContain('COMPLETE coverage');
     expect(completed.stdout).toContain('no Finding was resolved');

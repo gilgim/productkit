@@ -11,4 +11,11 @@ export const validationReportSchema=z.object({schema_version:z.literal(1),id:z.s
 export const approvalSchema=z.object({schema_version:z.literal(1),id:z.string().regex(/^APR-[0-9a-f]{16}$/),definition_ref:z.string().min(1),definition_hash:hash,validation_ref:z.string().regex(/^VAL-[0-9a-f]{16}$/),validation_hash:hash,input_fingerprint:hash,user_statement:z.string().trim().min(1),scope:z.string().trim().min(1),created_at:z.string().datetime({offset:true}),supersedes_ref:z.string().regex(/^APR-[0-9a-f]{16}$/).optional(),entry_hash:hash}).strict().superRefine((v,c)=>{const {id,entry_hash,created_at,...body}=v;if(v.entry_hash!==sha256Hex(canonicalJson(body))||v.id!==`APR-${v.entry_hash.slice(0,16)}`)c.addIssue({code:'custom',message:'Approval ID/hash mismatch.'});});
 export type SemanticReview=z.infer<typeof semanticReviewSchema>;export type ValidationReport=z.infer<typeof validationReportSchema>;export type Approval=z.infer<typeof approvalSchema>;
 export function parseSemanticReview(s:string):SemanticReview{return semanticReviewSchema.parse(parseYaml(s));}export function parseValidationReport(s:string):ValidationReport{return validationReportSchema.parse(parseYaml(s));}export function parseApproval(s:string):Approval{return approvalSchema.parse(parseYaml(s));}
+/**
+ * A `reviewed` area must cite at least one product artifact. The skill file
+ * itself is not evidence of having looked at the product. Returns the first
+ * offending area, or undefined. Structural only: it cannot tell whether the
+ * cited artifact is the right one for that area.
+ */
+export function semanticReviewIssue(review:Pick<SemanticReview,'areas'>):string|undefined{for(const [area,result] of Object.entries(review.areas)){if(!result)continue;if(result.status==='reviewed'){if(!result.evidence_refs.length)return `Area ${area} is marked reviewed but cites no evidence.`;if(result.evidence_refs.some(r=>r.kind==='skill'||r.kind==='workspace'))return `Area ${area} cites a skill or workspace fingerprint as evidence; cite product artifacts.`;}}return undefined;}
 export function createSemanticReview(v:Omit<SemanticReview,'id'|'content_hash'>):SemanticReview{const {created_at:_created,...body}=v;const content_hash=sha256Hex(canonicalJson(body));return semanticReviewSchema.parse({...v,content_hash,id:`SEM-${content_hash.slice(0,16)}`});}
