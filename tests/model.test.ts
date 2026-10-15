@@ -23,17 +23,18 @@ import { type Atomicity, type Node, type NodeGroup, evaluateAtomicityFinal, node
 let root: string;
 
 const steps: ClarificationSteps = validSteps([
-  '결제가 완료되면 주문을 확정한다',
-  '결제가 완료되면 확인 이메일을 보낸다',
-  '결제가 완료되면 재고를 차감한다',
+  '결제가 완료되면 주문을 확정한다.',
+  '결제가 완료되면 확인 이메일을 보낸다.',
+  '결제가 완료되면 재고를 차감한다.',
 ]);
-const originalPrompt = promptFixture('결제가 완료되면 주문을 확정하고, 확인 이메일을 보내고, 재고를 차감한다');
+steps.decomposition.forEach((d, i) => { d.span_refs = ['SPN-00' + String(i + 1)]; });
+const originalPrompt = promptFixture('결제가 완료되면 주문을 확정한다. 결제가 완료되면 확인 이메일을 보낸다. 결제가 완료되면 재고를 차감한다.');
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'productkit-model-'));
   await runInit({ cwd: root, now: new Date('2026-10-12T00:00:00Z') }, createMemoryOutput());
   await runIntake(
-    { cwd: root, now: new Date('2026-10-12T00:00:00Z'), text: '결제가 완료되면 주문을 확정하고, 확인 이메일을 보내고, 재고를 차감한다' },
+    { cwd: root, now: new Date('2026-10-12T00:00:00Z'), text: '결제가 완료되면 주문을 확정한다. 결제가 완료되면 확인 이메일을 보낸다. 결제가 완료되면 재고를 차감한다.' },
     createMemoryOutput(),
   );
 });
@@ -407,10 +408,10 @@ describe('productkit atomize — completion judgement', () => {
 
     // Now the Clarification's steps change (re-opened and re-decomposed).
     const changedSteps: ClarificationSteps = {
-      ...validSteps([...steps.decomposition.map(d => d.statement), '환불도 처리한다']),
-      decomposition: [...steps.decomposition, { statement: '환불도 처리한다', span_refs: ['SPN-001'] }],
+      ...validSteps([...steps.decomposition.map(d => d.statement), '환불도 처리한다.']),
+      decomposition: [...steps.decomposition, { statement: '환불도 처리한다.', span_refs: ['SPN-004'] }],
     };
-    await writeConfirmedClarification(changedSteps);
+    await writeConfirmedClarification(changedSteps, promptFixture(originalPrompt.raw_text + ' 환불도 처리한다.'));
 
     const output = await model();
     const text = output.stdout.join('\n');

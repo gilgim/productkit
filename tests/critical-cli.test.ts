@@ -66,7 +66,8 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     expect(blocked.stdout).not.toContain('NodeGroup modeled:');
     const originalParent = structuredClone(parent);
     group.retired_nodes=[parent];
-    group.nodes=['결제가 완료되면 주문을 확정한다.','결제가 완료되면 이메일을 보낸다.'].map((s,i)=>({...atomicNodeFixture(s),id:`NOD-001-${i+2}`,split_from:parent.id}));
+    // Children are verbatim slices of the sentence; a shared trigger is carried as a second slice.
+    group.nodes=['결제가 완료되면 주문을 확정하고','결제가 완료되면 이메일을 보낸다.'].map((s,i)=>({...atomicNodeFixture(s),id:`NOD-001-${i+2}`,split_from:parent.id}));
     group.distortion_checks=[preservedCheck(0,steps.decomposition[0]!.statement)];
     await writeFile(w.groupPath,stringify(group));
     expect(cli(w.cwd,'atomize').stdout).toContain('NodeGroup modeled:');

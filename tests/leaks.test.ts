@@ -158,9 +158,9 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(rendered).toContain('질문으로 남김: 1 건');
   });
 
-  it('merging several spans into one reading, or reading a many-clause span as one statement, needs a stated reason', () => {
+  it('merging several spans into one reading needs a stated reason and keeps both sentences verbatim', () => {
     const prompt = promptFixture('가입은 닉네임만으로 된다. 기록은 오프라인에서도 저장된다.');
-    const merged = validSteps(['가입은 닉네임만으로 되고 기록은 오프라인에서도 저장된다.']);
+    const merged = validSteps(['가입은 닉네임만으로 된다. 기록은 오프라인에서도 저장된다.']);
     merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002'];
     let j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.reason).toBe('missing_merge_reason');
@@ -168,14 +168,10 @@ describe('leak regression: source content cannot vanish silently', () => {
     j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
     expect(j.confirmed).toBe(true);
     expect(confirmedFixture(merged, prompt).interpretation_check[0]!.presented_statement).toContain('묶음 SPN-001, SPN-002 — 두 문장이 같은 가입 흐름의 한 요구다');
-    expect(confirmedFixture(merged, prompt).interpretation_check[0]!.presented_statement).toContain('→ 해석 [1] 과 함께 읽음 (SPN-001, SPN-002)');
-
-    const long = promptFixture('닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 7일 이내 전액');
-    const one = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 7일 이내 전액']);
-    j = judgeCompletion(confirmedFixture(one, long), long);
-    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('missing_merge_reason'); expect(j.detail).toMatch(/clause separators/); }
-    one.decomposition[0]!.single_statement_reason = '사용자가 한 줄로 쓴 목록이라 묶어서 확인받고 Node 단계에서 나눈다';
-    expect(judgeCompletion(confirmedFixture(one, long), long).confirmed).toBe(true);
+    const rewritten = validSteps(['가입은 닉네임만으로 되고 기록은 오프라인에서도 저장된다.']);
+    rewritten.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002']; rewritten.decomposition[0]!.merge_reason = '두 문장이 같은 가입 흐름의 한 요구다';
+    j = judgeCompletion(confirmedFixture(rewritten, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.reason).toBe('reading_incomplete');
   });
 
   it('a semantic review must carry a fidelity verdict for every item/Node pair; contradicts blocks', async () => {
@@ -334,34 +330,34 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(proposal).toContain('- Nothing was set aside.');
   });
 
-  it('a reading that labels a sentence instead of restating it is refused', () => {
+  it('a reading must be the span text verbatim; a label, a paraphrase or a flipped sentence is refused', () => {
     const long = promptFixture('닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 7일 이내 전액');
-    const label = validSteps(['운동 앱의 요구사항']);
-    label.decomposition[0]!.single_statement_reason = '원문이 한 문장이라 하나로 읽음';
-    const j = judgeCompletion(confirmedFixture(label, long), long);
-    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('reading_incomplete'); expect(j.detail).toMatch(/drops? these numbers|content words|negation\/condition/); }
-    // Dropping one number is enough to fail.
-    const partial = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 전액']);
-    partial.decomposition[0]!.single_statement_reason = '한 줄 목록이라 묶어 확인받는다';
-    const j2 = judgeCompletion(confirmedFixture(partial, long), long);
-    expect(j2.confirmed).toBe(false); if (!j2.confirmed) expect(j2.detail).toContain('7일');
+    for (const reading of ['운동 앱의 요구사항', '닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 전액', '환불은 7일 이내 가능']) {
+      const j = judgeCompletion(confirmedFixture(validSteps([reading]), long), long);
+      expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('reading_incomplete'); expect(j.detail).toContain('must be the span text verbatim'); }
+    }
+    expect(judgeCompletion(confirmedFixture(validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 7일 이내 전액']), long), long).confirmed).toBe(true);
   });
 
-  it('merging spans does not exempt a many-clause span from the clause rule; a question cannot be set aside; reasons must say something', () => {
+  it('a question, a sentence with a number or a negation, or a long sentence cannot be set aside; reasons must say something', () => {
     const prompt = promptFixture('닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만. 그런데 알림을 끄면?');
-    const merged = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만. 그런데 알림을 끄면?']);
-    merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002'];
-    merged.decomposition[0]!.merge_reason = '같은 흐름의 문장들이라 묶음';
-    let j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
-    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('missing_merge_reason'); expect(j.detail).toMatch(/only reading of SPN-001/); }
     const aside = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만.']);
-    aside.decomposition[0]!.single_statement_reason = '한 줄 목록이라 묶어 확인받는다';
-    aside.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '질문 형태 서술' }];
-    j = judgeCompletion(confirmedFixture(aside, prompt), prompt);
+    aside.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '질문 형태의 서술 문장' }];
+    let j = judgeCompletion(confirmedFixture(aside, prompt), prompt);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/is a question/);
     aside.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: 'x' }];
     j = judgeCompletion(confirmedFixture(aside, prompt), prompt);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/6\+ characters/);
+    const numbered = promptFixture('제목. 쿠폰은 주문당 1장만 사용 가능.');
+    const aside2 = validSteps(['제목.']);
+    aside2.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '표의 행이라 제외함' }];
+    j = judgeCompletion(confirmedFixture(aside2, numbered), numbered);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/carries a number/);
+    const wordy = promptFixture('제목. 주요 화면 항목은 결제 수단 카드 계좌이체 휴대폰 결제 포인트 사용 쿠폰 적용 환불 계좌 등록 영수증 이메일 발송 찜 목록 관리');
+    const aside3 = validSteps(['제목.']);
+    aside3.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '화면 항목 나열이라 요구사항 아님' }];
+    j = judgeCompletion(confirmedFixture(aside3, wordy), wordy);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/content words/);
   });
 
   it('the rendered block follows the order of the prompt, so a heading set aside sits above its items', () => {
@@ -391,15 +387,16 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(g.check('definition.node_coverage')?.message).toContain('NOD-001-2, NOD-001-3, NOD-001-4');
   });
 
-  it('a Node must restate its decomposition item: numbers kept, none invented, most words kept', async () => {
-    const { restatementIssue } = await import('../src/schema/clarification.js');
-    expect(restatementIssue('환불은 7일 이내 가능하다.', ['환불은 7일 이내 가능하다.'])).toBeUndefined();
-    expect(restatementIssue('환불은 7일 이내 가능하다.', ['환불은 불가능하다.'])).toMatch(/drops these numbers: 7일/);
-    expect(restatementIssue('환불은 가능하다.', ['환불은 30일 이내 가능하다.'])).toMatch(/adds numbers absent/);
-    expect(restatementIssue('공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', ['공물 규칙'])).toMatch(/negation\/condition words: 않는/);
-    expect(restatementIssue('환불은 7일 이내 불가.', ['환불은 7일 이내 가능'])).toMatch(/negation\/condition words: 이내, 불가|불가/);
-    expect(restatementIssue('단, 미성년자는 보호자가 승인한 경우에만 최대 30일간 설정할 수 있다.', ['미성년자는 최대 30일간 설정할 수 있다'])).toMatch(/경우에만/);
-    expect(restatementIssue('관리자는 신고된 게시물을 작성자의 동의 없이는 24시간 안에 영구 삭제할 수 없다.', ['영구 삭제할 수 없다 동의 작성자의 24시간 신고된 게시물을 관리자는 없이는 안에'])).toMatch(/in order/);
+  it('a Node is a verbatim slice (or two) of its decomposition item, and the slices cover every word', async () => {
+    const { sliceIssue } = await import('../src/schema/clarification.js');
+    const src = '결제가 완료되면 주문을 확정하고, 확인 이메일을 보내고, 재고를 차감한다.';
+    expect(sliceIssue(src, [src])).toBeUndefined();
+    expect(sliceIssue(src, ['결제가 완료되면 주문을 확정하고', '결제가 완료되면 확인 이메일을 보내고', '결제가 완료되면 재고를 차감한다'])).toBeUndefined();
+    expect(sliceIssue(src, ['결제가 완료되면 주문을 확정하고'])).toMatch(/in no slice: 확인, 이메일을, 보내고/);
+    expect(sliceIssue('환불은 7일 이내 불가.', ['환불은 7일 이내 가능'])).toMatch(/not a verbatim slice/);
+    expect(sliceIssue('관리자가 사용자를 차단한다.', ['사용자가 관리자를 차단한다'])).toMatch(/not a verbatim slice/);
+    expect(sliceIssue('비회원은 결제할 수 없다.', ['비회원은 결제할 수 있다'])).toMatch(/not a verbatim slice/);
+    expect(sliceIssue('세 권까지 무료다.', ['다섯 권까지 무료다'])).toMatch(/not a verbatim slice/);
   });
 
   it('control, invisible and HTML-comment characters are refused in every artifact', async () => {

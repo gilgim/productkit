@@ -36,14 +36,13 @@ ProductKit의 Phase 2(Clarification) instruction이다. CLI는 이 내용을 생
 
 - `definition[].origin` 은 `user_stated`(사용자가 직접 말함) 또는
   `ai_inferred`. 추측한 정의를 `user_stated` 로 적지 **않는다**.
-- `decomposition[]` — 요구사항 하나에 항목 하나. `span_refs` 는 그 문장이 나온
-  Prompt span id. `statement` 는 그 문장을 **다시 말한 것**이지 이름표가 아니다.
-  span 의 숫자·단위는 전부, 내용 단어는 60% 이상이 그 span 을 읽은 statement 들에
-  있어야 한다(`reading_incomplete`). "운동 앱의 요구사항" 같은 라벨은 거부된다.
-  거의 그대로 옮겨 적는 것이 맞고, 나누는 일은 atomize 에서 한다.
-  - span 여러 개를 한 항목에 묶으면 `merge_reason` 필수.
-  - 쉼표·접속어가 많은 span(CLI 가 3개 이상이면 지적한다)을 혼자 한 문장으로
-    읽으면 `single_statement_reason` 필수. 이유를 못 대면 나눈다.
+- `decomposition[]` — 요구사항으로 읽는 문장마다 항목 하나. `statement` 는 그 span 의
+  원문 **글자 그대로**다(공백만 다를 수 있다). 바꿔 말하지도, 줄이지도, 이름표를
+  붙이지도 않는다 — 다르면 `reading_incomplete` 로 거부된다. 이 단계에서 Agent 가
+  정하는 것은 "이 문장이 요구사항인가 / 아닌가 / 질문인가" 뿐이고, 한 문장을 여러
+  요구로 나누는 일은 atomize 에서 원문 조각(slice)으로 한다.
+  - span 여러 개를 한 항목에 묶으면 `statement` 는 그 span 들을 띄어쓰기로 이은
+    원문이고 `merge_reason`(6자·2단어 이상) 필수.
   - 원문에 없는 내용을 지어내 넣지 않는다.
 - `elaboration[]` — decomposition 의 각 `statement` 와 **글자 그대로 같은**
   `statement` 로 하나씩. actor·object·condition·action·result 를 채운다.
@@ -59,7 +58,9 @@ ProductKit의 Phase 2(Clarification) instruction이다. CLI는 이 내용을 생
      이 후보는 나중에 Challenge 에서 **사용자가 확인한 Finding** 으로 올라가야
      validate 를 통과한다. 쓰레기통이 아니다.
   3. `steps.span_coverage` — 요구사항이 아니다(제목·비유·예시·서술). `reason` 한 줄
-     (6자 이상). `?` 로 끝나는 문장은 여기 둘 수 없다 — 분해하거나 질문으로.
+     (6자·2단어 이상). 다음은 여기 둘 수 없다 — 분해하거나 질문으로: `?` 로 끝나는
+     문장, 숫자가 든 문장, 부정·조건어(불가·없이·않·단·만·이내·경우에만 …)가 든 문장,
+     내용 단어 10개 이상인 문장.
 - 모호성·모순은 임의로 하나를 골라 확정하지 않고 `finding_candidates` 에 남긴다.
 - YAML 문자열 안에 `"..."` 인용부호를 그대로 넣지 않는다(파싱 오류). 작은따옴표
   규칙(`''`) 을 쓰거나 따옴표 없이 쓴다.

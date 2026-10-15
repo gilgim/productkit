@@ -60,10 +60,10 @@ export function confirmedFixture(steps = validSteps(), prompt = promptFixture())
   return clarificationSchema.parse({ id: 'CLR-001', prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, steps, status: 'confirmed', interpretation_check: [{ ...storedEntry, entry_hash: computeEntryHash(storedEntry) }], finding_candidates: [] });
 }
 
-import { nodeGroupSchema, nodeSetContentHash, evaluateAtomicityFinal, type Atomicity, type Node } from '../../src/schema/node.js';
+import { nodeGroupSchema, nodeSetContentHash, evaluateAtomicityFinal, computeStructuralSignal, type Atomicity, type Node } from '../../src/schema/node.js';
 export function atomicNodeFixture(statement = validSteps().decomposition[0]!.statement): Node {
   const atomicity: Atomicity = { single_verifiable_subject: { verdict: 'yes', reason: '단일 결과' }, decomposability: { verdict: 'not_applicable', reason: '추가 분해 대상 없음' }, meaning_preservation: { verdict: 'preserved', confidence: 'high', reason: '공유 조건을 보존함' }, final: 'atomic' };
-  return { id: 'NOD-001-1', kind: 'requirement', statement, origin: 'source', derived_from: { clarification_ref: 'CLR-001', decomposition_index: 0 }, structural_signal: { conjunction_count: 0, multiple_predicates: false }, atomicity: { ...atomicity, final: evaluateAtomicityFinal(atomicity) } };
+  return { id: 'NOD-001-1', kind: 'requirement', statement, origin: 'source', derived_from: { clarification_ref: 'CLR-001', decomposition_index: 0 }, structural_signal: computeStructuralSignal(statement), atomicity: { ...atomicity, final: evaluateAtomicityFinal(atomicity) } };
 }
 export function preservedCheck(index: number, statement: string) {
   const review = { verdict: 'preserved' as const, reason: '원문과 재합성 내용을 비교했다.' };

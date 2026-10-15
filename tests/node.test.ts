@@ -167,12 +167,14 @@ describe('judgeNodeSetCompletion', () => {
   });
 
   it('[반례] a decomposition item not covered by any Node blocks completion', () => {
+    const p2 = promptFixture('A single atomic requirement. A second item.');
     const steps: ClarificationSteps = {
       ...completeSteps,
-      decomposition: [...completeSteps.decomposition, { statement: 'A second item.', span_refs: [] }],
+      decomposition: [...completeSteps.decomposition, { statement: 'A second item.', span_refs: ['SPN-002'] }],
+      elaboration: [...completeSteps.elaboration, { statement: 'A second item.', actor: 'a', object: 'b', condition: 'c', action: 'd', result: 'e' }],
     };
-    const group = buildGroup({ source_content_hash: nodeSetContentHash(steps) });
-    const result = judgeNodeSetCompletion(group, steps);
+    const group = buildGroup({ source_content_hash: nodeSetContentHash(steps), clarification_content_hash: clarificationContentHash(confirmedFixture(steps, p2)) });
+    const result = judgeWithSource(group, steps, { clarification: confirmedFixture(steps, p2), prompt: p2 });
     expect(result.status).toBe('needs_review');
     expect((result as { reasons: string[] }).reasons).toContain('incomplete_coverage');
   });
@@ -246,12 +248,14 @@ describe('judgeNodeSetCompletion', () => {
   });
 
   it('[Clarification 변경 후 무효화] a changed source invalidates a NodeGroup regardless of its stored status', () => {
+    const p3 = promptFixture('A changed requirement.');
     const changedSteps: ClarificationSteps = {
       ...completeSteps,
       decomposition: [{ statement: 'A changed requirement.', span_refs: ['SPN-001'] }],
+      elaboration: [{ statement: 'A changed requirement.', actor: 'a', object: 'b', condition: 'c', action: 'd', result: 'e' }],
     };
     const group = buildGroup({ status: 'modeled' }); // file claims modeled
-    const result = judgeNodeSetCompletion(group, changedSteps);
+    const result = judgeWithSource(group, changedSteps, { clarification: confirmedFixture(changedSteps, p3), prompt: p3 });
     expect(result.status).toBe('needs_review');
     expect((result as { reasons: string[] }).reasons).toContain('source_changed_since_modeling');
   });

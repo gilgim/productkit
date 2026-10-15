@@ -81,7 +81,8 @@ describe('critical completion regressions (synthetic confirmations)', () => {
     old.atomicity.single_verifiable_subject.verdict = 'no';
     old.atomicity.decomposability.verdict = 'valid_split';
     old.atomicity.final = evaluateAtomicityFinal(old.atomicity);
-    const children = ['NOD-001-2', 'NOD-001-3'].map((id, i) => ({ ...atomicNodeFixture(i ? '결제가 완료되면 이메일을 보낸다.' : '결제가 완료되면 주문을 확정한다.'), id, split_from: old.id }));
+    // Verbatim slices of the sentence; the shared trigger is carried as a second slice.
+    const children = ['NOD-001-2', 'NOD-001-3'].map((id, i) => ({ ...atomicNodeFixture(i ? '결제가 완료되면 이메일을 보낸다.' : '결제가 완료되면 주문을 확정하고'), id, split_from: old.id }));
     const group = nodeGroupSchema.parse({ ...groupFixture(splitSteps), clarification_content_hash: clarificationContentHash(clarification), nodes: children, retired_nodes: [old] });
     expect(group.retired_nodes).toEqual([old]);
     expect(group.nodes.map(n => n.split_from)).toEqual([old.id, old.id]);
