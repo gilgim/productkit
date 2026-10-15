@@ -287,7 +287,7 @@ Definition은 초안을 작성할 수 있지만, Gate 통과 전에는 확정된
 | 승인 파일이 supersedes 사슬 밖에 있음(고아·둘 이상의 현재) | STALE |
 | presented_statement가 CLI 렌더 블록과 다름 / 묶음·단일 해석 이유 누락 | FAIL (clarify 단계) |
 | decomposition statement 가 span 원문과 글자 그대로 같지 않음(바꿔 말함·줄임·라벨) | FAIL (clarify 단계) |
-| Node statement 가 decomposition 문장의 연속 조각(최대 2개)이 아니거나, 조각들이 문장의 단어를 다 덮지 못함 | FAIL (atomize 단계) |
+| Node 가 사용자 문장 통째·원문 그대로가 아님(자름·합침·바꿔 말함) — 문장 수와 Node 수가 다름 | FAIL (atomize 단계) |
 | FR/NFR/AC 항목이 Node 를 인용하지 않거나 Node 문장을 그대로 품지 않음 | FAIL |
 | 숫자·부정어·긴 문장을 요구사항 아님으로 치움 | FAIL (clarify 단계) |
 | `?` 로 끝나는 문장을 요구사항 아님으로 치움 / 이유가 6자 미만 | FAIL (clarify 단계) |

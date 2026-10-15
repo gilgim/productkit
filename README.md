@@ -132,7 +132,7 @@ ProductKit was fuzzed against its own gate. Everything in the left column once r
 
 How the right column got short: the first fuzz left "distortion" and "impersonation" to a human reader. That was a process gap, not a limit. The process now forces the shape of what the human reads and who types:
 
-- **There is no paraphrase anywhere.** A reading at `clarify` is the user's sentence verbatim; the agent only decides which sentences are requirements, which are set aside (with a reason the user sees, and never a sentence with a number, a negation or much content), which are questions. A Node at `atomize` is a verbatim slice of that sentence, and the slices must cover every word. A Definition item carries its Node's text verbatim. Flipping, dropping or reordering is not something the gate detects — it is something the format cannot express. `productkit clarify` prints the block the user agrees to and `clarify confirm` records the answer from the user's terminal.
+- **There is no paraphrase anywhere.** A reading at `clarify` is the user's sentence verbatim; the agent only decides which sentences are requirements, which are set aside (with a reason the user sees, and never a sentence with a number, a negation or much content), which are questions. A Node at `atomize` is that sentence, whole and verbatim — the agent never cuts it (seven rounds of fuzzing showed every cutting rule can be gamed); a sentence that holds several requirements is handed back to the user to restate in separate sentences. A Definition item is its Node's text verbatim. Flipping, dropping or reordering is not something the gate detects — it is something the format cannot express. `productkit clarify` prints the block the user agrees to and `clarify confirm` records the answer from the user's terminal.
 - **One verdict per pair.** The semantic review must say, for every Definition item and every Node it cites, whether the item is the same, narrower, broader or contradicts — and why. Blanket "all preserved" cannot be written.
 - **Evidence must be the right kind.** `graph_impact` needs an ImpactReport, `traceability` needs a Decision and the Prompt, and so on. "Cited something" is not enough.
 - **Nothing falls off the unreviewed list.** A later review of the same inputs must keep each earlier unreviewed item or resolve it with evidence.
@@ -157,7 +157,7 @@ ProductKit holds eleven rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones tha
 
 ## Honest limits
 
-- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 302 automated tests, including a regression suite built from adversarial attacks that once reached READY.
+- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 307 automated tests, including a regression suite built from adversarial attacks that once reached READY.
 - Passing validation proves **structure**, not that the product is right. Semantic quality depends on the agent and on you.
 - The coverage gates catch **omission**, not **distortion**. A sentence can be marked "not a requirement" with a wrong reason, or a Definition item can say the opposite of its source Node, and the CLI will not notice; it only puts the source text next to the item in the export so a reader can. Read the comparison.
 - A review must cite evidence to count as reviewed, but the CLI cannot tell whether the cited artifact is the right one for that area. "Cited something" is the floor, not the bar.
