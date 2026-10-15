@@ -24,7 +24,7 @@ import { currentValidationFingerprint } from '../../src/clarification/validation
 import { sha256Hex } from '../../src/clarification/hash.js';
 import { runInit } from '../../src/cli/commands/init.js';
 import { createMemoryOutput } from '../../src/cli/output.js';
-import { allowFlagAttestation } from './gate-fixtures.js';
+import { allowFlagAttestation, challengeEvidenceFor } from './gate-fixtures.js';
 
 export const RAW = '결제를 완료하면 주문을 확정한다. 공물은 현금과 별도로 납부하며 자동 누적되지 않는다. 실제 현금 구매와 환전은 없다. 보스는 3층에 등장하며 즉사탄을 막지 못한다.';
 const SENTENCES = RAW.split(/(?<=\.)\s+/);
@@ -123,9 +123,9 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const impactByNode = new Map<string, string>();
   for (const node of nodes) { const impact = computeImpactReport({ seedNodeId: node.id, graphEdges: graph.edges, candidates, workspace, createdAt: new Date().toISOString() }); await writeFile(path.join(root, 'graph', 'reports', `${impact.analysis_id}.yaml`), stringify(impact)); impactByNode.set(node.id, impact.analysis_id); }
 
-  const chEvidence = o.challengeEvidence ?? [{ kind: 'node' as const, ref: 'NOD-001-1' }];
+  const chEvidence = (area: string) => o.challengeEvidence ?? challengeEvidenceFor(area, { impactId: impactByNode.get('NOD-001-1') });
   const ch = await createChallengeRun(root);
-  await updateChallengeRun(root, ch.id, (r) => ({ ...r, status: 'complete', areas: Object.fromEntries(challengeAreas.map((a) => [a, { status: 'reviewed', rationale: 'SYNTHETIC AGENT REVIEW', evidence_refs: chEvidence }])) as typeof r.areas, history: [...r.history, { event: 'completed', at: new Date().toISOString(), statement: 'SYNTHETIC: done', content_hash: r.review_hash }] }));
+  await updateChallengeRun(root, ch.id, (r) => ({ ...r, status: 'complete', areas: Object.fromEntries(challengeAreas.map((a) => [a, { status: 'reviewed', rationale: 'SYNTHETIC AGENT REVIEW', evidence_refs: chEvidence(a) }])) as typeof r.areas, history: [...r.history, { event: 'completed', at: new Date().toISOString(), statement: 'SYNTHETIC: done', content_hash: r.review_hash }] }));
 
   const cur = await currentChallengeInputs(root); const get = (k: string, r: string) => cur.inputs.find((x) => x.kind === k && x.ref === r)!.content_hash;
   const claim = findingContentHash(toFindingInput(finding)); const nodeHash = get('node', 'NOD-001-1');

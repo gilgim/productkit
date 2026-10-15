@@ -16,6 +16,30 @@ export async function allowFlagAttestation(productRoot: string): Promise<void> {
   await writeFile(file, text.replace(/^attestation:\s*tty\s*$/m, 'attestation: flag'));
 }
 
+/** Writes a current ImpactReport for one Node and returns its id (ChallengeRun impact_coverage needs one). */
+export async function writeImpactReport(productRoot: string, nodeId = 'NOD-001-1'): Promise<string> {
+  const { computeImpactReport } = await import('../../src/clarification/graph.js');
+  const { loadGraphWorkspace } = await import('../../src/clarification/provenance.js');
+  const { readGraphDocument, readRelationCandidates } = await import('../../src/clarification/graph-store.js');
+  const { mkdir } = await import('node:fs/promises');
+  const { stringify } = await import('yaml');
+  const { graph } = await readGraphDocument(productRoot); const workspace = await loadGraphWorkspace(productRoot); const candidates = await readRelationCandidates(productRoot);
+  const impact = computeImpactReport({ seedNodeId: nodeId, graphEdges: graph.edges, candidates, workspace, createdAt: new Date().toISOString() });
+  await mkdir(path.join(productRoot, 'graph', 'reports'), { recursive: true });
+  await writeFile(path.join(productRoot, 'graph', 'reports', `${impact.analysis_id}.yaml`), stringify(impact));
+  return impact.analysis_id;
+}
+
+/** Evidence of the kinds each ChallengeRun area must cite (CHALLENGE_AREA_EVIDENCE), for a one-Node workspace. */
+export function challengeEvidenceFor(area: string, opts: { impactId?: string; node?: string; prompt?: string } = {}): Array<{ kind: string; ref: string }> {
+  const node = { kind: 'node', ref: opts.node ?? 'NOD-001-1' }; const prompt = { kind: 'prompt', ref: opts.prompt ?? 'PRM-001' };
+  switch (area) {
+    case 'missing_requirements_exceptions': case 'prompt_node_fidelity': case 'condition_operator_consistency': return [prompt, node];
+    case 'impact_coverage': return opts.impactId ? [{ kind: 'impact_report', ref: opts.impactId }] : [node];
+    default: return [node];
+  }
+}
+
 // All confirmations in this helper are SYNTHETIC TEST DATA, never user consent.
 export function promptFixture(raw_text = '사용자가 결제를 완료하면 주문을 확정한다.'): Prompt {
   return { id: 'PRM-001', raw_text, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(raw_text), spans: segmentSpans(raw_text, SEGMENTATION_VERSION), segmentation: SEGMENTATION_VERSION };

@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { promptIntegrityIssue, type Prompt } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { clauseSignalCount, contentTokens, numberTokens, spanText } from '../clarification/spans.js';
+import { clauseSignalCount, contentTokenList, contentTokens, isStructuralSpan, lcsLength, numberTokens, polarityTokens, spanText } from '../clarification/spans.js';
 
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 
@@ -319,7 +319,11 @@ export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, pr
   }
   for (const [i, c] of (clarification.steps.span_coverage ?? []).entries()) {
     if (!isReason(c.reason)) return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters.`;
-    if (/[?？]\s*$/.test(spanTextById(prompt, c.span_ref))) return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; decompose it or raise it as a finding candidate.`;
+    const text = spanTextById(prompt, c.span_ref);
+    if (/[?？]\s*$/.test(text)) return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; decompose it or raise it as a finding candidate.`;
+    // A sentence carrying a number or a negation/condition word is saying
+    // something a product must do; it cannot be filed as "not a requirement".
+    if (!isStructuralSpan(text) && (numberTokens(text).length || polarityTokens(text).length)) return `span_coverage[${i}] sets aside ${c.span_ref}, which carries ${numberTokens(text).length ? 'a number' : 'a negation/condition word'} (${[...numberTokens(text), ...polarityTokens(text)].slice(0, 4).join(', ')}); decompose it or raise it as a finding candidate.`;
   }
   return undefined;
 }
@@ -333,12 +337,17 @@ export function restatementIssue(source: string, readings: string[]): string | u
   const sourceText = source.replace(/\s+/g, '');
   const invented = readings.flatMap(r => numberTokens(r)).filter(n => !sourceText.includes(n.replace(/\s+/g, '')));
   if (invented.length) return `adds numbers absent from the source: ${invented.join(', ')}`;
-  const sourceTokens = [...contentTokens(source)];
+  // Negations, exceptions and bounds flip the requirement; each must survive.
+  const missingPolarity = polarityTokens(source).filter(p => !union.includes(p));
+  if (missingPolarity.length) return `drops these negation/condition words: ${[...new Set(missingPolarity)].join(', ')}`;
+  const sourceTokens = contentTokenList(source);
   if (sourceTokens.length >= 3) {
+    // Order matters: a bag of the same words in another order is not a restatement.
+    const best = Math.max(...readings.map(r => lcsLength(sourceTokens, contentTokenList(r))), 0);
     const unionTokens = contentTokens(union);
-    const kept = sourceTokens.filter(t => unionTokens.has(t) || unionText.toLowerCase().includes(t));
-    const ratio = kept.length / sourceTokens.length;
-    if (ratio < READING_COVERAGE_RATIO) return `carries ${Math.round(ratio * 100)}% of the source's content words (need ${READING_COVERAGE_RATIO * 100}%); missing e.g. ${sourceTokens.filter(t => !kept.includes(t)).slice(0, 6).join(', ')}`;
+    const keptAnywhere = sourceTokens.filter(t => unionTokens.has(t) || unionText.toLowerCase().includes(t));
+    const ratio = Math.max(best, readings.length > 1 ? keptAnywhere.length : 0) / sourceTokens.length;
+    if (ratio < READING_COVERAGE_RATIO) return `carries ${Math.round(ratio * 100)}% of the source's content words in order (need ${READING_COVERAGE_RATIO * 100}%); missing e.g. ${sourceTokens.filter(t => !keptAnywhere.includes(t)).slice(0, 6).join(', ')}`;
   }
   return undefined;
 }
@@ -357,17 +366,9 @@ export function readingCoverageIssue(clarification: Pick<Clarification, 'steps'>
   const cited = new Set(items.flatMap(d => d.span_refs));
   for (const id of cited) {
     const text = spanTextById(prompt, id);
-    const union = items.filter(d => d.span_refs.includes(id)).map(d => d.statement).join(' ');
-    const unionTokens = contentTokens(union);
-    const unionText = union.replace(/\s+/g, '');
-    const missingNumbers = numberTokens(text).filter(n => !unionText.includes(n.replace(/\s+/g, '')));
-    if (missingNumbers.length) return `readings of ${id} drop these numbers from the sentence: ${missingNumbers.join(', ')}`;
-    const spanTokens = [...contentTokens(text)];
-    if (spanTokens.length >= 3) {
-      const kept = spanTokens.filter(t => unionTokens.has(t) || unionText.toLowerCase().includes(t));
-      const ratio = kept.length / spanTokens.length;
-      if (ratio < READING_COVERAGE_RATIO) return `readings of ${id} carry ${Math.round(ratio * 100)}% of its content words (need ${READING_COVERAGE_RATIO * 100}%); missing e.g. ${spanTokens.filter(t => !kept.includes(t)).slice(0, 6).join(', ')}`;
-    }
+    const readings = items.filter(d => d.span_refs.includes(id)).map(d => d.statement);
+    const issue = restatementIssue(text, readings);
+    if (issue) return `readings of ${id} ${issue}`;
   }
   return undefined;
 }

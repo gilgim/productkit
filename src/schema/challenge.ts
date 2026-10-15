@@ -57,6 +57,17 @@ export function challengeRunHash(run: Omit<ChallengeRun, 'review_hash'> | (Omit<
 
 /** Areas that may be not_applicable, and only while the named artifact kind is absent. */
 export const CHALLENGE_NOT_APPLICABLE: Partial<Record<z.infer<typeof challengeAreaSchema>, string>> = { policy_conflicts_duplicates: 'policy' };
+/** What a reviewed area must cite: at least one of each group. */
+export const CHALLENGE_AREA_EVIDENCE: Record<z.infer<typeof challengeAreaSchema>, string[][]> = {
+  missing_requirements_exceptions: [['prompt'], ['node', 'clarification']],
+  policy_conflicts_duplicates: [['policy', 'node']],
+  flow_gaps: [['node', 'clarification']],
+  condition_operator_consistency: [['node'], ['prompt', 'clarification']],
+  graph_relation_risks: [['edge', 'relation_candidate', 'node_group', 'node']],
+  prompt_node_fidelity: [['prompt'], ['node']],
+  verifiability: [['node']],
+  impact_coverage: [['impact_report']],
+};
 
 export function judgeChallengeCompletion(run: Pick<ChallengeRun, 'areas' | 'scope' | 'inputs' | 'unavailable_inputs' | 'status'>, presentKinds?: Set<string>): 'complete' | 'incomplete' {
   if (run.status === 'stale' || run.unavailable_inputs.length > 0) return 'incomplete';
@@ -65,7 +76,7 @@ export function judgeChallengeCompletion(run: Pick<ChallengeRun, 'areas' | 'scop
     const result = run.areas[area];
     if (!result) return false;
     // "reviewed" with nothing cited is indistinguishable from "did not look".
-    if (result.status === 'reviewed') return result.evidence_refs.length > 0;
+    if (result.status === 'reviewed') { if (!result.evidence_refs.length) return false; const kinds = new Set<string>(result.evidence_refs.map((e) => e.kind)); return CHALLENGE_AREA_EVIDENCE[area].every((group) => group.some((k) => kinds.has(k))); }
     if (result.status === 'not_applicable') { const kind = CHALLENGE_NOT_APPLICABLE[area]; return Boolean(kind) && !(presentKinds?.has(kind!)) && (result.rationale?.trim().length ?? 0) >= 6; }
     return false;
   }) ? 'complete' : 'incomplete';

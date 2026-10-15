@@ -68,6 +68,38 @@ export function contentTokens(text: string): Set<string> {
   return out;
 }
 
+/**
+ * Words that flip or bound a requirement. Dropping one of these from a
+ * restatement changes what is required; they are kept like numbers are.
+ */
+const POLARITY = /(불가능|불가|없이|없다|없음|없는|않는|않고|않은|않아|않음|않도록|안\s|못\s|못한|아니|금지|제외|예외|단,|만\s|만으로|만이|에만|경우에만|이상|이하|미만|초과|이내|이전|이후|전에|전까지|후에|반드시|필수|항상|절대|모든|전부|즉시|최대|최소|최소한|적어도|\bnot\b|\bno\b|\bnever\b|\bonly\b|\bunless\b|\bexcept\b|\bmust\b|\bbefore\b|\bafter\b|\bat least\b|\bat most\b|\bwithin\b|\ball\b|\bevery\b)/g;
+export function polarityTokens(text: string): string[] {
+  return (text.match(POLARITY) ?? []).map((t) => t.trim().replace(/,$/, ''));
+}
+
+/** Headings, list markers, table separators and header rows: structure, not content. */
+export function isStructuralSpan(text: string): boolean {
+  const t = text.trim();
+  return /^#{1,6}\s/.test(t) || /^\d{1,3}\.?$/.test(t) || /^[-*+]\s*$/.test(t) || /^\|?[\s|:-]+\|?$/.test(t) || /^\|?\s*[^|]*(\|[^|]*)*\|?$/.test(t) && !/\d/.test(t) && polarityTokens(t).length === 0 && t.includes('|');
+}
+
+/** Length of the longest common subsequence of two token lists. */
+export function lcsLength(a: string[], b: string[]): number {
+  const dp: number[] = new Array(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) { let prev = 0; for (let j = 1; j <= b.length; j++) { const tmp = dp[j]!; dp[j] = a[i - 1] === b[j - 1] ? prev + 1 : Math.max(dp[j]!, dp[j - 1]!); prev = tmp; } }
+  return dp[b.length]!;
+}
+
+/** Content tokens in order (same normalisation as contentTokens, duplicates kept). */
+export function contentTokenList(text: string): string[] {
+  const out: string[] = [];
+  for (const raw of text.split(/[\s,.;:!?()\[\]{}"'`“”‘’·/|]+/)) {
+    const t = raw.replace(/(은|는|이|가|을|를|의|에|에서|으로|로|와|과|도|만|까지|부터|마다)$/, '');
+    if (t.length >= 2) out.push(t.toLowerCase());
+  }
+  return out;
+}
+
 /** Verbatim text of one span, whitespace collapsed. */
 export function spanText(rawText: string, span: Span): string {
   return rawText.slice(span.start, span.end).replace(/\s+/g, ' ').trim();

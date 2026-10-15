@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { challengeEvidenceFor, writeImpactReport } from './helpers/gate-fixtures.js';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -51,10 +52,10 @@ describe('Challenge coverage and freshness', () => {
   });
 
   it('requires all eight review areas but allows open Findings to remain separate', async () => {
-    const { product } = await workspace(); const run = await createChallengeRun(product);
+    const { product } = await workspace(); const impactId = await writeImpactReport(product); const run = await createChallengeRun(product);
     expect(judgeChallengeCompletion(run)).toBe('incomplete');
     const complete = await updateChallengeRun(product, run.id, (current) => ({
-      ...current, areas: Object.fromEntries(challengeAreas.map((area) => [area, { status: 'reviewed', evidence_refs: [{ kind: 'node', ref: 'NOD-001-1' }] }])) as never,
+      ...current, areas: Object.fromEntries(challengeAreas.map((area) => [area, { status: 'reviewed', evidence_refs: challengeEvidenceFor(area, { impactId: impactId }) }])) as never,
       finding_refs: ['FND-0000000000000000'], status: 'complete',
     }));
     expect(judgeChallengeCompletion(complete)).toBe('complete');

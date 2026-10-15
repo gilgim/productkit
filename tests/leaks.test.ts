@@ -339,7 +339,7 @@ describe('leak regression: source content cannot vanish silently', () => {
     const label = validSteps(['운동 앱의 요구사항']);
     label.decomposition[0]!.single_statement_reason = '원문이 한 문장이라 하나로 읽음';
     const j = judgeCompletion(confirmedFixture(label, long), long);
-    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('reading_incomplete'); expect(j.detail).toMatch(/drop these numbers|content words/); }
+    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('reading_incomplete'); expect(j.detail).toMatch(/drops? these numbers|content words|negation\/condition/); }
     // Dropping one number is enough to fail.
     const partial = validSteps(['닉네임만으로 가입하고, 기록은 오프라인 저장이며, 친구는 하루 5명까지, 결제는 월 구독만, 환불은 전액']);
     partial.decomposition[0]!.single_statement_reason = '한 줄 목록이라 묶어 확인받는다';
@@ -396,7 +396,10 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(restatementIssue('환불은 7일 이내 가능하다.', ['환불은 7일 이내 가능하다.'])).toBeUndefined();
     expect(restatementIssue('환불은 7일 이내 가능하다.', ['환불은 불가능하다.'])).toMatch(/drops these numbers: 7일/);
     expect(restatementIssue('환불은 가능하다.', ['환불은 30일 이내 가능하다.'])).toMatch(/adds numbers absent/);
-    expect(restatementIssue('공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', ['공물 규칙'])).toMatch(/content words/);
+    expect(restatementIssue('공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', ['공물 규칙'])).toMatch(/negation\/condition words: 않는/);
+    expect(restatementIssue('환불은 7일 이내 불가.', ['환불은 7일 이내 가능'])).toMatch(/negation\/condition words: 이내, 불가|불가/);
+    expect(restatementIssue('단, 미성년자는 보호자가 승인한 경우에만 최대 30일간 설정할 수 있다.', ['미성년자는 최대 30일간 설정할 수 있다'])).toMatch(/경우에만/);
+    expect(restatementIssue('관리자는 신고된 게시물을 작성자의 동의 없이는 24시간 안에 영구 삭제할 수 없다.', ['영구 삭제할 수 없다 동의 작성자의 24시간 신고된 게시물을 관리자는 없이는 안에'])).toMatch(/in order/);
   });
 
   it('control, invisible and HTML-comment characters are refused in every artifact', async () => {
@@ -434,7 +437,8 @@ describe('leak regression: source content cannot vanish silently', () => {
     const base = { status: 'in_progress' as const, scope: { included: ['NDG-001'], excluded: [] }, inputs: [{ kind: 'node', ref: 'NOD-001-1', content_hash: 'a'.repeat(64) }], unavailable_inputs: [] };
     const na = Object.fromEntries(challengeAreas.map((a) => [a, { status: 'not_applicable' as const, rationale: '해당 없음입니다', evidence_refs: [] }]));
     expect(judgeChallengeCompletion({ ...base, areas: na as never }, new Set(['node']))).toBe('incomplete');
-    const ok = Object.fromEntries(challengeAreas.map((a) => [a, a === 'policy_conflicts_duplicates' ? { status: 'not_applicable' as const, rationale: '정책 artifact 없음', evidence_refs: [] } : { status: 'reviewed' as const, evidence_refs: [{ kind: 'node' as const, ref: 'NOD-001-1' }] }]));
+    const { challengeEvidenceFor } = await import('./helpers/gate-fixtures.js');
+    const ok = Object.fromEntries(challengeAreas.map((a) => [a, a === 'policy_conflicts_duplicates' ? { status: 'not_applicable' as const, rationale: '정책 artifact 없음', evidence_refs: [] } : { status: 'reviewed' as const, evidence_refs: challengeEvidenceFor(a, { impactId: 'IMP-x' }) as never }]));
     expect(judgeChallengeCompletion({ ...base, areas: ok as never }, new Set(['node']))).toBe('complete');
     expect(judgeChallengeCompletion({ ...base, areas: ok as never }, new Set(['node', 'policy']))).toBe('incomplete');
   });
