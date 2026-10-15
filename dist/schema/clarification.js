@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { promptIntegrityIssue } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { clauseSignalCount, contentTokenList, contentTokens, isStructuralSpan, lcsLength, numberTokens, polarityTokens, spanText } from '../clarification/spans.js';
+import { clauseSignalCount, contentTokenList, contentTokens, endsWithConnective, endsWithPredicate, isStructuralSpan, lcsLength, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 const hashHex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 hex digest');
 /**
@@ -290,6 +290,21 @@ export function mergeReasonIssue(clarification, prompt) {
             return `span_coverage[${i}] sets aside ${c.span_ref}, which carries ${numberTokens(text).length ? 'a number' : 'a negation/condition word'} (${[...numberTokens(text), ...polarityTokens(text)].slice(0, 4).join(', ')}); decompose it or raise it as a finding candidate.`;
         if (!isStructuralSpan(text) && contentTokenList(text).length >= 10)
             return `span_coverage[${i}] sets aside ${c.span_ref}, which has ${contentTokenList(text).length} content words; a sentence that long is not a heading or an aside — decompose it or raise it as a finding candidate.`;
+        if (!isStructuralSpan(text) && endsWithPredicate(text))
+            return `span_coverage[${i}] sets aside ${c.span_ref}, which states something ("…${text.slice(-12)}"); a sentence with a predicate is a requirement or a question, not an aside.`;
+    }
+    // "단, …" means nothing away from the sentence it qualifies: it must sit in
+    // the same decomposition item as the span before it.
+    for (const [i, item] of items.entries()) {
+        for (const id of item.span_refs) {
+            const text = spanTextById(prompt, id);
+            if (!startsWithException(text))
+                continue;
+            const idx = prompt.spans.findIndex(s => s.id === id);
+            const prev = idx > 0 ? prompt.spans[idx - 1].id : undefined;
+            if (!prev || !item.span_refs.includes(prev))
+                return `decomposition[${i}] reads ${id} ("${text.slice(0, 30)}…") on its own; an exception clause must be merged with the sentence before it (${prev ?? 'none'}) in one item.`;
+        }
     }
     return undefined;
 }
@@ -327,7 +342,7 @@ export function restatementIssue(source, readings) {
  * flipped, dropped or reordered: the only freedom is where to cut.
  */
 export function sliceIssue(source, statements) {
-    const src = squash(source);
+    const src = squash(source).replace(/[.。]$/, '');
     const covered = new Array(src.length).fill(false);
     const mark = (a, b) => { for (let i = a; i < b; i++)
         covered[i] = true; };
@@ -345,6 +360,7 @@ export function sliceIssue(source, statements) {
         }
         return undefined;
     };
+    const triggers = [];
     for (const st of statements) {
         const s = squash(st).replace(/[.。]$/, '');
         if (!s)
@@ -352,9 +368,24 @@ export function sliceIssue(source, statements) {
         const parts = locate(s);
         if (!parts)
             return `"${s.slice(0, 50)}${s.length > 50 ? '…' : ''}" is not a verbatim slice (or two slices) of "${src.slice(0, 50)}${src.length > 50 ? '…' : ''}"`;
+        if (parts.length === 2) {
+            // A second slice is only for carrying the sentence-initial trigger into
+            // a split piece: it must start the sentence, come before the action, and
+            // be the same trigger for every two-slice Node of this item.
+            const [[a0, a1], [b0]] = parts;
+            if (a0 !== 0 || b0 <= a1)
+                return `"${s.slice(0, 50)}" pairs two slices, but only a sentence-initial trigger may be carried into a later piece`;
+            triggers.push(src.slice(a0, a1));
+        }
+        if (s !== src && !endsWithPredicate(s) && !endsWithConnective(s) && !startsWithException(s))
+            return `"${s.slice(0, 50)}" is a fragment: a Node must end with a predicate or a connective ending`;
+        if (s !== src && startsWithException(s))
+            return `"${s.slice(0, 50)}" is an exception clause on its own; keep it in the Node of the sentence it qualifies`;
         for (const [a, b] of parts)
             mark(a, b);
     }
+    if (new Set(triggers).size > 1)
+        return `two-slice Nodes of this item carry different triggers (${[...new Set(triggers)].join(' / ')}); a split shares one sentence-initial trigger`;
     const missing = [];
     const re = /[^\s,.;:!?()\[\]{}"'`“”‘’·/|]+/g;
     let m;

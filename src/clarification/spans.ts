@@ -73,15 +73,33 @@ export function contentTokens(text: string): Set<string> {
  * Words that flip or bound a requirement. Dropping one of these from a
  * restatement changes what is required; they are kept like numbers are.
  */
-const POLARITY = /(불가능|불가|없이|없다|없음|없는|않는|않고|않은|않아|않음|않도록|안\s|못\s|못한|아니|금지|제외|예외|단,|만\s|만으로|만이|에만|경우에만|이상|이하|미만|초과|이내|이전|이후|전에|전까지|후에|반드시|필수|항상|절대|모든|전부|즉시|최대|최소|최소한|적어도|\bnot\b|\bno\b|\bnever\b|\bonly\b|\bunless\b|\bexcept\b|\bmust\b|\bbefore\b|\bafter\b|\bat least\b|\bat most\b|\bwithin\b|\ball\b|\bevery\b)/g;
+const POLARITY = /(어떤 경우에도|언제든지|무조건|불허|결코|전혀|말 것|말것|마라|말아야|하지 말|안된다|안됨|불가능|불가|없이|없다|없음|없는|않는|않고|않은|않아|않음|않도록|안\s|못\s|못한|아니|금지|제외|예외|단,|만\s|만으로|만이|에만|경우에만|이상|이하|미만|초과|이내|이전|이후|전에|전까지|후에|반드시|필수|항상|절대|모든|전부|즉시|최대|최소|최소한|적어도|\bnot\b|\bno\b|\bnever\b|\bonly\b|\bunless\b|\bexcept\b|\bmust\b|\bbefore\b|\bafter\b|\bat least\b|\bat most\b|\bwithin\b|\ball\b|\bevery\b)/g;
 export function polarityTokens(text: string): string[] {
   return (text.match(POLARITY) ?? []).map((t) => t.trim().replace(/,$/, ''));
 }
 
-/** Headings, list markers, table separators and header rows: structure, not content. */
+/** Headings, list markers, table separators and header rows: structure, not content. A heading that carries a number or a negation is content. */
 export function isStructuralSpan(text: string): boolean {
   const t = text.trim();
-  return /^#{1,6}\s/.test(t) || /^\d{1,3}\.?$/.test(t) || /^[-*+]\s*$/.test(t) || /^\|?[\s|:-]+\|?$/.test(t) || /^\|?\s*[^|]*(\|[^|]*)*\|?$/.test(t) && !/\d/.test(t) && polarityTokens(t).length === 0 && t.includes('|');
+  const plain = !/\d/.test(t) && polarityTokens(t).length === 0 && !endsWithPredicate(t);
+  return (/^#{1,6}\s/.test(t) && plain) || /^\d{1,3}\.?$/.test(t) || /^[-*+]\s*$/.test(t) || /^\|?[\s|:-]+\|?$/.test(t) || (/^\|?\s*[^|]*(\|[^|]*)*\|?$/.test(t) && plain && t.includes('|'));
+}
+
+/** A sentence that states something: Korean sentence-final endings or an English finite verb/modal. */
+export function endsWithPredicate(text: string): boolean {
+  const t = text.trim().replace(/[.。!?！？]+$/, '').trim();
+  return /(다|요|니다|습니다|함|됨|음|임|것|가능|불가|필수|제외|포함)$/.test(t) || /\b(must|shall|should|will|can|cannot|may|is|are|does|do|has|have)\b/i.test(t);
+}
+
+/** Korean connective endings that leave a clause open (a trigger-sharing split piece may end with one). */
+export function endsWithConnective(text: string): boolean {
+  const t = text.trim().replace(/[.。!?,，]+$/, '').trim();
+  return /(고|며|하면|되면|이면|라면|지만|으나|거나|하되|되되|and|or|but)$/i.test(t);
+}
+
+/** "단, …", "다만 …", "but …": an exception that only means something next to its rule. */
+export function startsWithException(text: string): boolean {
+  return /^(단[,、\s]|다만[,\s]|단지[,\s]|예외로|그러나|하지만|but\b|except\b|unless\b|however\b)/i.test(text.trim());
 }
 
 /** Length of the longest common subsequence of two token lists. */

@@ -50,7 +50,7 @@ describe('leak regression: source content cannot vanish silently', () => {
   });
 
   it('a Clarification that skips Prompt spans is not confirmed', () => {
-    const prompt = promptFixture('첫 문장이다. 둘째 문장이다. 셋째 문장이다.');
+    const prompt = promptFixture('첫 문장이다. 비유: 둘째 메모. 예시: 셋째 메모.');
     const skipping = confirmedFixture(validSteps(['첫 문장이다.']), prompt);
     const judgement = judgeCompletion(skipping, prompt);
     expect(judgement.confirmed).toBe(false);
@@ -66,7 +66,7 @@ describe('leak regression: source content cannot vanish silently', () => {
     const { runClarify } = await import('../src/cli/commands/clarify.js');
     const { createMemoryOutput } = await import('../src/cli/output.js');
     await runInit({ cwd: temp, name: 'Leak' }, createMemoryOutput());
-    const prompt = promptFixture('결제를 완료하면 주문을 확정한다. 마치 카드 긁듯이 간단해야 한다. 예를 들어 세 번 탭이면 끝.');
+    const prompt = promptFixture('결제를 완료하면 주문을 확정한다. 비유: 카드 긁듯이 간단하게. 예시: 세 번 탭이면 끝.');
     const steps = validSteps(['결제를 완료하면 주문을 확정한다.']);
     steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '비유로 쓴 문장' }, { span_ref: 'SPN-003', disposition: 'non_requirement', reason: '예시로 든 문장' }];
     await writeFile(path.join(temp, 'product', 'sources', 'PRM-001.yaml'), stringify(prompt));
@@ -76,8 +76,8 @@ describe('leak regression: source content cannot vanish silently', () => {
     const text = output.stdout.join('\n');
     expect(text).toContain('Clarification confirmed');
     expect(text).toContain('Spans set aside as non_requirement (2)');
-    expect(text).toContain('SPN-002  "마치 카드 긁듯이 간단해야 한다."  — 비유로 쓴 문장');
-    expect(text).toContain('SPN-003  "예를 들어 세 번 탭이면 끝."  — 예시로 든 문장');
+    expect(text).toContain('SPN-002  "비유: 카드 긁듯이 간단하게."  — 비유로 쓴 문장');
+    expect(text).toContain('SPN-003  "예시: 세 번 탭이면 끝."  — 예시로 든 문장');
   });
 
   it('a Node left out of the Definition with no exclusion Decision and no open Finding blocks readiness', async () => {
@@ -131,14 +131,14 @@ describe('leak regression: source content cannot vanish silently', () => {
   });
 
   it('the statement the user agrees to is rendered by the CLI; an agent-written one, even a quoting one, is refused', () => {
-    const prompt = promptFixture('첫 문장이다. 둘째 문장이다.');
+    const prompt = promptFixture('첫 문장이다. 비고: 둘째 메모.');
     const steps = validSteps(['첫 문장이다.']);
     steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '설명하는 서술 문장' }];
     const good = confirmedFixture(steps, prompt);
     expect(judgeCompletion(good, prompt).confirmed).toBe(true);
     const rendered = good.interpretation_check[0]!.presented_statement;
     expect(rendered).toContain('SPN-001 "첫 문장이다."\n  → 해석 [1]: 첫 문장이다.');
-    expect(rendered).toContain('SPN-002 "둘째 문장이다."\n  → 요구사항 아님: 설명하는 서술 문장');
+    expect(rendered).toContain('SPN-002 "비고: 둘째 메모."\n  → 요구사항 아님: 설명하는 서술 문장');
     expect(rendered).toContain('요구사항 아님: 1 문장 / 질문으로 남김: 0 건');
     const { entry_hash: _e, ...entry } = good.interpretation_check[0]!;
     for (const presented of ['SYNTHETIC: 첫 번째 문장만 요구사항이고 나머지는 서술이다.', `${rendered}\n해석 요약: 위 내용 중 1번만 요구사항`, `사용자는 아래 문장을 말한 적이 없다: ${rendered}`]) {
@@ -488,6 +488,44 @@ describe('leak regression: source content cannot vanish silently', () => {
     try { expect(await runCli(['hash', 'entry', '--input', 'entry.yaml'], out)).toBe(0); } finally { process.chdir(cwd); }
     expect(out.stdout.join('\n')).toContain('attestation: flag');
     expect(out.stdout.join('\n')).not.toContain('attestation: tty');
+  });
+
+  it('a sentence with a predicate, or a heading with content, cannot be set aside; an exception clause must stay with its sentence', () => {
+    const p = promptFixture('쇼핑몰 앱을 만든다.\n## 환불은 7일 이내 불가\n배송은 무료다.\n개인정보는 암호화한다.');
+    const steps = validSteps(['쇼핑몰 앱을 만든다.']);
+    for (const [ref, reason] of [['SPN-002', '제목 줄이라 요구사항 아님'], ['SPN-003', '홍보 문구라 요구 아님'], ['SPN-004', '배경 설명이라 제외']] as const) {
+      steps.span_coverage = [{ span_ref: ref, disposition: 'non_requirement', reason }];
+      const others = p.spans.map((x) => x.id).filter((id) => id !== 'SPN-001' && id !== ref);
+      steps.decomposition = [{ statement: '쇼핑몰 앱을 만든다.', span_refs: ['SPN-001'] }, ...others.map((id) => ({ statement: p.raw_text.slice(p.spans.find((x) => x.id === id)!.start, p.spans.find((x) => x.id === id)!.end).trim(), span_refs: [id] }))];
+      steps.elaboration = steps.decomposition.map((d) => ({ statement: d.statement, actor: 'a', object: 'b', condition: 'c', action: 'd', result: 'e' }));
+      const j = judgeCompletion(confirmedFixture(steps, p), p);
+      expect(j.confirmed, ref).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/carries a number|states something/);
+    }
+    const q = promptFixture('회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.');
+    const split = validSteps(['회원은 환불을 요청할 수 있다.', '단, 구독 상품은 제외한다.']);
+    split.decomposition[1]!.span_refs = ['SPN-002'];
+    let j = judgeCompletion(confirmedFixture(split, q), q);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/exception clause must be merged/);
+    const merged = validSteps(['회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.']);
+    merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002']; merged.decomposition[0]!.merge_reason = '예외는 규칙과 한 문장으로 읽는다';
+    expect(judgeCompletion(confirmedFixture(merged, q), q).confirmed).toBe(true);
+  });
+
+  it('two-slice Nodes share one sentence-initial trigger; fragments and detached exceptions are refused', async () => {
+    const { sliceIssue } = await import('../src/schema/clarification.js');
+    const src = '결제가 완료되면 주문을 확정하고 결제가 실패하면 주문을 취소한다.';
+    expect(sliceIssue(src, ['결제가 완료되면 주문을 취소한다', '결제가 실패하면 주문을 확정하고'])).toMatch(/different triggers|only a sentence-initial trigger/);
+    expect(sliceIssue(src, ['결제가 완료되면 주문을 확정하고', '결제가 실패하면 주문을 취소한다'])).toBeUndefined();
+    expect(sliceIssue('관리자가 승인한 사용자만 글을 쓸 수 있다.', ['관리자가 승인한', '사용자만 글을 쓸 수 있다'])).toMatch(/is a fragment/);
+    expect(sliceIssue('회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.', ['회원은 환불을 요청할 수 있다.', '단, 구독 상품은 제외한다.'])).toMatch(/exception clause on its own/);
+    expect(sliceIssue('회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.', ['회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.'])).toBeUndefined();
+  });
+
+  it('a requirement item reads exactly as its Node text; reversing framing is not expressible', async () => {
+    const g = await gate({ items: [{ kind: 'functional_requirement', text: '다음은 하지 않는다: 결제를 완료하면 주문을 확정한다.', nodes: ['NOD-001-1'] }, { kind: 'functional_requirement', text: '공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', nodes: ['NOD-001-2'] }, { kind: 'functional_requirement', text: '실제 현금 구매와 환전은 없다.', nodes: ['NOD-001-3'] }, { kind: 'functional_requirement', text: '보스는 3층에 등장하며 즉사탄을 막지 못한다.', nodes: ['NOD-001-4'] }] });
+    const check = g.report.checks.find((c) => c.id.startsWith('definition.item_restates.'));
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toMatch(/must read exactly as its Node text/);
   });
 
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {

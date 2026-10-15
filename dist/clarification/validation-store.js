@@ -257,14 +257,14 @@ async function checksFor(root, review) {
             for (const r of nodes)
                 placed.add(r.ref);
             // The item carries its Node's sentence verbatim; it may frame it, not rewrite it.
+            // The item text IS the Node text(s), in Node order, with at most a short
+            // allowed prefix ("검증:", "AC:", "수락 기준:"). Framing that could reverse
+            // the sentence ("다음은 하지 않는다: …") is not expressible.
             const squashT = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
-            for (const r of nodes) {
-                const nodeStatement = workspace.nodes.get(r.ref)?.node.statement;
-                if (!nodeStatement)
-                    continue;
-                if (!squashT(item.text).includes(squashT(nodeStatement)))
-                    add(`definition.item_restates.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} does not contain the text of ${r.ref} verbatim: "${squashT(nodeStatement).slice(0, 60)}"`);
-            }
+            const expected = nodes.map(r => squashT(workspace.nodes.get(r.ref)?.node.statement ?? '')).join(' ');
+            const actual = squashT(item.text).replace(/^(검증|AC|수락 기준|acceptance)\s*[:：]\s*/i, '');
+            if (expected && actual !== expected)
+                add(`definition.item_restates.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} must read exactly as its Node text (optionally after "검증:"): expected "${expected.slice(0, 60)}", got "${actual.slice(0, 60)}"`);
         }
         for (const item of definition.items)
             if (item.exclusion) {

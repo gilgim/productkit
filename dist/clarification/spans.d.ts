@@ -23,8 +23,14 @@ export declare function numberTokens(text: string): string[];
 /** Content tokens: 2+ chars, punctuation stripped, Korean particles trimmed loosely. */
 export declare function contentTokens(text: string): Set<string>;
 export declare function polarityTokens(text: string): string[];
-/** Headings, list markers, table separators and header rows: structure, not content. */
+/** Headings, list markers, table separators and header rows: structure, not content. A heading that carries a number or a negation is content. */
 export declare function isStructuralSpan(text: string): boolean;
+/** A sentence that states something: Korean sentence-final endings or an English finite verb/modal. */
+export declare function endsWithPredicate(text: string): boolean;
+/** Korean connective endings that leave a clause open (a trigger-sharing split piece may end with one). */
+export declare function endsWithConnective(text: string): boolean;
+/** "단, …", "다만 …", "but …": an exception that only means something next to its rule. */
+export declare function startsWithException(text: string): boolean;
 /** Length of the longest common subsequence of two token lists. */
 export declare function lcsLength(a: string[], b: string[]): number;
 /** Content tokens in order (same normalisation as contentTokens, duplicates kept). */
