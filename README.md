@@ -24,7 +24,7 @@ ProductKit puts a guard rail between the idea and the spec:
 
 - **AI guesses never become decisions.** A `DEC-xxx` exists only when *you* said so, with a rationale.
 - **Unknowns stay visible.** What the AI can't resolve becomes a `FND-xxx` finding and a question, not an invented requirement.
-- **Everything traces back.** Definition → Decision → Prompt. Your original words are preserved verbatim.
+- **Everything traces back, both ways.** Definition → Decision → Prompt, and every part of the prompt lands somewhere: included, excluded on record, or an open finding. Your original words are preserved verbatim.
 - **Approval goes stale.** Change an input after approving and the approval is invalidated.
 - **No LLM inside the CLI.** The CLI only handles files, schemas and validation. Reasoning happens in your own Claude Code or Codex session, so there is no extra API key and no hidden model call.
 
@@ -108,20 +108,22 @@ product/
 
 ## Principles
 
-ProductKit holds ten rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones that matter most:
+ProductKit holds eleven rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones that matter most:
 
 1. AI inference is never recorded as a user decision.
 2. Unclear points become findings, not guesses.
 3. Every decision carries a rationale.
 4. Every definition item traces back to the original prompt.
-5. Alternatives show benefits, costs and risks together, not just upsides.
-6. An unresolved Critical finding blocks the definition.
-7. Product definition and implementation spec stay separate. No invented schemas or APIs.
+5. Every section of the original prompt is either included, explicitly excluded by a decision, or left as an open finding. Nothing silently drops out.
+6. Alternatives show benefits, costs and risks together, not just upsides.
+7. An unresolved Critical finding blocks the definition.
+8. Product definition and implementation spec stay separate. No invented schemas or APIs.
 
 ## Honest limits
 
 - This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 248 automated tests.
 - Passing validation proves **structure**, not that the product is right. Semantic quality depends on the agent and on you.
+- Rule 5 (nothing silently drops out of the prompt) is a principle today, not yet a machine check. Until the coverage gate ships, an omission from the original prompt is caught only by the agent's own review.
 - The CLI cannot verify who typed a confirmation. Only record a decision or approval after a real human said it.
 
 ## Docs

@@ -1,6 +1,6 @@
 # {{product_name}} — Product Constitution
 
-ProductKit이 이 workspace에서 지키는 원칙이다. 아래 10개는 ProductKit의 공통 원칙이며,
+ProductKit이 이 workspace에서 지키는 원칙이다. 아래 11개는 ProductKit의 공통 원칙이며,
 제품별 원칙은 맨 아래 섹션에 추가한다. `productkit init`을 다시 실행해도 이 파일은
 덮어쓰이지 않는다.
 
@@ -48,8 +48,12 @@ Gate는 과거 PASS 기록이 아니라 현재 문서 내용을 기준으로 판
 
 `init` 재실행은 기존 파일을 보존한다. export는 같은 이름의 change가 있으면 실패한다.
 
+## 11. 원문의 모든 절은 포함·제외·미해결 중 하나로 처리한다
+
+원문의 각 절은 Definition 포함, 명시적 제외 Decision, 미해결 Finding 중 하나에 연결되어야 한다. 셋 다 아닌 절이 있으면 Definition을 확정하지 않는다.
+
 ---
 
 ## 이 제품의 추가 원칙
 
-<!-- 이 제품에만 해당하는 원칙을 여기에 추가한다. 위 10개는 수정하지 않는다. -->
+<!-- 이 제품에만 해당하는 원칙을 여기에 추가한다. 위 11개는 수정하지 않는다. -->

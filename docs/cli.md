@@ -214,7 +214,7 @@ ProductKit의 semantic review나 구현 준비성을 대신하지 않는다.
 
 | 파일 | 내용 |
 |---|---|
-| `CONSTITUTION.md` | ProductKit이 지키는 10개 원칙 |
+| `CONSTITUTION.md` | ProductKit이 지키는 11개 원칙 |
 | `docs/architecture.md` | v0 전체 설계: 역할 분리, 저장 구조, Gate, 종료 코드 |
 | `docs/artifact-contracts.md` | Prompt부터 Review까지 artifact 필드 계약 |
 | `docs/roadmap.md` | Change 01~09의 범위와 상태 |
