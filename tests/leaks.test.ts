@@ -377,7 +377,11 @@ describe('leak regression: source content cannot vanish silently', () => {
     let g = await gate({ candidate: 'wrong_spans' });
     expect(g.check('source.candidates')?.message).toContain('carrying Finding names spans SPN-002, candidate has SPN-001');
     await rm(temp, { recursive: true, force: true });
+    // A dismissed Finding is fine only if the sentence itself entered a requirement item verbatim.
     g = await gate({ candidate: 'dismissed' });
+    expect(g.check('source.candidates')).toBeUndefined();
+    await rm(temp, { recursive: true, force: true });
+    g = await gate({ candidate: 'dismissed', itemNodes: ['NOD-001-2', 'NOD-001-3', 'NOD-001-4'] });
     expect(g.check('source.candidates')?.message).toMatch(/its Finding is dismissed, but the sentence .* is in no requirement item verbatim/);
   });
 
