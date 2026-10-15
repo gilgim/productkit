@@ -106,6 +106,23 @@ product/
 └── exports/      OpenSpec export manifests
 ```
 
+## What the gate catches, and what it cannot
+
+ProductKit was fuzzed against its own gate. Everything in the left column once reached READY and is now a blocking check with a regression test. Everything in the right column is still open, by construction: a local CLI without an LLM cannot judge meaning or identity.
+
+| Caught by the CLI (blocks readiness) | Not caught — a person must read |
+|---|---|
+| A prompt that was taken in but never clarified | A sentence marked "not a requirement" with a wrong reason |
+| A sentence of the prompt that is neither decomposed, raised as a question, nor set aside with a reason | A decomposition that cites the right span but says something else |
+| A Node that is in neither the Definition, an exclusion Decision, nor an open Finding | A Definition item that contradicts the Node it cites |
+| An exclusion item whose Decision does not exist, is stale, or says something different | An exclusion whose scope text does not actually match the Finding it closes |
+| A review area marked reviewed with no evidence, or with only the skill file as evidence | Evidence that resolves but is the wrong artifact for that area |
+| A Finding marked resolved by a Decision that does not target it | A `user_statement` typed by the agent instead of the user |
+| A Definition with no requirement or acceptance criterion | A review whose "unreviewed scope" was quietly redefined to fit |
+| Any input edited after approval (hash goes stale) | A prompt that was already wrong when it was taken in |
+
+So: **omission is now structural; distortion and impersonation are not.** The CLI narrows the places a person has to look — `productkit clarify` prints every sentence set aside and why, and the export prints each Node's text next to the item built from it — but someone still has to look. A leak that gets past this gate is a human decision, recorded, with a name on it. That is the design goal, not a guarantee of correctness.
+
 ## Principles
 
 ProductKit holds eleven rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones that matter most:

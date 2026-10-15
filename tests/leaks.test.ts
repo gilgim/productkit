@@ -60,6 +60,26 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(judgeCompletion(confirmedFixture(steps, prompt), prompt).confirmed).toBe(true);
   });
 
+  it('clarify prints every span set aside as non_requirement, with its text, so a reader can check the reason', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    const { runInit } = await import('../src/cli/commands/init.js');
+    const { runClarify } = await import('../src/cli/commands/clarify.js');
+    const { createMemoryOutput } = await import('../src/cli/output.js');
+    await runInit({ cwd: temp, name: 'Leak' }, createMemoryOutput());
+    const prompt = promptFixture('결제를 완료하면 주문을 확정한다. 마치 카드 긁듯이 간단해야 한다. 예를 들어 세 번 탭이면 끝.');
+    const steps = validSteps(['결제를 완료하면 주문을 확정한다.']);
+    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '비유' }, { span_ref: 'SPN-003', disposition: 'non_requirement', reason: '예시' }];
+    await writeFile(path.join(temp, 'product', 'sources', 'PRM-001.yaml'), stringify(prompt));
+    await writeFile(path.join(temp, 'product', 'discovery', 'CLR-001.yaml'), stringify(confirmedFixture(steps, prompt)));
+    const output = createMemoryOutput();
+    await runClarify({ cwd: temp }, output);
+    const text = output.stdout.join('\n');
+    expect(text).toContain('Clarification confirmed');
+    expect(text).toContain('Spans set aside as non_requirement (2)');
+    expect(text).toContain('SPN-002  "마치 카드 긁듯이 간단해야 한다."  — 비유');
+    expect(text).toContain('SPN-003  "예를 들어 세 번 탭이면 끝."  — 예시');
+  });
+
   it('a Node left out of the Definition with no exclusion Decision and no open Finding blocks readiness', async () => {
     const g = await gate({ itemNodes: ['NOD-001-1'] });
     expect(g.report.readiness).toBe('blocked');

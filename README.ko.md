@@ -105,6 +105,23 @@ product/
 └── exports/      OpenSpec export manifest
 ```
 
+## 게이트가 잡는 것과 못 잡는 것
+
+ProductKit은 자기 게이트를 상대로 공격 테스트를 했다. 왼쪽은 한때 READY까지 뚫렸다가 지금은 차단 검사 + 회귀 테스트가 된 것. 오른쪽은 구조상 열려 있는 것 — LLM 없는 로컬 CLI는 뜻과 신원을 판단할 수 없다.
+
+| CLI가 잡는다 (readiness 차단) | 못 잡는다 — 사람이 읽어야 한다 |
+|---|---|
+| intake만 하고 clarify 안 한 Prompt | 엉뚱한 이유로 "요구사항 아님" 처리한 문장 |
+| 분해도, 질문도, 이유 있는 제외도 안 된 원문 문장 | 맞는 span을 가리키면서 다른 말을 하는 분해 |
+| Definition·제외 Decision·미해결 Finding 어디에도 없는 Node | 인용한 Node와 반대로 말하는 Definition 항목 |
+| 없는·낡은·내용 다른 Decision을 가리키는 제외 항목 | Finding 내용과 실제로는 안 맞는 제외 범위 문구 |
+| 증거 없이, 또는 스킬 파일만 증거로 `reviewed` 찍은 검토 | 풀리긴 하지만 그 영역에 맞지 않는 증거 |
+| 자기를 대상으로 하지 않는 Decision으로 resolved 된 Finding | 사용자 대신 에이전트가 적은 `user_statement` |
+| 요구사항·Acceptance Criteria가 하나도 없는 Definition | "미검토 범위"를 슬쩍 좁혀 맞춘 검토 |
+| 승인 뒤에 고친 모든 입력 (해시가 낡는다) | 들어올 때부터 틀린 원문 |
+
+정리하면 **빠짐은 이제 구조로 막히고, 왜곡과 사칭은 안 막힌다.** CLI는 사람이 봐야 할 자리를 좁혀 준다 — `productkit clarify`는 제외한 문장을 전부 이유와 함께 찍고, export는 항목 옆에 그 Node 원문을 같이 찍는다 — 그래도 누군가는 봐야 한다. 이 게이트를 지나간 누수는 이름이 붙은 사람의 결정으로 기록에 남는다. 그게 설계 목표지, 정답 보증이 아니다.
+
 ## 원칙
 
 ProductKit은 11개 원칙을 지킨다([CONSTITUTION.md](CONSTITUTION.md)). 핵심은 다음과 같다.
