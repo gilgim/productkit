@@ -56,6 +56,13 @@ export async function runGraphValidate(options: GraphBaseOptions, output: Output
   output.out('Structural result only; this does not establish semantic correctness or user approval.');
 }
 
+export async function runGraphImpactAll(output: Output): Promise<void> {
+  const cwd = process.cwd(); const root = path.join(cwd, 'product'); await requireV1(root);
+  const { ensureImpactReports } = await import('../../clarification/definition-store.js');
+  const r = await ensureImpactReports(root, [...(await loadGraphWorkspace(root)).nodes.keys()]);
+  output.out(`Impact reports current for ${r.refs.length} Node(s); written: ${r.written.length ? r.written.join(', ') : 'none (all were current)'}.`);
+}
+
 export async function runGraphImpact(options: GraphBaseOptions & { node: string; outputPath?: string; checkReport?: string }, output: Output): Promise<void> {
   const cwd = options.cwd ?? process.cwd();
   const root = path.join(cwd, 'product');
@@ -197,7 +204,7 @@ export function registerGraphCommand(program: Command, output: Output): void {
   const graph = program.command('graph').description('validate typed relationships and analyze change impact');
   graph.action(async () => runGraphStatus({}, output));
   graph.command('validate').description('validate Graph and Candidate structure').action(async () => runGraphValidate({}, output));
-  graph.command('impact').description('calculate confirmed and potential impact candidates').requiredOption('--node <id>').option('--output <path>').option('--check-report <path>').action(async (opts: { node: string; output?: string; checkReport?: string }) => runGraphImpact({ node: opts.node, ...(opts.output ? { outputPath: opts.output } : {}), ...(opts.checkReport ? { checkReport: opts.checkReport } : {}) }, output));
+  graph.command('impact').description('calculate confirmed and potential impact candidates').option('--node <id>').option('--all', 'save a current report for every Node under product/graph/reports/ (existing current ones are kept)').option('--output <path>').option('--check-report <path>').action(async (opts: { node?: string; all?: boolean; output?: string; checkReport?: string }) => { if (opts.all) return runGraphImpactAll(output); if (!opts.node) throw new CliError('Give --node <id> or --all.', ExitCode.USAGE_OR_IO); return runGraphImpact({ node: opts.node, ...(opts.output ? { outputPath: opts.output } : {}), ...(opts.checkReport ? { checkReport: opts.checkReport } : {}) }, output); });
   graph.command('trace').description('trace current Prompt to Node provenance').requiredOption('--node <id>').action(async (opts: { node: string }) => runGraphTrace({ node: opts.node }, output));
   const edge = graph.command('edge').description('create or confirm a supported Graph Edge');
   edge.command('add').requiredOption('--input <yaml>').action(async (opts: { input: string }) => runGraphEdgeAdd(opts, output));

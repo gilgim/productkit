@@ -10,6 +10,7 @@ import { findingContentHash, toFindingInput } from '../schema/finding.js';
 import { applicationSchema, applicationPlanSchema, journeySchema, parseApplication, parseJourney, parsePolicy, parseProductDefinition, productArtifactRefSchema } from '../schema/definition.js';
 import { parseImpactReport } from '../schema/impact.js';
 import { computeImpactReport } from './graph.js';
+import { policyTextIssue, journeyTextIssue } from './text-rules.js';
 import { loadGraphWorkspace } from './provenance.js';
 import { readGraphDocument, readRelationCandidates } from './graph-store.js';
 const appDir = (root) => path.join(root, 'applications');
@@ -520,6 +521,18 @@ export async function resolveFindingsByDecision(root, decisionId, now = new Date
         throw new CliError(`Decision ${decisionId} has no applied and verified Application; apply it first (productkit define application plan/apply/verify).`, ExitCode.GATE_BLOCKED);
     if ((await applicationFreshness(root, app)).stale)
         throw new CliError(`Application ${app.id} is stale.`, ExitCode.GATE_BLOCKED);
+    if (!app.plan.targets.some(t => t.before_hash !== t.after_hash))
+        throw new CliError(`Application ${app.id} changed nothing; a Decision that changes nothing cannot close a Finding.`, ExitCode.GATE_BLOCKED);
+    if (decision.decision_type === 'content_decision') {
+        const sq = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
+        const words = sq(decision.user_statement);
+        const def = await readDefinition(root);
+        const inItems = def?.items.some(i => !i.exclusion && sq(i.text) === words && i.provenance.decision_refs.some(r => r.ref === decision.id)) ?? false;
+        const inPolicies = (await readPolicies(root)).some(p => p.provenance.decision_refs.some(r => r.ref === decision.id) && [p.context, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)].some(f => sq(f) === words));
+        const inJourneys = (await readJourneys(root)).some(j => j.provenance.decision_refs.some(r => r.ref === decision.id) && [j.goal, ...j.acceptance_criteria].some(f => sq(f) === words));
+        if (!inItems && !inPolicies && !inJourneys)
+            throw new CliError(`Decision ${decision.id} is not in the product yet: its words "${words.slice(0, 50)}" must be a Definition item, a Policy field or a Journey goal citing it before it can close a Finding.`, ExitCode.GATE_BLOCKED);
+    }
     const { findingHistoryEntryHash, findingSchema, parseFinding } = await import('../schema/finding.js');
     const resolved = [];
     const skipped = [];
@@ -552,68 +565,10 @@ export async function resolveFindingsByDecision(root, decisionId, now = new Date
  * ImpactReports for the changed Nodes, the plan, and the apply. Verification
  * (`define application verify`) and `decide resolve` stay separate steps.
  */
-export async function draftApplication(root, decisionId, input, now = new Date()) {
-    const decisions = await readDecisions(root);
-    const decision = decisions.find(d => d.id === decisionId);
-    if (!decision)
-        throw new CliError(`Decision not found: ${decisionId}`, ExitCode.USAGE_OR_IO);
-    const index = await currentArtifactHashes(root);
-    const { createPolicy, createJourney, createProductDefinition } = await import('../schema/definition.js');
-    // Provenance refs may come without content_hash; the current hash is filled in.
-    const fill = (refs) => (Array.isArray(refs) ? refs : []).map(r => { const x = r; const h = x.content_hash ?? index.get(`${x.kind}:${x.ref}`); if (!h)
-        throw new CliError(`Provenance reference does not resolve: ${x.kind}:${x.ref}`, ExitCode.GATE_BLOCKED); return { kind: x.kind, ref: x.ref, content_hash: h }; });
-    const fillProv = (p) => { const v = (p ?? {}); const src = Array.isArray(v.source_refs) && v.source_refs.length ? v.source_refs : decision.finding_refs.map(f => ({ kind: 'finding', ref: f.finding_ref })); return { origin: v.origin ?? 'user_decision', source_refs: fill(src), decision_refs: fill(v.decision_refs ?? [{ kind: 'decision', ref: decisionId }]), prompt_refs: fill(v.prompt_refs ?? [...index.keys()].filter(k => k.startsWith('prompt:')).map(k => ({ kind: 'prompt', ref: k.slice(7) }))) }; };
-    const records = [];
-    const targets = [];
-    const addTarget = async (kind, id, rel, content) => { const file = path.join(root, rel.replace(/^product\//, '')); let before = null; try {
-        before = await readFile(file, 'utf8');
-    }
-    catch (e) {
-        if (e.code !== 'ENOENT')
-            throw e;
-    } targets.push({ ref: { kind, ref: id, content_hash: sha256Hex(canonicalJson(parseYaml(content))) }, path: rel, before_hash: before === null ? null : sha256Hex(before), before_content: before, after_hash: sha256Hex(content), after_content: content }); records.push(`${kind}:${id}`); };
-    const policies = [];
-    for (const raw of input.policies ?? []) {
-        const v = raw;
-        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance), exceptions: (Array.isArray(v.exceptions) ? v.exceptions : []).map(e => { const x = e; return { ...x, source_refs: fill(x.source_refs) }; }) };
-        delete body.content_hash;
-        if (!body.id)
-            body.id = `POL-${sha256Hex(canonicalJson({ ...body, id: undefined })).slice(0, 16)}`;
-        const policy = createPolicy(body);
-        policies.push(policy);
-        await addTarget('policy', policy.id, `product/policies/${policy.id}.yaml`, stringifyYaml(policy));
-    }
-    const journeys = [];
-    for (const raw of input.journeys ?? []) {
-        const v = raw;
-        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance), transitions: (Array.isArray(v.transitions) ? v.transitions : []).map(t => { const x = t; return { ...x, decision_refs: x.decision_refs ?? [decisionId] }; }) };
-        delete body.content_hash;
-        delete body.id;
-        const journey = createJourney(body);
-        journeys.push(journey);
-        await addTarget('journey', journey.id, `product/journeys/${journey.id}.yaml`, stringifyYaml(journey));
-    }
-    if (input.definition) {
-        const d = input.definition;
-        const existingPolicies = (await readPolicies(root)).map(p => p.id);
-        const existingJourneys = (await readJourneys(root)).map(j => j.id);
-        const items = d.items.map(raw => { const v = raw; const item = { ...v, provenance: fillProv(v.provenance) }; if (!item.id)
-            item.id = `ITM-${sha256Hex(canonicalJson({ kind: item.kind, text: item.text, provenance: item.provenance })).slice(0, 12)}`; return item; });
-        const snapshotKinds = new Set(['prompt', 'clarification', 'node_group', 'node', 'edge', 'relation_candidate', 'impact_report', 'finding', 'proposal', 'decision', 'assumption', 'policy', 'journey']);
-        const input_snapshot = [...index.entries()].filter(([k]) => snapshotKinds.has(k.split(':')[0])).map(([k, h]) => ({ kind: k.split(':')[0], ref: k.slice(k.indexOf(':') + 1), content_hash: h })).sort((a, b) => `${a.kind}:${a.ref}`.localeCompare(`${b.kind}:${b.ref}`));
-        for (const p of policies)
-            input_snapshot.push({ kind: 'policy', ref: p.id, content_hash: p.content_hash });
-        for (const j of journeys)
-            input_snapshot.push({ kind: 'journey', ref: j.id, content_hash: j.content_hash });
-        const definition = createProductDefinition({ schema_version: 1, status: 'draft', product_name: d.product_name, items: items, journey_refs: [...new Set([...existingJourneys, ...journeys.map(j => j.id)])], policy_refs: [...new Set([...existingPolicies, ...policies.map(p => p.id)])], finding_refs: d.finding_refs ?? [], assumption_refs: d.assumption_refs ?? [], input_snapshot, rules_version: 'definition-rules-v1' }, now);
-        await addTarget('definition', definition.id, 'product/definition.yaml', stringifyYaml(definition));
-    }
-    if (!targets.length)
-        throw new CliError('Nothing to apply: give definition, policies or journeys.', ExitCode.USAGE_OR_IO);
-    // A current before-ImpactReport for every changed Node, written by the CLI when missing.
-    const planDraft = { decision_ref: decisionId, decision_hash: decision.decision_hash, scope: input.scope, rationale: input.rationale, targets, finding_refs: input.finding_refs ?? decision.finding_refs.map(f => f.finding_ref), residual_risks: input.residual_risks ?? (decision.scope_exclusion ? [decision.scope_exclusion.residual_risk] : []), before_impact_refs: [] };
-    const seeds = targetNodeSeeds(applicationPlanSchema.parse(planDraft));
-    const impact_reports = [];
+/** A current ImpactReport for each seed Node: reuse the stored one, write it when missing. */
+export async function ensureImpactReports(root, seeds) {
+    const refs = [];
+    const written = [];
     const reportsDir = path.join(root, 'graph', 'reports');
     await mkdir(reportsDir, { recursive: true });
     for (const seed of seeds) {
@@ -637,10 +592,89 @@ export async function draftApplication(root, decisionId, input, now = new Date()
                     throw new CliError(`Impact report ${fresh.analysis_id} exists with different content.`, ExitCode.GATE_BLOCKED);
             }
             found = fresh;
-            impact_reports.push(fresh.analysis_id);
+            written.push(fresh.analysis_id);
         }
-        planDraft.before_impact_refs.push(found.analysis_id);
+        refs.push(found.analysis_id);
     }
+    return { refs, written };
+}
+export async function draftApplication(root, decisionId, input, now = new Date()) {
+    const decisions = await readDecisions(root);
+    const decision = decisions.find(d => d.id === decisionId);
+    if (!decision)
+        throw new CliError(`Decision not found: ${decisionId}`, ExitCode.USAGE_OR_IO);
+    const index = await currentArtifactHashes(root);
+    const { createPolicy, createJourney, createProductDefinition } = await import('../schema/definition.js');
+    // Provenance refs may come without content_hash; the current hash is filled in.
+    const fill = (refs) => (Array.isArray(refs) ? refs : []).map(r => { const x = r; const h = x.content_hash ?? index.get(`${x.kind}:${x.ref}`); if (!h)
+        throw new CliError(`Provenance reference does not resolve: ${x.kind}:${x.ref}`, ExitCode.GATE_BLOCKED); return { kind: x.kind, ref: x.ref, content_hash: h }; });
+    // An item/record with no Node cites the Findings of ITS Decision (the first in its decision_refs), not whichever Decision is being applied.
+    const fillProv = (p, citeApplying = true) => { const v = (p ?? {}); const decRefs = Array.isArray(v.decision_refs) && v.decision_refs.length ? v.decision_refs : citeApplying ? [{ kind: 'decision', ref: decisionId }] : []; const own = decisions.find(d => d.id === decRefs[0]?.ref) ?? decision; const src = Array.isArray(v.source_refs) && v.source_refs.length ? v.source_refs : own.finding_refs.map(f => ({ kind: 'finding', ref: f.finding_ref })); return { origin: v.origin ?? 'user_decision', source_refs: fill(src), decision_refs: fill(decRefs), prompt_refs: fill(v.prompt_refs ?? [...index.keys()].filter(k => k.startsWith('prompt:')).map(k => ({ kind: 'prompt', ref: k.slice(7) }))) }; };
+    const records = [];
+    const targets = [];
+    const addTarget = async (kind, id, rel, content) => { const file = path.join(root, rel.replace(/^product\//, '')); let before = null; try {
+        before = await readFile(file, 'utf8');
+    }
+    catch (e) {
+        if (e.code !== 'ENOENT')
+            throw e;
+    } targets.push({ ref: { kind, ref: id, content_hash: sha256Hex(canonicalJson(parseYaml(content))) }, path: rel, before_hash: before === null ? null : sha256Hex(before), before_content: before, after_hash: sha256Hex(content), after_content: content }); records.push(`${kind}:${id}`); };
+    const policies = [];
+    for (const raw of input.policies ?? []) {
+        const v = raw;
+        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance), exceptions: (Array.isArray(v.exceptions) ? v.exceptions : []).map(e => { const x = e; return { ...x, source_refs: fill(x.source_refs) }; }) };
+        delete body.content_hash;
+        if (!body.id)
+            body.id = `POL-${sha256Hex(canonicalJson({ ...body, id: undefined })).slice(0, 16)}`;
+        const policy = createPolicy(body);
+        {
+            const ws = await loadGraphWorkspace(root);
+            const issue = policyTextIssue(policy, policy.provenance.source_refs.filter(r => r.kind === 'node').map(r => ws.nodes.get(r.ref)?.node.statement ?? ''), policy.provenance.decision_refs.map(r => decisions.find(x => x.id === r.ref)?.user_statement ?? ''));
+            if (issue)
+                throw new CliError(`Policy (${policy.context.slice(0, 30)}…): ${issue}`, ExitCode.GATE_BLOCKED);
+        }
+        policies.push(policy);
+        await addTarget('policy', policy.id, `product/policies/${policy.id}.yaml`, stringifyYaml(policy));
+    }
+    const journeys = [];
+    for (const raw of input.journeys ?? []) {
+        const v = raw;
+        const body = { schema_version: 1, ...v, provenance: fillProv(v.provenance), transitions: (Array.isArray(v.transitions) ? v.transitions : []).map(t => { const x = t; return { ...x, decision_refs: x.decision_refs ?? [decisionId] }; }) };
+        delete body.content_hash;
+        delete body.id;
+        const journey = createJourney(body);
+        {
+            const ws = await loadGraphWorkspace(root);
+            const issue = journeyTextIssue(journey, journey.provenance.source_refs.filter(r => r.kind === 'node').map(r => ws.nodes.get(r.ref)?.node.statement ?? ''), journey.provenance.decision_refs.map(r => decisions.find(x => x.id === r.ref)?.user_statement ?? ''));
+            if (issue)
+                throw new CliError(`Journey (${journey.goal.slice(0, 30)}…): ${issue}`, ExitCode.GATE_BLOCKED);
+        }
+        journeys.push(journey);
+        await addTarget('journey', journey.id, `product/journeys/${journey.id}.yaml`, stringifyYaml(journey));
+    }
+    if (input.definition) {
+        const d = input.definition;
+        const existingPolicies = (await readPolicies(root)).map(p => p.id);
+        const existingJourneys = (await readJourneys(root)).map(j => j.id);
+        const items = d.items.map(raw => { const v = raw; const hasNode = Array.isArray(v.provenance?.source_refs) && (v.provenance.source_refs).some(r => r.kind === 'node'); const item = { ...v, provenance: fillProv(v.provenance, !hasNode) }; if (!item.id)
+            item.id = `ITM-${sha256Hex(canonicalJson({ kind: item.kind, text: item.text, provenance: item.provenance })).slice(0, 12)}`; return item; });
+        const snapshotKinds = new Set(['prompt', 'clarification', 'node_group', 'node', 'edge', 'relation_candidate', 'impact_report', 'finding', 'proposal', 'decision', 'assumption', 'policy', 'journey']);
+        const input_snapshot = [...index.entries()].filter(([k]) => snapshotKinds.has(k.split(':')[0])).map(([k, h]) => ({ kind: k.split(':')[0], ref: k.slice(k.indexOf(':') + 1), content_hash: h })).sort((a, b) => `${a.kind}:${a.ref}`.localeCompare(`${b.kind}:${b.ref}`));
+        for (const p of policies)
+            input_snapshot.push({ kind: 'policy', ref: p.id, content_hash: p.content_hash });
+        for (const j of journeys)
+            input_snapshot.push({ kind: 'journey', ref: j.id, content_hash: j.content_hash });
+        const definition = createProductDefinition({ schema_version: 1, status: 'draft', product_name: d.product_name, items: items, journey_refs: [...new Set([...existingJourneys, ...journeys.map(j => j.id)])], policy_refs: [...new Set([...existingPolicies, ...policies.map(p => p.id)])], finding_refs: d.finding_refs ?? [], assumption_refs: d.assumption_refs ?? [], input_snapshot, rules_version: 'definition-rules-v1' }, now);
+        await addTarget('definition', definition.id, 'product/definition.yaml', stringifyYaml(definition));
+    }
+    if (!targets.length)
+        throw new CliError('Nothing to apply: give definition, policies or journeys.', ExitCode.USAGE_OR_IO);
+    // A current before-ImpactReport for every changed Node, written by the CLI when missing.
+    const planDraft = { decision_ref: decisionId, decision_hash: decision.decision_hash, scope: input.scope, rationale: input.rationale, targets, finding_refs: input.finding_refs ?? decision.finding_refs.map(f => f.finding_ref), residual_risks: input.residual_risks ?? (decision.scope_exclusion ? [decision.scope_exclusion.residual_risk] : []), before_impact_refs: [] };
+    const seeds = targetNodeSeeds(applicationPlanSchema.parse(planDraft));
+    const ensured = await ensureImpactReports(root, seeds);
+    const impact_reports = ensured.written;
+    planDraft.before_impact_refs.push(...ensured.refs);
     const { application } = await createApplication(root, planDraft, now);
     const applied = await applyApplication(root, application.id, now);
     return { application: applied, impact_reports, records };

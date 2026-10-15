@@ -4,6 +4,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { CliError, ExitCode } from '../errors.js';
 import { readAttestationPolicy } from './workspace.js';
 import { startsWithRefusal } from '../schema/text.js';
+import { isQuestion, isUndecided } from './spans.js';
 import { createProposal, parseProposal } from '../schema/proposal.js';
 import { createDecision, parseDecision } from '../schema/decision.js';
 import { findingContentHash, parseFinding, toFindingInput } from '../schema/finding.js';
@@ -80,6 +81,10 @@ export async function addProposal(root, input) { const proposal = createProposal
 export async function addDecision(root, input) {
     if (startsWithRefusal(input.user_statement))
         throw new CliError(`The Decision statement reads as a refusal: "${input.user_statement.trim().slice(0, 60)}". A Decision records a choice the user made, not one they declined.`, ExitCode.GATE_BLOCKED);
+    if (isQuestion(input.user_statement) || isUndecided(input.user_statement))
+        throw new CliError(`The Decision statement is a question or says the point is still undecided: "${input.user_statement.trim().slice(0, 60)}". A Decision records what was decided; leave the Finding open instead.`, ExitCode.GATE_BLOCKED);
+    if (input.user_statement.trim().length > 400)
+        throw new CliError(`The Decision statement is ${input.user_statement.trim().length} characters; a Decision is one choice in at most 400 characters. Record several Decisions for several choices.`, ExitCode.GATE_BLOCKED);
     const decision = createDecision(input);
     const policy = await readAttestationPolicy(root);
     if (policy.policy === 'tty' && decision.attestation !== 'tty')
@@ -94,6 +99,14 @@ export async function addDecision(root, input) {
             throw new CliError(`Finding ${f.id} must be confirmed before Decision.`, ExitCode.GATE_BLOCKED);
         if (findingContentHash(toFindingInput(f)) !== ref.claim_hash)
             throw new CliError(`Finding ${f.id} hash is stale.`, ExitCode.GATE_BLOCKED);
+        // The snapshot must hold what the Decision is about: the Finding, the Nodes it relates to, and the Prompt — so the Decision goes stale when any of them changes.
+        const snap = new Set(decision.input_snapshot.map(r => `${r.kind}:${r.ref}`));
+        const need = [`finding:${f.id}`, ...f.related_refs.filter(r => r.kind === 'node').map(r => `node:${r.ref}`)];
+        const missing = need.filter(k => !snap.has(k));
+        if (!decision.input_snapshot.some(r => r.kind === 'prompt'))
+            missing.push('prompt:*');
+        if (missing.length)
+            throw new CliError(`Decision input_snapshot must include everything it is about: ${missing.join(', ')} (hashes from productkit hash inputs).`, ExitCode.GATE_BLOCKED);
     }
     const selection = decision.selection;
     if (selection.kind === 'proposal_option') {

@@ -4,6 +4,7 @@ interface GraphBaseOptions {
     cwd?: string;
 }
 export declare function runGraphValidate(options: GraphBaseOptions, output: Output): Promise<void>;
+export declare function runGraphImpactAll(output: Output): Promise<void>;
 export declare function runGraphImpact(options: GraphBaseOptions & {
     node: string;
     outputPath?: string;

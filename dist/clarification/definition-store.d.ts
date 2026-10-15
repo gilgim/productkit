@@ -54,6 +54,11 @@ export declare function resolveFindingsByDecision(root: string, decisionId: stri
  * ImpactReports for the changed Nodes, the plan, and the apply. Verification
  * (`define application verify`) and `decide resolve` stay separate steps.
  */
+/** A current ImpactReport for each seed Node: reuse the stored one, write it when missing. */
+export declare function ensureImpactReports(root: string, seeds: string[]): Promise<{
+    refs: string[];
+    written: string[];
+}>;
 export declare function draftApplication(root: string, decisionId: string, input: {
     scope: string;
     rationale: string;

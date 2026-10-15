@@ -269,3 +269,6 @@ MIT
 - `productkit decide resolve <DEC>` — 적용·검증된 Application 이 있는 Decision 이 다룬 Finding 을 닫는다(resolved / 제외면 deferred). 결정은 export 의 "User decisions" 에 사용자 말 그대로 나온다.
 - `productkit define application cancel <APP>` — 적용하지 않을 pending 계획을 닫는다.
 - `productkit graph impact --node <id> --output <file>` — challenge 의 `impact_coverage` 와 define 의 `before_impact_refs` 가 인용하는 ImpactReport 저장.
+- `productkit define draft --decision <DEC> --input <yaml>` — Decision 하나가 바꾸는 Definition 항목·Policy·Journey 를 적으면 id·해시·snapshot·ImpactReport 를 CLI 가 채우고 계획·적용까지 한 번에. 이어서 `define application verify`, `decide resolve`.
+- `productkit graph impact --all` — 모든 Node 의 현재 ImpactReport 를 `product/graph/reports/` 에 저장(이미 최신이면 그대로).
+- Decision 문장 규칙: 거부로 시작하지 않고, 질문·미정 문장이 아니며, 400자 이하. `input_snapshot` 은 Prompt·대상 Finding·그 Finding 의 Node 를 모두 담아야 한다. Node 에서 온 항목은 Node 문장 그대로여야 하고(결정 문장으로 바꿔 쓸 수 없음), 결정 문장은 Node 없는 별도 항목으로만 들어간다.

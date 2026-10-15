@@ -85,8 +85,10 @@ export const productDefinitionSchema = z.object({
     definition.input_snapshot.forEach((ref, index) => { if (ref.kind === 'definition' || ref.kind === 'application')
         ctx.addIssue({ code: 'custom', path: ['input_snapshot', index, 'kind'], message: 'Definition snapshots cannot reference downstream Definition/Application artifacts.' }); });
     definition.items.forEach((item, index) => {
-        if (!item.provenance.decision_refs.length || !item.provenance.prompt_refs.length)
-            ctx.addIssue({ code: 'custom', path: ['items', index, 'provenance'], message: 'Definition items require Decision and Prompt provenance.' });
+        // A sentence from the prompt needs only its Prompt; a sentence from a Decision needs that Decision.
+        const hasNode = item.provenance.source_refs.some(r => r.kind === 'node');
+        if ((!hasNode && !item.provenance.decision_refs.length) || !item.provenance.prompt_refs.length)
+            ctx.addIssue({ code: 'custom', path: ['items', index, 'provenance'], message: 'Definition items require Prompt provenance, and a Decision when the sentence is not a Node.' });
     });
 });
 export const applicationTargetSchema = z.object({

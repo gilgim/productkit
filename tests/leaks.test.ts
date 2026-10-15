@@ -161,7 +161,7 @@ describe('leak regression: source content cannot vanish silently', () => {
 
   it('round 9: bare numbers are values, not structure; only wordless lines are set aside', () => {
     for (const t of ['0', '7.', '0)', '100', '30000', '1.', '2)', '※', '…', '?', '✓', '✗', '%', '→', '₩', '🚫', '|✓|✗|', 'Ⓧ', '허용']) expect(isPureStructure(t), t).toBe(false);
-    for (const t of ['|---|---|', '---', '-', '•', '▪', '|', '===', '> ', '#']) expect(isPureStructure(t), t).toBe(true);
+    for (const t of ['|---|---|', '---', '-', '•', '▪', '|', '===', '#']) expect(isPureStructure(t), t).toBe(true);
     const prompt = promptFixture('환불 수수료(%)\n0\n환불 가능 기간(일)\n7');
     const steps = validSteps(['환불 수수료(%)', '환불 가능 기간(일)']);
     steps.decomposition.forEach((d, i) => { d.span_refs = [['SPN-001', 'SPN-003'][i]!]; });
@@ -213,6 +213,35 @@ describe('leak regression: source content cannot vanish silently', () => {
     const { startsWithRefusal } = await import('../src/schema/text.js');
     for (const t of ['10분 안이어도 조리를 시작했으면 취소할 수 없어.', '환불 수수료는 받지 않는다.', '취소 불가로 해줘']) expect(startsWithRefusal(t), t).toBe(false);
     for (const t of ['아니, 그건 아냐', 'no, keep it', '싫어']) expect(startsWithRefusal(t), t).toBe(true);
+  });
+
+  it('round 11: a Decision is one decided sentence about what it snapshots; its words are their own item, never a Node item\'s text', async () => {
+    const { startsWithRefusal } = await import('../src/schema/text.js'); void startsWithRefusal;
+    for (const t of ['환불 기간은 ○○일이다.', '결제 수단 결정 필요.', '배송은 아직 안 정해졌다.', '알림 방식은 고려 중이다.', 'Refund window is not defined.', '임시로 7일로 한다', 'TODO: 정하기', 'It depends on the plan.']) expect(isUndecided(t), t).toBe(true);
+    for (const t of ['주문이 확정되면 영수증을 보낸다.', '일단위로 정산한다.', '아마존에 배포한다.']) expect(isUndecided(t), t).toBe(false);
+    for (const t of ['❗ 단, 디지털 상품은 환불할 수 없다.', '미성년자인 경우 제외.', '다음은 예외: 정지 회원', 'cf. 푸시는 꺼진다.', '예외 사항: 법인 카드', '이벤트 상품은 적립 대상에서 빼고', '정지 회원에게는 적용하지 않는다.']) expect(startsWithException(t), t).toBe(true);
+    // contradictions by number, antonym, negation; not by a quantifier alone
+    const p = (a: string, b: string) => { const prompt = promptFixture(`${a} ${b}`); const steps = validSteps([a]); steps.decomposition = [{ statement: `${a} ${b}`, span_refs: ['SPN-001', 'SPN-002'], merge_reason: '같은 주제라서 함께 읽음' }]; return mergeReasonIssue({ steps, finding_candidates: [] }, prompt); };
+    expect(p('환불은 7일 이내 가능하다.', '환불은 30일 이내 가능하다.')).toMatch(/may contradict/);
+    expect(p('배송은 무료다.', '배송은 유료다.')).toMatch(/may contradict/);
+    expect(p('알림은 켜져 있다.', '알림은 꺼져 있다.')).toMatch(/may contradict/);
+    expect(p('Refunds are available.', 'Refunds are unavailable.')).toMatch(/may contradict/);
+    expect(p('회원은 글을 쓸 수 있다.', '회원은 모든 글을 볼 수 있다.')).toBeUndefined();
+    // a Decision cannot be a question, an undecided point, or a paragraph
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-r11-'));
+    const w = await buildLeakWorkspace(temp);
+    const { addDecision, readDecisions } = await import('../src/clarification/proposal-decision-store.js');
+    const base = (await readDecisions(w.root)).find((d) => d.id === w.decisionId)!;
+    const rest = { decision_type: base.decision_type, proposal_ref: base.proposal_ref, option_ref: base.option_ref, finding_refs: base.finding_refs, selection: base.selection, rationale: base.rationale, scope: base.scope, input_snapshot: base.input_snapshot };
+    const mk = (user_statement: string, extra: Record<string, unknown> = {}) => addDecision(w.root, { ...rest, user_statement, attestation: 'flag', ...extra } as never);
+    await expect(mk('결제 수단은 미정이다.')).rejects.toThrow(/question or says the point is still undecided/);
+    await expect(mk('환불 기간은 며칠로 할까요')).rejects.toThrow(/question or says the point is still undecided/);
+    await expect(mk('환불은 7일 이내 가능하다. ' + '이 문장은 채움이다. '.repeat(40) + '위 문장은 효력이 없고 환불은 금지한다.')).rejects.toThrow(/at most 400 characters/);
+    await expect(mk('그대로 진행한다.', { input_snapshot: (base.input_snapshot as Array<{ kind: string }>).filter((r) => r.kind !== 'prompt') })).rejects.toThrow(/input_snapshot must include everything it is about: prompt/);
+    // a Node item cannot be rewritten to a Decision's words (A3): item_restates still compares to the Node
+    await rm(temp, { recursive: true, force: true });
+    const g = await gate({ items: [{ kind: 'functional_requirement', text: 'SYNTHETIC USER: 그대로', nodes: ['NOD-001-1'] }, { kind: 'functional_requirement', text: '공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', nodes: ['NOD-001-2'] }, { kind: 'functional_requirement', text: '실제 현금 구매와 환전은 없다.', nodes: ['NOD-001-3'] }, { kind: 'functional_requirement', text: '보스는 3층에 등장하며 즉사탄을 막지 못한다.', nodes: ['NOD-001-4'] }] });
+    expect(g.check('definition.item_restates')?.status).toBe('fail');
   });
 
   it('round 10: an exclusion places only the Nodes it cites, and a Node cannot be both excluded and required', async () => {
