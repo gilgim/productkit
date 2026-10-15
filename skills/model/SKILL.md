@@ -105,8 +105,9 @@ productkit hash atomicity --input atomicity.yaml
 거부된다. AI는 세 필드의 `verdict`/`reason`/`confidence`만 성실하게 채우고,
 `final`은 반드시 함수 결과를 그대로 옮겨 적는다.
 
-**Node 의 `statement` 는 사용자 문장 통째, 글자 그대로다.** decomposition 항목에
-들어 있는 사용자 문장마다 Node 하나 — 자르지도, 합치지도, 바꿔 말하지도 않는다.
+**Node 의 `statement` 는 decomposition 항목의 텍스트 통째, 글자 그대로다.** 항목마다
+Node 정확히 하나 — 묶은 항목이면 묶인 문장들이 한 Node 에 같이 간다(예외가 규칙에서
+떨어지지 않도록). 자르지도, 합치지도, 바꿔 말하지도 않는다.
 어긋나면 `restatement_mismatch` 로 거부된다. 한 문장에 결과가 여럿 들어 있어
 원자적이지 않다고 판단되면(`split_required`) Agent 가 쪼개는 게 아니라 **사용자에게
 그 문장을 따로따로 다시 써 달라고 묻는다**(`productkit intake` 로 새 Prompt → clarify).

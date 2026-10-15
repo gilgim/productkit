@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { stringify as stringifyYaml } from 'yaml';
 import { saysNo } from '../../schema/text.js';
+import { isPureStructure } from '../../clarification/spans.js';
 
 import { CliError, ExitCode, describeCause } from '../../errors.js';
 import { atomicReplaceIfUnchanged, latestId } from '../../clarification/io.js';
@@ -64,21 +65,11 @@ const REASON_MESSAGES: Record<CompletionBlockReason, string> = {
     'record changed after it was written; it does not identify who changed it or why.',
 };
 
-/**
- * The spans the author set aside as "not a requirement" are the one place a
- * whole sentence of the user's words can leave the pipeline. Print them with
- * their text so the person reading the result sees exactly what was set
- * aside and why — the CLI cannot judge the reason, a reader can.
- */
-function printSkippedSpans(clarification: { steps: { span_coverage?: Array<{ span_ref: string; reason: string }> | undefined } }, prompt: { raw_text: string; spans: Array<{ id: string; start: number; end: number }> }, output: Output): void {
-  const skipped = clarification.steps.span_coverage ?? [];
-  if (!skipped.length) return;
-  output.out(`  Spans set aside as non_requirement (${skipped.length}) — read these; nothing below enters the Definition:`);
-  for (const item of skipped) {
-    const span = prompt.spans.find((s) => s.id === item.span_ref);
-    const text = span ? prompt.raw_text.slice(span.start, span.end).trim().replace(/\s+/g, ' ') : '(span not found)';
-    output.out(`    ${item.span_ref}  "${text.length > 80 ? `${text.slice(0, 77)}...` : text}"  — ${item.reason}`);
-  }
+/** Lines with no words of their own that the CLI set aside itself (separators, bare numbers). */
+function printStructureLines(prompt: { raw_text: string; spans: Array<{ id: string; start: number; end: number }> }, output: Output): void {
+  const structure = prompt.spans.filter((s) => isPureStructure(prompt.raw_text.slice(s.start, s.end)));
+  if (!structure.length) return;
+  output.out(`  Structure lines set aside by the CLI (${structure.length}): ${structure.map((s) => s.id).join(', ')}`);
 }
 
 export interface ClarifyConfirmOptions {
@@ -216,7 +207,7 @@ export async function runClarify(options: ClarifyOptions, output: Output): Promi
     output.out(`Clarification confirmed: ${clarificationId}`);
     output.out('(The record is internally consistent and marked agreed — this is not proof');
     output.out(' that a human actually said so; see docs/artifact-contracts.md.)');
-    printSkippedSpans(clarification, sourcePrompt, output);
+    printStructureLines(sourcePrompt, output);
     return;
   }
 

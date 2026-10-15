@@ -78,7 +78,12 @@ export function isStructuralSpan(text) {
 /** A question: a question mark anywhere, or a Korean interrogative ending (할까, 하나요, 할지, 인가요 …). */
 export function isQuestion(text) {
     const t = text.trim().replace(/[\s.。!！)\]”"'’]+$/, '');
-    return /[?？]/.test(text) || /(까|나요|가요|ㄴ가요|인가|인가요|할지|일지|ㄹ지|을지|습니까|ㅂ니까|합니까|있나|없나|되나|하나|할까요)$/.test(t);
+    return /[?？]/.test(text) || /(까|나요|가요|ㄴ가요|인가|인가요|한가|는가|던가|려나|으려나|할지|일지|ㄹ지|을지|습니까|ㅂ니까|합니까|있나|없나|되나|하나|할까요|나)$/.test(t);
+}
+/** Pure structure: a line with no words of its own — a table separator, a bare list number or bullet, a bare heading mark. The CLI sets these aside itself; nothing else can be set aside. */
+export function isPureStructure(text) {
+    const t = text.trim();
+    return t === '' || /^\|?[\s|:\-=]+\|?$/.test(t) || /^\d{1,3}[.)]?$/.test(t) || /^[-*+•]$/.test(t) || /^#{1,6}$/.test(t) || /^[-=_*]{3,}$/.test(t);
 }
 /** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
 export function hasAsideMarker(text) {

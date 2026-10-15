@@ -72,7 +72,7 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     await writeFile(w.groupPath,stringify(group));
     const afterSplit=cli(w.cwd,'atomize').stdout;
     expect(afterSplit).toContain('not yet complete');
-    expect(afterSplit).toContain('one per user sentence');
+    expect(afterSplit).toContain('exactly 1 Node');
     expect(group.retired_nodes[0]).toEqual(originalParent);
     expect(group.retired_nodes[0]!.atomicity.final).toBe('split_required');
   });

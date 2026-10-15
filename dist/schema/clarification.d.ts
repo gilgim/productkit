@@ -257,8 +257,6 @@ export declare function judgeCompletion(clarification: Clarification, prompt?: P
  * `presented_statement` to equal this render exactly.
  */
 export declare function renderPresentation(clarification: Pick<Clarification, 'steps' | 'finding_candidates'>, prompt: Prompt): string;
-/** A span carrying this many clause separators, read as one statement, needs a stated reason. */
-export declare const CLAUSE_SIGNAL_THRESHOLD = 3;
 /**
  * Where requirements get merged away: one item citing several spans, or one
  * item being the only reading of a span that plainly carries several
@@ -267,19 +265,14 @@ export declare const CLAUSE_SIGNAL_THRESHOLD = 3;
 /** A reason must say something: not a placeholder, not "x". */
 export declare const isReason: (value: unknown) => value is string;
 export declare function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined;
-/** Does `readings` restate `source`: every number of source present, 60%+ of its content words, and no number invented? */
-export declare function restatementIssue(source: string, readings: string[]): string | undefined;
 /**
- * A Node is one of the user's sentences, verbatim — no slicing. Splitting a
- * sentence into pieces was gamed seven ways (trigger pairing, condition
- * forms, connective cuts, one-character drops); the only split that loses
- * nothing is the one the user makes by restating the idea in separate
- * sentences (a new intake). So: the Node statements of a decomposition item
- * must be exactly its sentences, one each, in order.
+ * A Node is a decomposition item's text — the user's sentence(s), verbatim —
+ * and there is exactly one per item. Slicing a sentence into pieces was
+ * gamed seven ways (trigger pairing, condition forms, connective cuts,
+ * one-character drops); the only split that loses nothing is the one the
+ * user makes by restating the idea in separate sentences (a new intake).
  */
-export declare function sliceIssue(source: string, statements: string[], segments?: string[]): string | undefined;
-/** Share of a span's content that its readings must carry. */
-export declare const READING_COVERAGE_RATIO = 0.6;
+export declare function sliceIssue(source: string, statements: string[], _segments?: string[]): string | undefined;
 /**
  * A reading must restate the sentence, not label it. Every number in the
  * span must appear in the union of statements that cite it, and most of its

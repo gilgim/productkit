@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { promptIntegrityIssue } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { clauseSignalCount, contentTokenList, contentTokens, endsWithCondition, endsWithConnective, endsWithDangler, endsWithPredicate, hasAsideMarker, isQuestion, isStructuralSpan, lcsLength, leadingCondition, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
+import { contentTokens, isPureStructure, isQuestion, spanText, startsWithException } from '../clarification/spans.js';
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 const hashHex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 hex digest');
 /**
@@ -226,10 +226,16 @@ export function renderPresentation(clarification, prompt) {
     // aside is seen right above the sentences it governs, and a merged reading
     // is seen at every sentence it covers.
     lines.push(`원문 순서 (${prompt.spans.length} 문장):`);
-    const aside = steps.span_coverage ?? [];
     const candidates = clarification.finding_candidates;
+    let structure = 0;
     for (const span of prompt.spans) {
-        lines.push(`${span.id} "${spanText(prompt.raw_text, span)}"`);
+        const text = spanText(prompt.raw_text, span);
+        if (isPureStructure(text)) {
+            structure += 1;
+            lines.push(`${span.id} "${text}"  → 구조 줄 (CLI 자동 제외)`);
+            continue;
+        }
+        lines.push(`${span.id} "${text}"`);
         steps.decomposition.forEach((item, i) => {
             if (!item.span_refs.includes(span.id))
                 return;
@@ -245,13 +251,10 @@ export function renderPresentation(clarification, prompt) {
                 tags.push(`한 문장으로 읽음 — ${squash(item.single_statement_reason)}`);
             lines.push(`  → 해석 [${i + 1}]${tags.length ? ` (${tags.join('; ')})` : ''}: ${squash(item.statement)}`);
         });
-        for (const c of aside)
-            if (c.span_ref === span.id)
-                lines.push(`  → 요구사항 아님: ${squash(c.reason)}`);
         candidates.forEach((f, i) => { if (f.span_refs.includes(span.id))
             lines.push(`  → 질문 [Q${i + 1}] ${f.type}: ${squash(f.statement)}${f.span_refs.length > 1 ? ` (${f.span_refs.join(', ')})` : ''}`); });
     }
-    lines.push(`요구사항 아님: ${aside.length} 문장 / 질문으로 남김: ${candidates.length} 건`);
+    lines.push(`구조 줄(자동 제외): ${structure} / 질문으로 남김: ${candidates.length} 건`);
     const rel = steps.relation_check;
     lines.push(rel.length ? `관계 후보 (${rel.length}):` : `관계 후보: 없음 — ${squash(steps.relation_check_no_items_reason ?? '')}`);
     for (const r of rel)
@@ -262,8 +265,6 @@ export function renderPresentation(clarification, prompt) {
         lines.push(`  - ${squash(x.ambiguity)}: ${x.possible_interpretations.map(squash).join(' / ')}`);
     return lines.join('\n');
 }
-/** A span carrying this many clause separators, read as one statement, needs a stated reason. */
-export const CLAUSE_SIGNAL_THRESHOLD = 3;
 /**
  * Where requirements get merged away: one item citing several spans, or one
  * item being the only reading of a span that plainly carries several
@@ -277,27 +278,8 @@ export function mergeReasonIssue(clarification, prompt) {
         if (item.span_refs.length > 1 && !isReason(item.merge_reason))
             return `decomposition[${i}] cites ${item.span_refs.length} spans (${item.span_refs.join(', ')}) but gives no merge_reason (6+ characters, 2+ words).`;
     }
-    for (const [i, c] of (clarification.steps.span_coverage ?? []).entries()) {
-        if (!isReason(c.reason))
-            return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters and 2+ words.`;
-        const text = spanTextById(prompt, c.span_ref);
-        if (isQuestion(text))
-            return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; raise it as a finding candidate.`;
-        // A sentence carrying a number, a negation/condition word, or simply a
-        // lot of content is saying something a product must do; it cannot be
-        // filed as "not a requirement".
-        if (!isStructuralSpan(text) && (numberTokens(text).length || polarityTokens(text).length))
-            return `span_coverage[${i}] sets aside ${c.span_ref}, which carries ${numberTokens(text).length ? 'a number' : 'a negation/condition word'} (${[...numberTokens(text), ...polarityTokens(text)].slice(0, 4).join(', ')}); decompose it or raise it as a finding candidate.`;
-        if (!isStructuralSpan(text) && contentTokenList(text).length >= 10)
-            return `span_coverage[${i}] sets aside ${c.span_ref}, which has ${contentTokenList(text).length} content words; a sentence that long is not a heading or an aside — decompose it or raise it as a finding candidate.`;
-        if (!isStructuralSpan(text) && endsWithPredicate(text))
-            return `span_coverage[${i}] sets aside ${c.span_ref}, which states something ("…${text.slice(-12)}"); a sentence with a predicate is a requirement or a question, not an aside.`;
-        // Only what the user themselves marked as structure or as an aside may be
-        // set aside. A sentence without such a marker is content, whatever the
-        // agent's reason says.
-        if (!isStructuralSpan(text) && !hasAsideMarker(text))
-            return `span_coverage[${i}] sets aside ${c.span_ref} ("${text.slice(0, 30)}${text.length > 30 ? '…' : ''}"), which the user did not mark as a heading, list marker, separator or aside ("예:", "비유:", "참고:", "비고:"); it is content — decompose it or raise it as a finding candidate.`;
-    }
+    if ((clarification.steps.span_coverage ?? []).length)
+        return `steps.span_coverage is not honoured any more: the agent cannot set a sentence aside. Read every sentence verbatim or raise it as a finding candidate; the CLI sets aside pure structure (separators, bare numbers) itself.`;
     // "단, …" means nothing away from the sentence it qualifies: it must sit in
     // the same decomposition item as the span before it. A question is never a
     // requirement: it goes to finding_candidates, not into a reading.
@@ -316,55 +298,22 @@ export function mergeReasonIssue(clarification, prompt) {
     }
     return undefined;
 }
-/** Does `readings` restate `source`: every number of source present, 60%+ of its content words, and no number invented? */
-export function restatementIssue(source, readings) {
-    const union = readings.join(' ');
-    const unionText = union.replace(/\s+/g, '');
-    const missingNumbers = numberTokens(source).filter(n => !unionText.includes(n.replace(/\s+/g, '')));
-    if (missingNumbers.length)
-        return `drops these numbers: ${missingNumbers.join(', ')}`;
-    const sourceText = source.replace(/\s+/g, '');
-    const invented = readings.flatMap(r => numberTokens(r)).filter(n => !sourceText.includes(n.replace(/\s+/g, '')));
-    if (invented.length)
-        return `adds numbers absent from the source: ${invented.join(', ')}`;
-    // Negations, exceptions and bounds flip the requirement; each must survive.
-    const missingPolarity = polarityTokens(source).filter(p => !union.includes(p));
-    if (missingPolarity.length)
-        return `drops these negation/condition words: ${[...new Set(missingPolarity)].join(', ')}`;
-    const sourceTokens = contentTokenList(source);
-    if (sourceTokens.length >= 3) {
-        // Order matters: a bag of the same words in another order is not a restatement.
-        const best = Math.max(...readings.map(r => lcsLength(sourceTokens, contentTokenList(r))), 0);
-        const unionTokens = contentTokens(union);
-        const keptAnywhere = sourceTokens.filter(t => unionTokens.has(t) || unionText.toLowerCase().includes(t));
-        const ratio = Math.max(best, readings.length > 1 ? keptAnywhere.length : 0) / sourceTokens.length;
-        if (ratio < READING_COVERAGE_RATIO)
-            return `carries ${Math.round(ratio * 100)}% of the source's content words in order (need ${READING_COVERAGE_RATIO * 100}%); missing e.g. ${sourceTokens.filter(t => !keptAnywhere.includes(t)).slice(0, 6).join(', ')}`;
-    }
-    return undefined;
-}
 /**
- * A Node is one of the user's sentences, verbatim — no slicing. Splitting a
- * sentence into pieces was gamed seven ways (trigger pairing, condition
- * forms, connective cuts, one-character drops); the only split that loses
- * nothing is the one the user makes by restating the idea in separate
- * sentences (a new intake). So: the Node statements of a decomposition item
- * must be exactly its sentences, one each, in order.
+ * A Node is a decomposition item's text — the user's sentence(s), verbatim —
+ * and there is exactly one per item. Slicing a sentence into pieces was
+ * gamed seven ways (trigger pairing, condition forms, connective cuts,
+ * one-character drops); the only split that loses nothing is the one the
+ * user makes by restating the idea in separate sentences (a new intake).
  */
-export function sliceIssue(source, statements, segments) {
+export function sliceIssue(source, statements, _segments) {
     const norm = (t) => squash(t).replace(/[.。]$/, '');
-    const sentences = (segments && segments.length ? segments : [source]).map(norm).filter(Boolean);
-    const got = statements.map(norm);
-    if (got.length !== sentences.length)
-        return `expected ${sentences.length} Node(s), one per user sentence, got ${got.length}; a Node is a whole sentence, verbatim — to split a sentence, ask the user to restate it as separate sentences (new intake)`;
-    for (const [i, sentence] of sentences.entries()) {
-        if (got[i] !== sentence)
-            return `Node ${i + 1} must be the sentence verbatim: expected "${sentence.slice(0, 60)}", got "${got[i].slice(0, 60)}"`;
-    }
+    const want = norm(source);
+    if (statements.length !== 1)
+        return `expected exactly 1 Node for this decomposition item (its sentence(s) verbatim), got ${statements.length}; a Node is never cut by the agent — to split, ask the user to restate the idea in separate sentences (new intake)`;
+    if (norm(statements[0]) !== want)
+        return `the Node must be the item's text verbatim: expected "${want.slice(0, 60)}", got "${norm(statements[0]).slice(0, 60)}"`;
     return undefined;
 }
-/** Share of a span's content that its readings must carry. */
-export const READING_COVERAGE_RATIO = 0.6;
 /**
  * A reading must restate the sentence, not label it. Every number in the
  * span must appear in the union of statements that cite it, and most of its
@@ -399,9 +348,12 @@ export function uncoveredSpans(clarification, prompt) {
     for (const f of clarification.finding_candidates)
         for (const ref of f.span_refs)
             covered.add(ref);
-    for (const c of clarification.steps.span_coverage ?? [])
-        if (isMeaningfulText(c.reason))
-            covered.add(c.span_ref);
+    // Only lines with no words of their own are set aside, and the CLI does it.
+    // `steps.span_coverage` is no longer honoured: an agent's "not a
+    // requirement" label was the last place a sentence could leave unseen.
+    for (const s of prompt.spans)
+        if (isPureStructure(spanText(prompt.raw_text, s)))
+            covered.add(s.id);
     return prompt.spans.map(s => s.id).filter(id => !covered.has(id));
 }
 /**
