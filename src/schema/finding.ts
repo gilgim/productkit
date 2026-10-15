@@ -48,6 +48,8 @@ export const findingInputSchema = z.object({
   ai_assessment: findingAiAssessmentSchema,
   questions: z.array(z.string().trim().min(1)),
   supersedes_finding_ref: z.string().regex(/^FND-[0-9a-f]{16}$/).optional(),
+  /** Clarification finding_candidates this Finding promotes; validate requires every candidate to be promoted and user-confirmed. */
+  candidate_refs: z.array(z.object({ clarification_ref: z.string().regex(/^CLR-\d{3,}$/), index: z.number().int().nonnegative() }).strict()).optional(),
 }).strict().superRefine((finding, ctx) => {
   if (finding.type === 'other' && !finding.issue_key.toLowerCase().startsWith('other:')) {
     ctx.addIssue({ code: 'custom', path: ['issue_key'], message: 'Other Findings require an issue_key explaining the subtype.' });
@@ -65,6 +67,8 @@ export const findingConfirmationSchema = z.object({
   response: z.enum(['confirmed', 'rejected']),
   user_statement: z.string().trim().min(1),
   rationale: z.string().trim().min(1),
+  /** Where user_statement came from: typed on the terminal, or passed as a flag by whoever ran the command. */
+  attestation: z.enum(['tty', 'flag']).default('flag'),
   checked_at: z.string().datetime({ offset: true }),
   entry_hash: sha256,
 }).strict();
@@ -179,6 +183,7 @@ export function toFindingInput(finding: Finding | Omit<Finding, 'history' | 'con
     ai_assessment: finding.ai_assessment,
     questions: finding.questions,
     ...(finding.supersedes_finding_ref ? { supersedes_finding_ref: finding.supersedes_finding_ref } : {}),
+    ...(finding.candidate_refs ? { candidate_refs: finding.candidate_refs } : {}),
   });
 }
 
@@ -219,6 +224,7 @@ export function appendFindingConfirmation(
   userStatement: string,
   rationale: string,
   now = new Date(),
+  attestation: 'tty' | 'flag' = 'flag',
 ): Finding {
   const finding = findingSchema.parse(findingValue);
   if (finding.resolution_status !== 'unresolved') throw new Error('A resolved Finding cannot be re-triaged by Change 05.');
@@ -232,6 +238,7 @@ export function appendFindingConfirmation(
     response,
     user_statement: userStatement.trim(),
     rationale: rationale.trim(),
+    attestation,
     checked_at,
   };
   const confirmation = findingConfirmationSchema.parse({

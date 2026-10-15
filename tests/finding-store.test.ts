@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { allowFlagAttestation } from './helpers/gate-fixtures.js';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -17,7 +18,7 @@ const input = {
   ai_assessment: { is_ai_judgment: true as const, rationale: 'No timeout behavior found.', confidence: 'medium' as const, uncertainty: ['Could be in an external policy.'] }, questions: ['What happens on timeout?'],
 };
 async function workspace() {
-  root = await mkdtemp(path.join(tmpdir(), 'productkit-finding-store-')); await runInit({ cwd: root }, createMemoryOutput());
+  root = await mkdtemp(path.join(tmpdir(), 'productkit-finding-store-')); await runInit({ cwd: root }, createMemoryOutput()); await allowFlagAttestation(path.join(root, 'product'));
   const product = path.join(root, 'product'); const prompt = promptFixture(); const clarification = confirmedFixture(undefined, prompt); const group = groupFixture(clarification.steps);
   await writeFile(path.join(product, 'sources', `${prompt.id}.yaml`), stringify(prompt)); await writeFile(path.join(product, 'discovery', `${clarification.id}.yaml`), stringify(clarification)); await writeFile(path.join(product, 'nodes', `${group.id}.yaml`), stringify(group)); return product;
 }

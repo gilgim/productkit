@@ -46,6 +46,14 @@ export interface LeakOptions {
   exclusionItemNodes?: string[];
   /** Add an unresolved Finding related to these Nodes. */
   openFindingNodes?: string[];
+  /** Leave those open Findings agent-proposed (no user confirmation). */
+  openFindingsProposed?: boolean;
+  /** Park a finding candidate on SPN-001 in the Clarification and promote it: not at all, as a proposed Finding, or as a confirmed one. */
+  candidate?: 'none' | 'proposed' | 'confirmed';
+  /** Make the Policy cite these Nodes (attack: policy as cover for Node placement). */
+  policyNodes?: string[];
+  /** Leave the exclusion's Finding agent-proposed. */
+  exclusionFindingProposed?: boolean;
   /** Mark a second Finding `resolved` citing the content Decision that does not target it. */
   resolvedByUnrelatedDecision?: boolean;
   /** Challenge area evidence (default cites NOD-001-1). */
@@ -88,9 +96,10 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
     relation_check: [], relation_check_no_items_reason: '각 행동 사이의 필수 의존이나 순서는 원문에 명시되어 있지 않다.',
     counterexample: [], counterexample_no_items_reason: '기록된 조건과 행동을 대조했으며 추가 해석 후보를 발견하지 못했다.',
   };
-  const entry = { id: 'IC-001', presented_statement: renderPresentation({ steps, finding_candidates: [] }, prompt), presented_hash: stepsContentHash(steps), prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, user_response: 'agreed' as const, user_statement: 'SYNTHETIC TEST ONLY: 동의', checked_at: '2026-10-12T00:00:00Z' };
+  const clrCandidates = o.candidate ? [{ statement: '주문 확정 시점이 결제 승인인지 완료인지 모호하다', type: 'ambiguity' as const, span_refs: ['SPN-001'] }] : [];
+  const entry = { id: 'IC-001', presented_statement: renderPresentation({ steps, finding_candidates: clrCandidates }, prompt), presented_hash: stepsContentHash(steps), prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, user_response: 'agreed' as const, user_statement: 'SYNTHETIC TEST ONLY: 동의', checked_at: '2026-10-12T00:00:00Z' };
   const { entry_hash: _u, ...stored } = interpretationCheckEntrySchema.parse({ ...entry, entry_hash: '0'.repeat(64) });
-  const clarification = clarificationSchema.parse({ id: 'CLR-001', prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, steps, status: 'confirmed', interpretation_check: [{ ...stored, entry_hash: computeEntryHash(stored) }], finding_candidates: [] });
+  const clarification = clarificationSchema.parse({ id: 'CLR-001', prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, steps, status: 'confirmed', interpretation_check: [{ ...stored, entry_hash: computeEntryHash(stored) }], finding_candidates: clrCandidates });
   await writeFile(path.join(root, 'discovery', 'CLR-001.yaml'), stringify(clarification));
 
   const nodes: Node[] = stmts.map((s, i) => { const a = at(s); return { id: `NOD-001-${i + 1}`, kind: 'requirement', statement: s, origin: 'source', derived_from: { clarification_ref: 'CLR-001', decomposition_index: i }, structural_signal: { conjunction_count: 0, multiple_predicates: false }, atomicity: { ...a, final: evaluateAtomicityFinal(a) } }; });
@@ -98,10 +107,12 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const group = nodeGroupSchema.parse({ id: 'NDG-001', clarification_ref: 'CLR-001', source_content_hash: nodeSetContentHash(steps), clarification_content_hash: clarificationContentHash(clarification), nodes, coverage: { complete: true, uncovered_decomposition_indices: [] }, distortion_checks: stmts.map((s, i) => ({ decomposition_index: i, reconstructed_statement: s, verdict: 'preserved', confidence: 'high', reason: '역합성 일치', condition_preservation: rv, operator_preservation: rv, exception_preservation: rv })), finding_candidates: [], status: 'modeled' });
   await writeFile(path.join(root, 'nodes', 'NDG-001.yaml'), stringify(group));
 
-  const mkFinding = (key: string, statement: string, refs: string[], severity: 'major' | 'critical' = 'major') => appendFindingConfirmation(createFinding({ issue_key: key, type: 'flow_gap', severity, statement, related_refs: refs.map((ref) => ({ kind: 'node' as const, ref })), evidence_refs: [{ kind: 'prompt', ref: prompt.id, detail: '원문 참조' }], counterexamples: [], ai_assessment: { is_ai_judgment: true, rationale: '원문에 없음', confidence: 'medium', uncertainty: ['미확인'] }, questions: ['어떻게 처리하나?'] }), 'confirmed', 'SYNTHETIC USER: 확인', 'SYNTHETIC USER: 검토');
+  const mkProposed = (key: string, statement: string, refs: string[], severity: 'major' | 'critical' = 'major', extra: Record<string, unknown> = {}) => createFinding({ issue_key: key, type: 'flow_gap', severity, statement, related_refs: refs.map((ref) => ({ kind: 'node' as const, ref })), evidence_refs: [{ kind: 'prompt', ref: prompt.id, detail: '원문 참조' }], counterexamples: [], ai_assessment: { is_ai_judgment: true, rationale: '원문에 없음', confidence: 'medium', uncertainty: ['미확인'] }, questions: ['어떻게 처리하나?'], ...extra });
+  const mkFinding = (key: string, statement: string, refs: string[], severity: 'major' | 'critical' = 'major', extra: Record<string, unknown> = {}) => appendFindingConfirmation(mkProposed(key, statement, refs, severity, extra), 'confirmed', 'SYNTHETIC USER: 확인', 'SYNTHETIC USER: 검토');
   const finding = mkFinding('k1', '취소 처리 방식이 정의되지 않았다.', ['NOD-001-1']);
   await writeFile(path.join(root, 'findings', `${finding.id}.yaml`), stringify(finding));
-  for (const [i, nodeRef] of (o.openFindingNodes ?? []).entries()) { const f = mkFinding(`open-${i}`, `${nodeRef}의 예외 처리가 미정이다.`, [nodeRef]); await writeFile(path.join(root, 'findings', `${f.id}.yaml`), stringify(f)); }
+  for (const [i, nodeRef] of (o.openFindingNodes ?? []).entries()) { const f = (o.openFindingsProposed ? mkProposed : mkFinding)(`open-${i}`, `${nodeRef}의 예외 처리가 미정이다.`, [nodeRef]); await writeFile(path.join(root, 'findings', `${f.id}.yaml`), stringify(f)); }
+  if (o.candidate === 'proposed' || o.candidate === 'confirmed') { const f = (o.candidate === 'confirmed' ? mkFinding : mkProposed)('cand', '주문 확정 시점이 모호하다', ['NOD-001-1'], 'major', { candidate_refs: [{ clarification_ref: 'CLR-001', index: 0 }] }); await writeFile(path.join(root, 'findings', `${f.id}.yaml`), stringify(f)); }
 
   const { graph } = await readGraphDocument(root); const workspace = await loadGraphWorkspace(root); const candidates = await readRelationCandidates(root);
   // One before-ImpactReport per Node: an Application must carry one for every
@@ -131,7 +142,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
 
   let exclusionDecisionId: string | undefined; let exclusion: { excluded_scope: string; impact: string; residual_risk: string } | undefined;
   if (o.excludeNodes?.length) {
-    const critical = mkFinding('excl', `${o.excludeNodes.join(', ')} 범위 결정 필요`, o.excludeNodes, 'critical');
+    const critical = (o.exclusionFindingProposed ? mkProposed : mkFinding)('excl', `${o.excludeNodes.join(', ')} 범위 결정 필요`, o.excludeNodes, 'critical');
     await writeFile(path.join(root, 'findings', `${critical.id}.yaml`), stringify(critical));
     const cur2 = await currentChallengeInputs(root); const h2 = (k: string, r: string) => cur2.inputs.find((x) => x.kind === k && x.ref === r)!.content_hash;
     exclusion = { excluded_scope: `${o.excludeNodes.join(', ')} 는 이번 범위에서 제외`, impact: '해당 기능 없음', residual_risk: '다음 버전까지 미구현' };
@@ -142,7 +153,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const decisionRef = { kind: 'decision', ref: decision.id, content_hash: decision.decision_hash }; const promptRef = { kind: 'prompt', ref: prompt.id, content_hash: promptHash };
   const nodeRef = (ref: string) => ({ kind: 'node', ref, content_hash: get('node', ref) });
   const prov = (refs: string[]) => ({ origin: 'user_decision' as const, source_refs: refs.map(nodeRef), decision_refs: [decisionRef], prompt_refs: [promptRef] });
-  const policy = createPolicy({ schema_version: 1, id: 'POL-1111111111111111', context: 'c', actor: 'a', condition_text: 't', condition: { op: 'lte', field: 'f', value_type: 'number', value: 1 }, action: 'a', outcome: 'o', exceptions: [], provenance: prov(['NOD-001-1']) });
+  const policy = createPolicy({ schema_version: 1, id: 'POL-1111111111111111', context: 'c', actor: 'a', condition_text: 't', condition: { op: 'lte', field: 'f', value_type: 'number', value: 1 }, action: 'a', outcome: 'o', exceptions: [], provenance: prov(o.policyNodes ?? ['NOD-001-1']) });
   const itemNodes = o.itemNodes ?? nodes.map((n) => n.id).filter((id) => !(o.excludeNodes ?? []).includes(id));
   const specs = o.items ?? itemNodes.flatMap((ref) => { const text = nodes.find((n) => n.id === ref)!.statement; return [{ kind: 'functional_requirement', text, nodes: [ref] }, { kind: 'acceptance_criterion', text: `검증: ${text}`, nodes: [ref] }]; });
   const items: unknown[] = specs.map((x, i) => ({ id: `ITM-${String(i).padStart(12, 'a')}`, kind: x.kind, text: x.text, provenance: prov(x.nodes) }));
@@ -152,7 +163,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   }
   const definition = createProductDefinition({ schema_version: 1, status: 'draft', product_name: 'Leak', items: items as never, journey_refs: [], policy_refs: [policy.id], finding_refs: [finding.id], assumption_refs: [], input_snapshot: [promptRef, ...itemNodes.map(nodeRef), decisionRef], rules_version: 'definition/1' });
   const pc = stringify(policy); const dc = stringify(definition);
-  const plan = { decision_ref: decision.id, decision_hash: decision.decision_hash, scope: 's', rationale: 'r', targets: [{ ref: { kind: 'policy', ref: policy.id, content_hash: policy.content_hash }, path: `product/policies/${policy.id}.yaml`, before_hash: null, after_hash: sha256Hex(pc), before_content: null, after_content: pc }, { ref: { kind: 'definition', ref: definition.id, content_hash: definition.content_hash }, path: 'product/definition.yaml', before_hash: null, after_hash: sha256Hex(dc), before_content: null, after_content: dc }], finding_refs: [finding.id], residual_risks: ['rr', ...(exclusion ? [exclusion.residual_risk] : [])], before_impact_refs: [...new Set(['NOD-001-1', ...itemNodes, ...(o.exclusionItemNodes ?? o.excludeNodes ?? [])])].map((id) => impactByNode.get(id)!) };
+  const plan = { decision_ref: decision.id, decision_hash: decision.decision_hash, scope: 's', rationale: 'r', targets: [{ ref: { kind: 'policy', ref: policy.id, content_hash: policy.content_hash }, path: `product/policies/${policy.id}.yaml`, before_hash: null, after_hash: sha256Hex(pc), before_content: null, after_content: pc }, { ref: { kind: 'definition', ref: definition.id, content_hash: definition.content_hash }, path: 'product/definition.yaml', before_hash: null, after_hash: sha256Hex(dc), before_content: null, after_content: dc }], finding_refs: [finding.id], residual_risks: ['rr', ...(exclusion ? [exclusion.residual_risk] : [])], before_impact_refs: [...new Set(['NOD-001-1', ...(o.policyNodes ?? []), ...itemNodes, ...(o.exclusionItemNodes ?? o.excludeNodes ?? [])])].map((id) => impactByNode.get(id)!) };
   const app = (await createApplication(root, plan)).application; const applied = await applyApplication(root, app.id);
   await recordApplicationVerification(root, applied.id, { status: 'verified', assessor: 'user', summary: 'SYNTHETIC USER: ok', evidence_refs: [decisionRef], uncertainty: ['synthetic'] });
   if (exclusionDecisionId && !o.exclusionDecisionRef) {

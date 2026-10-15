@@ -237,6 +237,103 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(report.checks.find((c) => c.id === `decision.attestation.${g.decisionId}`)?.status).toBe('fail');
   });
 
+  it('a finding candidate parked at clarify must become a user-confirmed Finding', async () => {
+    let g = await gate({ candidate: 'none' });
+    expect(g.report.readiness).toBe('blocked');
+    expect(g.check('source.candidates')?.message).toContain('CLR-001#0 (SPN-001)');
+    expect(g.review.input_fingerprint).toBeTruthy();
+    await rm(temp, { recursive: true, force: true });
+    g = await gate({ candidate: 'proposed' });
+    expect(g.check('source.candidates')?.status).toBe('fail');
+    await rm(temp, { recursive: true, force: true });
+    g = await gate({ candidate: 'confirmed' });
+    expect(g.check('source.candidates')).toBeUndefined();
+    expect(g.report.readiness).toBe('ready');
+  });
+
+  it('an agent-proposed Finding cannot hold a Node out of the Definition; a user-confirmed one can', async () => {
+    let g = await gate({ itemNodes: ['NOD-001-1', 'NOD-001-2', 'NOD-001-3'], openFindingNodes: ['NOD-001-4'], openFindingsProposed: true });
+    expect(g.check('definition.node_coverage')?.status).toBe('fail');
+    expect(g.check('definition.node_coverage')?.message).toContain('NOD-001-4');
+    await rm(temp, { recursive: true, force: true });
+    g = await gate({ itemNodes: ['NOD-001-1', 'NOD-001-2', 'NOD-001-3'], openFindingNodes: ['NOD-001-4'] });
+    expect(g.check('definition.node_coverage')?.status).toBe('pass');
+  });
+
+  it('a Policy citing Nodes does not place them; only Definition items do', async () => {
+    const g = await gate({ itemNodes: ['NOD-001-1'], policyNodes: ['NOD-001-1', 'NOD-001-2', 'NOD-001-3', 'NOD-001-4'] });
+    expect(g.check('definition.node_coverage')?.status).toBe('fail');
+    expect(g.check('definition.node_coverage')?.message).toContain('NOD-001-2, NOD-001-3, NOD-001-4');
+  });
+
+  it('an exclusion resting on an agent-proposed Finding is refused', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    await expect(buildLeakWorkspace(temp, { excludeNodes: ['NOD-001-4'], exclusionFindingProposed: true })).rejects.toThrow(/confirmed|not been confirmed|review_status/);
+  });
+
+  it('not_applicable is allowed only for an area whose artifact kind is absent', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    const w = await buildLeakWorkspace(temp);
+    const input = w.semanticInput as { areas: Record<string, unknown> };
+    const na = { status: 'not_applicable', evidence_refs: [], rationale: 'n/a' };
+    await expect(recordSemanticReview(w.root, { ...input, areas: { ...input.areas, graph_impact: na } } as never)).rejects.toThrow(/graph_impact can never be not_applicable/);
+    await expect(recordSemanticReview(w.root, { ...input, areas: { ...input.areas, policy_consistency: na } } as never)).rejects.toThrow(/policy_consistency cannot be not_applicable while the workspace has policy records/);
+    const review = await recordSemanticReview(w.root, { ...input, areas: { ...input.areas, assumptions: na } } as never);
+    expect(review.id).toMatch(/^SEM-/);
+  });
+
+  it('a later review cannot drop an earlier unreviewed item even after the input fingerprint changes', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    const w = await buildLeakWorkspace(temp);
+    const input = w.semanticInput as { unreviewed_scope: string[]; input_fingerprint: string; definition_hash: string; created_at: string };
+    // An earlier review recorded under a previous fingerprint (before a fresh ChallengeRun) listed an unreviewed item.
+    const { createSemanticReview } = await import('../src/schema/validation.js');
+    const earlier = createSemanticReview({ ...input, input_fingerprint: 'f'.repeat(64), unreviewed_scope: ['계약서 8종'], created_at: '2026-10-15T13:00:00.000Z' } as never);
+    const { mkdir: md, writeFile: wf } = await import('node:fs/promises');
+    await md(path.join(w.root, 'semantic-reviews'), { recursive: true });
+    await wf(path.join(w.root, 'semantic-reviews', `${earlier.id}.yaml`), stringify(earlier));
+    // The new, current-fingerprint review quietly drops it.
+    await expect(recordSemanticReview(w.root, { ...input, unreviewed_scope: [], created_at: '2026-10-15T13:30:00.000Z' } as never)).rejects.toThrow(/listed "계약서 8종" as unreviewed/);
+  });
+
+  it('a forged Approval that is not in the supersedes chain does not become current', async () => {
+    const g = await gate();
+    const real = await recordApproval(g.root, g.report.id, 'SYNTHETIC USER ONLY: approve', 'synthetic', 'flag');
+    const { approvalSchema } = await import('../src/schema/validation.js');
+    const { sha256Hex, canonicalJson } = await import('../src/clarification/hash.js');
+    const base = { schema_version: 1 as const, definition_ref: real.definition_ref, definition_hash: real.definition_hash, validation_ref: real.validation_ref, validation_hash: real.validation_hash, input_fingerprint: real.input_fingerprint, user_statement: 'FORGED', scope: 'all', attestation: 'tty' as const };
+    const entry_hash = sha256Hex(canonicalJson(base));
+    const forged = approvalSchema.parse({ ...base, entry_hash, id: `APR-${entry_hash.slice(0, 16)}`, created_at: '2000-01-01T00:00:00.000Z' });
+    const { writeFile: wf } = await import('node:fs/promises');
+    await wf(path.join(g.root, 'approvals', `${forged.id}.yaml`), stringify(forged));
+    const { approvalStatus } = await import('../src/clarification/validation-store.js');
+    const status = await approvalStatus(g.root);
+    expect(status.status).toBe('stale');
+    expect((status as { issue?: string }).issue).toMatch(/Expected one current Approval; found 2/);
+  });
+
+  it('a workspace that declares no attestation policy is blocked, not merely warned', async () => {
+    const g = await gate();
+    const { readFile: rf, writeFile: wf } = await import('node:fs/promises');
+    const cfg = path.join(g.root, 'config.yaml');
+    await wf(cfg, (await rf(cfg, 'utf8')).replace(/^attestation:.*$/m, ''));
+    const report = await createValidationReport(g.root, g.review.id);
+    expect(report.checks.find((c) => c.id === 'attestation.policy')?.status).toBe('fail');
+  });
+
+  it('the export shows the user\'s own sentences behind each item, every set-aside sentence, and how the approval was attested', async () => {
+    const g = await gate();
+    await recordApproval(g.root, g.report.id, 'SYNTHETIC USER ONLY: approve', 'synthetic', 'flag');
+    const exported = await exportOpenSpec(g.root, g.temp, 'leak-export');
+    const spec = await readFile(exported.files[1]!, 'utf8');
+    const proposal = await readFile(exported.files[0]!, 'utf8');
+    expect(spec).toContain("User's own words these Nodes came from:");
+    expect(spec).toContain('PRM-001 SPN-002: "공물은 현금과 별도로 납부하며 자동 누적되지 않는다."');
+    expect(spec).toContain('statement attestation: flag');
+    expect(proposal).toContain("## Set aside from the user's prompt");
+    expect(proposal).toContain('- Nothing was set aside.');
+  });
+
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {
     const g = await gate({ challengeEvidence: [] });
     expect(g.report.readiness).toBe('blocked');

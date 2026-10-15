@@ -3,7 +3,7 @@ import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { Command } from 'commander';
 import { CliError, ExitCode } from '../../errors.js';
-import { ensureWorkspace, markStage } from '../../clarification/workspace.js';
+import { ensureWorkspace, markStage, readStatementFromTerminal } from '../../clarification/workspace.js';
 import { addFinding, confirmFinding, readFindings, validateFindingReferences } from '../../clarification/finding-store.js';
 import { createChallengeRun, readChallengeRuns, refreshChallengeRun, updateChallengeRun, validateChallengeRunReferences } from '../../clarification/challenge-store.js';
 import { challengeAreaSchema, challengeAreaResultSchema, judgeChallengeCompletion } from '../../schema/challenge.js';
@@ -58,9 +58,12 @@ export function registerChallengeCommand(program: Command, output: Output): void
     const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const value = findingInputSchema.parse(parseYaml(await readFile(path.resolve(opts.input), 'utf8'))); const result = await addFinding(root, value);
     output.out(`${result.created ? 'Created' : 'Existing'} Finding ${result.finding.id}: proposed / unresolved.`);
   });
-  finding.command('confirm').argument('<id>').requiredOption('--response <response>').requiredOption('--user-statement <text>').requiredOption('--rationale <text>').description('append explicit user confirmation or rejection').action(async (id: string, opts: { response: string; userStatement: string; rationale: string }) => {
+  finding.command('confirm').argument('<id>').requiredOption('--response <response>').option('--user-statement <text>', "the user's words; omit it to type them on the terminal (required when config attestation is tty)").requiredOption('--rationale <text>').description('append explicit user confirmation or rejection').action(async (id: string, opts: { response: string; userStatement?: string; rationale: string }) => {
     if (opts.response !== 'confirmed' && opts.response !== 'rejected') throw new CliError('Response must be confirmed or rejected.', ExitCode.USAGE_OR_IO);
-    const updated = await confirmFinding(path.join(process.cwd(), 'product'), id, opts.response, requireText(opts.userStatement, '--user-statement'), requireText(opts.rationale, '--rationale'));
+    // No flag → read from the controlling terminal, which an agent does not have.
+    const attestation = opts.userStatement === undefined ? 'tty' : 'flag';
+    const statement = opts.userStatement ?? await readStatementFromTerminal(`Finding ${id}: respond "${opts.response}".\nType your statement and press Enter (empty cancels): `);
+    const updated = await confirmFinding(path.join(process.cwd(), 'product'), id, opts.response, requireText(statement, '--user-statement'), requireText(opts.rationale, '--rationale'), attestation);
     output.out(`Finding ${id}: ${updated.review_status}; current content hash and entry hash are structurally valid.`);
     output.out('The CLI cannot verify the speaker identity or truth of the recorded user statement.');
   });

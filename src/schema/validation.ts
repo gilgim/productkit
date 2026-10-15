@@ -25,15 +25,15 @@ export function parseSemanticReview(s:string):SemanticReview{return semanticRevi
  * the minimum shape of the right thing. `anyOf` — at least one of these
  * kinds; `ifPresent` — required only when the workspace has that kind.
  */
-export const AREA_EVIDENCE:Record<z.infer<typeof semanticAreas>,{allOf?:string[][];ifPresent?:string[]}>={
+export const AREA_EVIDENCE:Record<z.infer<typeof semanticAreas>,{allOf?:string[][];ifPresent?:string[];notApplicableWhenAbsent?:string}>={
   requirement_completeness:{allOf:[['prompt'],['definition','node']]},
   user_flow:{allOf:[['journey','node','definition']]},
-  policy_consistency:{allOf:[['definition','node']],ifPresent:['policy']},
+  policy_consistency:{allOf:[['definition','node']],ifPresent:['policy'],notApplicableWhenAbsent:'policy'},
   acceptance_criteria:{allOf:[['definition']]},
-  assumptions:{allOf:[['finding','definition']],ifPresent:['assumption']},
+  assumptions:{allOf:[['finding','definition']],ifPresent:['assumption'],notApplicableWhenAbsent:'assumption'},
   graph_impact:{allOf:[['impact_report']]},
   traceability:{allOf:[['decision'],['prompt']]},
   counterexamples:{allOf:[['finding','challenge_run']]},
 };
-export function semanticReviewIssue(review:Pick<SemanticReview,'areas'>,presentKinds?:Set<string>):string|undefined{for(const [area,result] of Object.entries(review.areas)){if(!result)continue;if(result.status==='reviewed'){if(!result.evidence_refs.length)return `Area ${area} is marked reviewed but cites no evidence.`;if(result.evidence_refs.some(r=>r.kind==='skill'||r.kind==='workspace'))return `Area ${area} cites a skill or workspace fingerprint as evidence; cite product artifacts.`;const kinds=new Set(result.evidence_refs.map(r=>r.kind));const rule=AREA_EVIDENCE[area as z.infer<typeof semanticAreas>];for(const group of rule?.allOf??[])if(!group.some(k=>kinds.has(k)))return `Area ${area} must cite at least one ${group.join('/')} artifact.`;for(const k of rule?.ifPresent??[])if(presentKinds?.has(k)&&!kinds.has(k))return `Area ${area} must cite at least one ${k} artifact because the workspace has ${k} records.`;}}return undefined;}
+export function semanticReviewIssue(review:Pick<SemanticReview,'areas'>,presentKinds?:Set<string>):string|undefined{for(const [area,result] of Object.entries(review.areas)){if(!result)continue;const rule=AREA_EVIDENCE[area as z.infer<typeof semanticAreas>];if(result.status==='not_applicable'){if(!rule?.notApplicableWhenAbsent)return `Area ${area} can never be not_applicable; review it with evidence.`;if(presentKinds?.has(rule.notApplicableWhenAbsent))return `Area ${area} cannot be not_applicable while the workspace has ${rule.notApplicableWhenAbsent} records.`;}if(result.status==='reviewed'){if(!result.evidence_refs.length)return `Area ${area} is marked reviewed but cites no evidence.`;if(result.evidence_refs.some(r=>r.kind==='skill'||r.kind==='workspace'))return `Area ${area} cites a skill or workspace fingerprint as evidence; cite product artifacts.`;const kinds=new Set(result.evidence_refs.map(r=>r.kind));for(const group of rule?.allOf??[])if(!group.some(k=>kinds.has(k)))return `Area ${area} must cite at least one ${group.join('/')} artifact.`;for(const k of rule?.ifPresent??[])if(presentKinds?.has(k)&&!kinds.has(k))return `Area ${area} must cite at least one ${k} artifact because the workspace has ${k} records.`;}}return undefined;}
 export function createSemanticReview(v:Omit<SemanticReview,'id'|'content_hash'>):SemanticReview{const {created_at:_created,...body}=v;const content_hash=sha256Hex(canonicalJson(body));return semanticReviewSchema.parse({...v,content_hash,id:`SEM-${content_hash.slice(0,16)}`});}
