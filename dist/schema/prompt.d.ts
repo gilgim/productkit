@@ -18,7 +18,7 @@ export declare const promptSchema: z.ZodObject<{
         start: z.ZodNumber;
         end: z.ZodNumber;
     }, z.core.$strip>>;
-    segmentation: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<1>, z.ZodLiteral<2>, z.ZodLiteral<3>]>>;
+    segmentation: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<1>, z.ZodLiteral<2>, z.ZodLiteral<3>, z.ZodLiteral<4>]>>;
 }, z.core.$strip>;
 export type PromptSpan = z.infer<typeof promptSpanSchema>;
 export type Prompt = z.infer<typeof promptSchema>;

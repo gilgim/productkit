@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { stringify as stringifyYaml } from 'yaml';
+import { saysNo } from '../../schema/text.js';
 
 import { CliError, ExitCode, describeCause } from '../../errors.js';
 import { atomicReplaceIfUnchanged, latestId } from '../../clarification/io.js';
@@ -124,6 +125,7 @@ export async function runClarifyConfirm(options: ClarifyConfirmOptions, output: 
   if (policy.policy === 'tty' && attestation !== 'tty') throw new CliError('This workspace requires the confirmation to be typed on a terminal (config attestation: tty).', ExitCode.GATE_BLOCKED, [`Run \`productkit clarify confirm --response ${options.response}\` without --user-statement, in a terminal; the CLI shows the rendered block and asks for the statement.`, 'An agent cannot do this step; hand the command to the user.']);
   const statement = options.userStatement ?? await readStatementFromTerminal(`${presented}\n\n위 내용에 대한 응답: ${options.response}\n당신의 말로 한 줄 적고 Enter (비우면 취소): `);
   if (!statement.trim()) throw new CliError('Confirmation cancelled: empty statement.', ExitCode.USAGE_OR_IO);
+  if (options.response === 'agreed' && saysNo(statement)) throw new CliError(`Recorded as agreed, but the statement reads as a refusal: "${statement.trim().slice(0, 60)}". Use --response disagreed or partially_agreed.`, ExitCode.GATE_BLOCKED);
 
   const index = clarification.interpretation_check.length + 1;
   const base = {

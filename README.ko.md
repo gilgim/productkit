@@ -135,7 +135,7 @@ ProductKit은 자기 게이트를 상대로 공격 테스트를 했다. 왼쪽�
 - **쌍마다 판정 하나.** semantic review는 Definition 항목과 그 항목이 인용한 Node 하나하나에 대해 same / narrower / broader / contradicts 와 이유를 적어야 한다. "전부 보존됨" 한 줄은 쓸 수 없다.
 - **증거는 종류가 맞아야 한다.** `graph_impact`는 ImpactReport, `traceability`는 Decision과 Prompt. "뭔가 인용함"으로는 부족하다.
 - **미검토 목록에서 떨어지는 게 없다.** 같은 입력에 대한 다음 검토는 이전 미검토 항목을 그대로 두거나 증거와 함께 해소해야 한다.
-- **발언은 넘기는 게 아니라 치는 것이다.** 기본값 `attestation: tty`에서 `clarify confirm`·`challenge finding confirm`·`decide record`·`approve record`는 실행한 터미널에서 사용자 말을 직접 읽는다. 에이전트는 터미널이 없어 거부당하고, 명령을 사용자에게 넘긴다. `attestation: flag`로 바꿀 수는 있지만 `git diff`에 보이고 모든 보고에 경고가 붙는다.
+- **발언은 넘기는 게 아니라 치는 것이다.** 기본값 `attestation: tty`에서 `clarify confirm`·`challenge finding confirm`·`decide record`·`approve record`는 실행한 터미널에서 사용자 말을 직접 읽는다. 터미널 없이 돌린 에이전트는 거부당하고 명령을 사용자에게 넘긴다. 이건 자물쇠가 아니라 과속방지턱이다 — 가짜 터미널(`script`, `expect`)로 감싸거나 해시를 맞춰 YAML을 직접 쓰는 에이전트는 통과하고, `git diff`에만 남는다. `attestation: flag`로 바꿀 수는 있지만 보이고 모든 보고에 경고가 붙는다. "승인하지 않는다" 같은 거부 문장은 승인으로 안 받는다. 그 이상 말뜻은 사람 몫이다.
 
 스킬도 더는 손으로 적은 필드 목록을 들고 다니지 않는다. `productkit schema <artifact>`가 게이트가 검사하는 JSON Schema를 그대로 찍고, `productkit hash ...`가 게이트가 다시 계산하는 해시를 찍고, 스킬이 CLI에 없는 명령을 적으면 테스트가 빌드를 깨뜨린다.
 

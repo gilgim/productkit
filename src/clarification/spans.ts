@@ -5,7 +5,7 @@ export interface Span {
 }
 
 /** Current segmentation rule. Prompts record the version they were cut with. */
-export const SEGMENTATION_VERSION = 3;
+export const SEGMENTATION_VERSION = 4;
 
 /**
  * Splits text at sentence-ending punctuation or line breaks so later steps
@@ -19,9 +19,10 @@ export const SEGMENTATION_VERSION = 3;
  * ASCII letter (an abbreviation like "e.g."). Version 1 stays available so
  * Prompts taken in under it still verify.
  */
-export function segmentSpans(text: string, version: 1 | 2 | 3 = SEGMENTATION_VERSION): Span[] {
+export function segmentSpans(text: string, version: 1 | 2 | 3 | 4 = SEGMENTATION_VERSION): Span[] {
   const spans: Span[] = [];
-  const boundary = version === 1 ? /[.!?]+|\n+/g : /[.!?]+(?=\s|$)|\n+/g;
+  // v4: CJK full stops (。！？) end a sentence too, with or without a following space.
+  const boundary = version === 1 ? /[.!?]+|\n+/g : version >= 4 ? /[。！？]+|[.!?]+(?=\s|$)|\n+/g : /[.!?]+(?=\s|$)|\n+/g;
   let start = 0;
   let index = 1;
   let match: RegExpExecArray | null;

@@ -21,7 +21,7 @@ export const promptSchema = z.object({
   content_hash: z.string().regex(/^[0-9a-f]{64}$/, 'content_hash must be a SHA-256 hex digest'),
   spans: z.array(promptSpanSchema),
   /** Segmentation rule the spans were cut with; missing means 1. */
-  segmentation: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  segmentation: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
 });
 
 export type PromptSpan = z.infer<typeof promptSpanSchema>;

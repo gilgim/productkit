@@ -34,7 +34,7 @@ export function registerValidationCommands(program, output) {
             throw new CliError('Approval cancelled: empty statement.', ExitCode.USAGE_OR_IO);
         const result = await recordApproval(root(), opts.validation, statement, opts.scope, attestation);
         output.out(`Approval ${result.id}: recorded for ${result.definition_ref} at ${result.definition_hash} (attestation: ${attestation}).`);
-        output.out(attestation === 'tty' ? 'The statement was typed on this terminal. The CLI cannot prove who sat here; it can say the agent did not.' : 'CLI verifies structure and hashes only; speaker identity and statement authenticity are not proven.');
+        output.out(attestation === 'tty' ? 'The statement was read from this terminal. The CLI cannot prove who sat here, and a pseudo-terminal (script, expect) defeats this separation; it only records which path the statement came through.' : 'CLI verifies structure and hashes only; speaker identity and statement authenticity are not proven.');
     });
     approve.command('status').action(async () => { await ensureWorkspace(root()); const result = await approvalStatus(root()); if (result.status === 'missing') {
         output.out('Approval: MISSING');

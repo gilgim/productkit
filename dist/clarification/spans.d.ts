@@ -4,7 +4,7 @@ export interface Span {
     end: number;
 }
 /** Current segmentation rule. Prompts record the version they were cut with. */
-export declare const SEGMENTATION_VERSION = 3;
+export declare const SEGMENTATION_VERSION = 4;
 /**
  * Splits text at sentence-ending punctuation or line breaks so later steps
  * can reference a specific stretch of the original prompt by id. This is a
@@ -17,7 +17,7 @@ export declare const SEGMENTATION_VERSION = 3;
  * ASCII letter (an abbreviation like "e.g."). Version 1 stays available so
  * Prompts taken in under it still verify.
  */
-export declare function segmentSpans(text: string, version?: 1 | 2 | 3): Span[];
+export declare function segmentSpans(text: string, version?: 1 | 2 | 3 | 4): Span[];
 /** Numbers with their units/currency — the most concrete content a sentence carries. */
 export declare function numberTokens(text: string): string[];
 /** Content tokens: 2+ chars, punctuation stripped, Korean particles trimmed loosely. */

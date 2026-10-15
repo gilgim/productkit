@@ -375,10 +375,33 @@ describe('leak regression: source content cannot vanish silently', () => {
 
   it('a candidate is carried only by a confirmed Finding about the same spans that is not dismissed', async () => {
     let g = await gate({ candidate: 'wrong_spans' });
-    expect(g.check('source.candidates')?.message).toContain('promoting Finding names spans SPN-002, candidate has SPN-001');
+    expect(g.check('source.candidates')?.message).toContain('carrying Finding names spans SPN-002, candidate has SPN-001');
     await rm(temp, { recursive: true, force: true });
     g = await gate({ candidate: 'dismissed' });
-    expect(g.check('source.candidates')?.message).toContain('dismissed/deferred do not count');
+    expect(g.check('source.candidates')?.message).toMatch(/its Finding is dismissed, but the sentence .* is in no requirement item verbatim/);
+  });
+
+  it('an approval or an agreed confirmation whose statement says no is refused', async () => {
+    const g = await gate();
+    await expect(recordApproval(g.root, g.report.id, '승인하지 않습니다. 반대합니다.', 'all', 'flag')).rejects.toThrow(/reads as a refusal/);
+    const { saysNo } = await import('../src/schema/text.js');
+    expect(saysNo('네, 이대로 확정합니다')).toBe(false);
+    expect(saysNo('동의하지 않는다. 틀렸다.')).toBe(true);
+  });
+
+  it('a Policy or Journey must carry its source Node text verbatim; the export shows it', async () => {
+    const g = await gate();
+    expect(g.check('policy.POL-1111111111111111')?.status).toBe('pass');
+    const { readPolicies } = await import('../src/clarification/definition-store.js');
+    const [policy] = await readPolicies(g.root);
+    const { writeFile: wf } = await import('node:fs/promises');
+    const { createPolicy } = await import('../src/schema/definition.js');
+    const { id: _i, content_hash: _h, ...rest } = policy!;
+    const flipped = createPolicy({ ...rest, id: policy!.id, outcome: '모든 환불 요청을 거부하고 수수료를 부과한다' } as never);
+    await wf(path.join(g.root, 'policies', `${policy!.id}.yaml`), stringify(flipped));
+    const report = await createValidationReport(g.root, g.review.id).catch((e: Error) => e);
+    const msg = report instanceof Error ? report.message : report.checks.map((c) => c.message).join('\n');
+    expect(msg).toMatch(/does not carry the text of its source Node|stale|missing/);
   });
 
   it('a goal item does not place Nodes; a requirement item must cite a Node', async () => {

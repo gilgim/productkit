@@ -15,7 +15,7 @@ import { loadGraphWorkspace } from './provenance.js';
 import { readAttestationPolicy } from './workspace.js';
 import { parseClarification } from '../schema/clarification.js';
 import { SEGMENTATION_VERSION } from './spans.js';
-import { forbiddenTextIssue } from '../schema/text.js';
+import { forbiddenTextIssue, saysNo } from '../schema/text.js';
 import { parseProductConfig } from '../schema/config.js';
 import { findingContentHash, toFindingInput } from '../schema/finding.js';
 import { CliError, ExitCode } from '../errors.js';
@@ -177,24 +177,34 @@ async function checksFor(root, review) {
         for (const f of findingsAll) {
             if (f.review_status !== 'confirmed')
                 continue;
-            if (f.resolution_status === 'dismissed' || f.resolution_status === 'deferred')
-                continue;
             for (const c of f.candidate_refs ?? [])
-                promoted.set(`${c.clarification_ref}#${c.index}`, [...c.span_refs].sort());
+                promoted.set(`${c.clarification_ref}#${c.index}`, { spans: [...c.span_refs].sort(), status: f.resolution_status });
         }
+        // A candidate's sentence ends in exactly one of two places: an open,
+        // user-confirmed Finding (visible in the export), or a requirement item
+        // that carries the sentence verbatim. A Finding closed by any other route
+        // would make the sentence disappear.
+        const sq = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
+        const itemTexts = definition.items.filter(i => ['functional_requirement', 'nonfunctional_requirement', 'acceptance_criterion'].includes(i.kind)).map(i => sq(i.text));
         const unpromoted = [];
         for (const f of await files(path.join(root, 'discovery'))) {
             try {
                 const clr = parseClarification(await readFile(path.join(root, 'discovery', f), 'utf8'));
-                clr.finding_candidates.forEach((c, i) => { const got = promoted.get(`${clr.id}#${i}`); const want = [...c.span_refs].sort(); if (!got)
-                    unpromoted.push(`${clr.id}#${i} (${c.span_refs.join(', ')}) — no confirmed, unresolved-or-resolved Finding promotes it`);
-                else if (got.length !== want.length || got.some((x, k) => x !== want[k]))
-                    unpromoted.push(`${clr.id}#${i} — promoting Finding names spans ${got.join(', ')}, candidate has ${want.join(', ')}`); });
+                const prompt = workspace.prompts.get(clr.prompt_ref);
+                clr.finding_candidates.forEach((c, i) => { const key = `${clr.id}#${i}`; const got = promoted.get(key); const want = [...c.span_refs].sort(); if (!got) {
+                    unpromoted.push(`${key} (${c.span_refs.join(', ')}) — no user-confirmed Finding carries it`);
+                    return;
+                } if (got.spans.length !== want.length || got.spans.some((x, k) => x !== want[k])) {
+                    unpromoted.push(`${key} — carrying Finding names spans ${got.spans.join(', ')}, candidate has ${want.join(', ')}`);
+                    return;
+                } if (got.status === 'unresolved')
+                    return; const texts = prompt ? c.span_refs.map(sid => { const s = prompt.spans.find(x => x.id === sid); return s ? sq(prompt.raw_text.slice(s.start, s.end)) : ''; }).filter(Boolean) : []; const carried = texts.length > 0 && texts.every(t => itemTexts.some(it => it.includes(t))); if (!carried)
+                    unpromoted.push(`${key} — its Finding is ${got.status}, but the sentence (${c.span_refs.join(', ')}) is in no requirement item verbatim`); });
             }
             catch { }
         }
         if (unpromoted.length)
-            add('source.candidates', 'traceability', 'fail', `Clarification finding candidates not carried by a user-confirmed Finding about the same spans (dismissed/deferred do not count): ${unpromoted.join('; ')}`);
+            add('source.candidates', 'traceability', 'fail', `Clarification finding candidates must end in an open user-confirmed Finding or in a requirement item that carries the sentence verbatim: ${unpromoted.join('; ')}`);
     }
     // Prompts cut under an older segmentation rule carry fragment spans that are easy to set aside; take them in again.
     for (const [id, p] of workspace.prompts)
@@ -343,6 +353,13 @@ async function checksFor(root, review) {
     }
     const journeys = await readJourneys(root);
     for (const j of journeys) {
+        {
+            const sqj = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
+            const body = sqj([j.goal, ...j.acceptance_criteria].join(' '));
+            const missingNode = j.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !body.includes(sqj(t)); });
+            if (missingNode.length)
+                add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id} does not carry the text of its source Node(s) verbatim in goal/acceptance_criteria: ${missingNode.join(', ')}`);
+        }
         const states = new Set(j.states);
         const reachable = new Set([j.entry_state]);
         let changed = true;
@@ -376,7 +393,13 @@ async function checksFor(root, review) {
     for (const p of await readPolicies(root)) {
         try {
             await validatePolicyReferences(root, p);
-            add(`policy.${p.id}`, 'policy', 'pass', `Policy ${p.id} structure and provenance are valid; semantics remain subject to review.`);
+            const sqp = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
+            const body = sqp([p.context, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)].join(' '));
+            const missingNode = p.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !body.includes(sqp(t)); });
+            if (missingNode.length)
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id} does not carry the text of its source Node(s) verbatim in context/condition/action/outcome/exceptions: ${missingNode.join(', ')}`);
+            else
+                add(`policy.${p.id}`, 'policy', 'pass', `Policy ${p.id} structure and provenance are valid and it carries its source Node text; semantics remain subject to review.`);
         }
         catch (e) {
             add(`policy.${p.id}`, 'policy', 'fail', e instanceof Error ? e.message : 'Policy validation failed.');
@@ -455,7 +478,8 @@ export async function readValidationReports(root) { const out = []; for (const f
     out.push(validationReportSchema.parse(await readYaml(path.join(root, dirs.validations, f)))); return out; }
 export async function reportFreshness(root, report) { const current = await currentValidationFingerprint(root, report.rules_version); return current.fingerprint !== report.input_fingerprint || !(await readDefinition(root))?.content_hash || (await readDefinition(root)).content_hash !== report.definition_hash; }
 export async function recordApproval(root, reportId, userStatement, scope, attestation = 'flag', now = new Date()) { if (!userStatement.trim() || !scope.trim())
-    throw new CliError('Explicit user statement and scope are required.', ExitCode.GATE_BLOCKED); const policy = await readAttestationPolicy(root); if (!policy.declared)
+    throw new CliError('Explicit user statement and scope are required.', ExitCode.GATE_BLOCKED); if (saysNo(userStatement))
+    throw new CliError(`The approval statement reads as a refusal: "${userStatement.trim().slice(0, 60)}". An approval must not say no.`, ExitCode.GATE_BLOCKED); const policy = await readAttestationPolicy(root); if (!policy.declared)
     throw new CliError('config.yaml declares no attestation policy; add `attestation: tty` or `attestation: flag` before approving.', ExitCode.GATE_BLOCKED); if (policy.policy === 'tty' && attestation !== 'tty')
     throw new CliError('This workspace requires the approval statement to be typed on a terminal (config attestation: tty).', ExitCode.GATE_BLOCKED, ['Run `productkit approve record --validation <id> --scope <scope>` without --user-statement, in a terminal, and type the statement when asked.', 'An agent cannot do this step; hand the command to the user.']); const report = (await readValidationReports(root)).find(x => x.id === reportId); if (!report)
     throw new CliError(`ValidationReport ${reportId} not found.`, ExitCode.GATE_BLOCKED); if (await reportFreshness(root, report) || report.readiness !== 'ready')

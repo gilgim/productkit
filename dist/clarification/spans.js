@@ -1,5 +1,5 @@
 /** Current segmentation rule. Prompts record the version they were cut with. */
-export const SEGMENTATION_VERSION = 3;
+export const SEGMENTATION_VERSION = 4;
 /**
  * Splits text at sentence-ending punctuation or line breaks so later steps
  * can reference a specific stretch of the original prompt by id. This is a
@@ -14,7 +14,8 @@ export const SEGMENTATION_VERSION = 3;
  */
 export function segmentSpans(text, version = SEGMENTATION_VERSION) {
     const spans = [];
-    const boundary = version === 1 ? /[.!?]+|\n+/g : /[.!?]+(?=\s|$)|\n+/g;
+    // v4: CJK full stops (。！？) end a sentence too, with or without a following space.
+    const boundary = version === 1 ? /[.!?]+|\n+/g : version >= 4 ? /[。！？]+|[.!?]+(?=\s|$)|\n+/g : /[.!?]+(?=\s|$)|\n+/g;
     let start = 0;
     let index = 1;
     let match;
