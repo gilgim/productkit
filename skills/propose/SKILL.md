@@ -1,5 +1,5 @@
 ---
-name: propose
+name: productkit-propose
 description: Turn challenge Findings into Proposals and record the user's explicit Decisions. Use after the challenge step.
 ---
 

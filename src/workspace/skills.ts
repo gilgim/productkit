@@ -31,6 +31,14 @@ export const SKILL_NAMES = [
   'validate',
 ] as const;
 
+/**
+ * Folder and Skill name an agent sees. Prefixed so user-wide skills never
+ * collide with built-in commands (/model) or other skills (graph, validate).
+ */
+export function installedSkillName(skill: string): string {
+  return skill === 'productkit' ? skill : `productkit-${skill}`;
+}
+
 export type SkillName = (typeof SKILL_NAMES)[number];
 
 /**

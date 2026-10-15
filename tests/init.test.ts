@@ -8,7 +8,7 @@ import { createMemoryOutput } from '../src/cli/output.js';
 import { CliError, ExitCode } from '../src/errors.js';
 import { parseProductConfig } from '../src/schema/config.js';
 import { ARTIFACT_DIRS, buildInitPlan } from '../src/workspace/plan.js';
-import { AGENT_SKILL_DIRS, SKILL_NAMES, loadSkillFile } from '../src/workspace/skills.js';
+import { AGENT_SKILL_DIRS, SKILL_NAMES, installedSkillName, loadSkillFile } from '../src/workspace/skills.js';
 
 let root: string;
 
@@ -259,7 +259,7 @@ describe('init installs the agent skills', () => {
     for (const agentDir of AGENT_SKILL_DIRS) {
       for (const name of SKILL_NAMES) {
         const written = await readFile(
-          path.join(target, agentDir, name, 'SKILL.md'),
+          path.join(target, agentDir, installedSkillName(name), 'SKILL.md'),
           'utf8',
         );
         expect(written, `${agentDir}/${name}`).toBe(await loadSkillFile(`${name}/SKILL.md`));
@@ -285,7 +285,7 @@ describe('init installs the agent skills', () => {
   it('leaves an edited skill alone on a second run', async () => {
     const target = path.join(root, 'app');
     await init(target);
-    const skillPath = path.join(target, '.claude', 'skills', 'clarify', 'SKILL.md');
+    const skillPath = path.join(target, '.claude', 'skills', 'productkit-clarify', 'SKILL.md');
     await writeFile(skillPath, 'edited by the user', 'utf8');
 
     await init(target);

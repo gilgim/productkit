@@ -1,5 +1,5 @@
 ---
-name: validate
+name: productkit-validate
 description: Run `productkit validate`, inspect blocking/stale/unreviewed items, and guide user approval of the Product Definition.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: model
+name: productkit-model
 description: Split confirmed clarifications into atomic ProductKit Nodes with source links. Use after the clarify step is confirmed.
 ---
 

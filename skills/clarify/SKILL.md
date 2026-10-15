@@ -1,5 +1,5 @@
 ---
-name: clarify
+name: productkit-clarify
 description: Clarify a raw product idea saved by `productkit intake` into confirmed, traceable Clarification artifacts (definition, decomposition, specifics, relations, counter-examples, interpretation). Use after intake, or when the user wants to sharpen a vague product idea.
 ---
 

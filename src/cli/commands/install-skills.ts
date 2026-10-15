@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AGENT_SKILL_DIRS, SKILL_NAMES, loadSkillFile } from '../../workspace/skills.js';
+import { AGENT_SKILL_DIRS, SKILL_NAMES, installedSkillName, loadSkillFile } from '../../workspace/skills.js';
 import type { Output } from '../output.js';
 
 export interface InstallSkillsOptions {
@@ -26,7 +26,7 @@ export async function runInstallSkills(
 
   for (const agentDir of AGENT_SKILL_DIRS) {
     for (const skill of SKILL_NAMES) {
-      const target = path.join(home, agentDir, skill, 'SKILL.md');
+      const target = path.join(home, agentDir, installedSkillName(skill), 'SKILL.md');
       const content = await loadSkillFile(`${skill}/SKILL.md`);
       const existing = await readFile(target, 'utf8').catch(() => undefined);
       if (existing === content) continue;

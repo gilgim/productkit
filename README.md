@@ -80,7 +80,7 @@ and `.agents/skills/`, so Claude Code and Codex pick them up on their next
 start in that directory (`--no-skills` opts out; see the
 [installation guide](docs/installation.md)).
 
-Then, in Claude Code, say `/clarify` and answer the questions. When the definition is approved:
+Then, in Claude Code, say `/productkit-clarify` and answer the questions. When the definition is approved:
 
 ```bash
 productkit export openspec --change <change-id> --capability <capability-id>

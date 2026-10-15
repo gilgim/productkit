@@ -6,7 +6,7 @@
  * changing the generated workspace.
  */
 
-import { AGENT_SKILL_DIRS, SKILL_NAMES } from './skills.js';
+import { AGENT_SKILL_DIRS, SKILL_NAMES, installedSkillName } from './skills.js';
 
 /** Directory name holding every ProductKit artifact inside a target app. */
 export const WORKSPACE_DIR = 'product';
@@ -99,9 +99,10 @@ export function buildInitPlan(options: InitPlanOptions = {}): PlanEntry[] {
       entries.push(dir(agentRoot));
       entries.push(dir(agentDir));
       for (const skill of SKILL_NAMES) {
-        entries.push(dir(`${agentDir}/${skill}`));
+        const installed = installedSkillName(skill);
+        entries.push(dir(`${agentDir}/${installed}`));
         entries.push(
-          skillFile(`${agentDir}/${skill}/SKILL.md`, `${skill}/SKILL.md`),
+          skillFile(`${agentDir}/${installed}/SKILL.md`, `${skill}/SKILL.md`),
         );
       }
     }

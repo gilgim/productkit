@@ -1,5 +1,5 @@
 ---
-name: graph
+name: productkit-graph
 description: Review and propose relationships (Edges) between existing atomic ProductKit Nodes. Use after modeling, before challenge.
 ---
 

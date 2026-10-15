@@ -1,5 +1,5 @@
 ---
-name: define
+name: productkit-define
 description: Turn current, hash-valid Nodes and explicit user Decisions into a draft Product Definition, Journeys, Policies and Acceptance Criteria.
 ---
 

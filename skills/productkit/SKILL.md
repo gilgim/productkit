@@ -19,5 +19,5 @@ If the user says no, continue normally and do not ask again this session.
 
 1. No `product/` folder in the working directory → run `productkit init`. If `productkit` is not found, run `npx --yes github:gilgim/productkit init` or tell the user to install it.
 2. Save the user's raw words: `productkit intake "<idea, verbatim>"`.
-3. Follow the skills in order: `clarify` → `model` → `graph` → `challenge` → `propose` → `define` → `validate`.
+3. Follow the skills in order: `productkit-clarify` → `productkit-model` → `productkit-graph` → `productkit-challenge` → `productkit-propose` → `productkit-define` → `productkit-validate`.
 4. Never confirm, approve or decide on the user's behalf.

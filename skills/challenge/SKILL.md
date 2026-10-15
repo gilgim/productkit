@@ -1,5 +1,5 @@
 ---
-name: challenge
+name: productkit-challenge
 description: Critically inspect current ProductKit requirements after clarification, atomic modeling, and graph validation. Record semantic Finding proposals and review coverage without deciding policy or claiming exhaustive correctness.
 ---
 

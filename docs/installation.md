@@ -58,7 +58,7 @@ Pass `--no-skills` to create the workspace without touching `.claude/` or
 `.agents/` — for a project that manages Skills centrally, or vendors them by
 some other route.
 
-Invoke a Skill by name in Claude Code (for example, `/clarify`); in Codex, ask
+Invoke a Skill by name in Claude Code (for example, `/productkit-clarify`); in Codex, ask
 it to use the relevant ProductKit Skill. **Restart the agent after `init`** —
 neither discovers Skills added during a running session.
 
