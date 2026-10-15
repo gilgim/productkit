@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { promptIntegrityIssue, type Prompt } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { clauseSignalCount, contentTokenList, contentTokens, endsWithCondition, endsWithConnective, endsWithDangler, endsWithPredicate, hasAsideMarker, isStructuralSpan, lcsLength, leadingCondition, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
+import { clauseSignalCount, contentTokenList, contentTokens, endsWithCondition, endsWithConnective, endsWithDangler, endsWithPredicate, hasAsideMarker, isQuestion, isStructuralSpan, lcsLength, leadingCondition, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
 
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 
@@ -314,7 +314,7 @@ export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, pr
   for (const [i, c] of (clarification.steps.span_coverage ?? []).entries()) {
     if (!isReason(c.reason)) return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters and 2+ words.`;
     const text = spanTextById(prompt, c.span_ref);
-    if (/[?？]\s*$/.test(text)) return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; decompose it or raise it as a finding candidate.`;
+    if (isQuestion(text)) return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; raise it as a finding candidate.`;
     // A sentence carrying a number, a negation/condition word, or simply a
     // lot of content is saying something a product must do; it cannot be
     // filed as "not a requirement".
@@ -332,7 +332,7 @@ export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, pr
   for (const [i, item] of items.entries()) {
     for (const id of item.span_refs) {
       const text = spanTextById(prompt, id);
-      if (/[?？]\s*$/.test(text)) return `decomposition[${i}] reads ${id}, which is a question ("${text.slice(0, 30)}…"); a question is raised as a finding candidate, not read as a requirement.`;
+      if (isQuestion(text)) return `decomposition[${i}] reads ${id}, which is a question ("${text.slice(0, 30)}…"); a question is raised as a finding candidate, not read as a requirement.`;
       if (!startsWithException(text)) continue;
       const idx = prompt.spans.findIndex(s => s.id === id);
       const prev = idx > 0 ? prompt.spans[idx - 1]!.id : undefined;

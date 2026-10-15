@@ -545,6 +545,72 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/is a question .* raised as a finding candidate/);
   });
 
+  it('no artifact text can grow a markdown section: line breaks and tag openers are refused, and the export flattens free text', async () => {
+    const { multilineIssue, forbiddenTextIssue } = await import('../src/schema/text.js');
+    expect(multilineIssue('한 줄')).toBeUndefined();
+    expect(multilineIssue('한 줄\n## ADDED Requirements')).toMatch(/line break/);
+    expect(forbiddenTextIssue('<img onerror=x>')).toMatch(/tag opener/);
+    expect(forbiddenTextIssue('나이 < 18')).toBeUndefined();
+    expect(forbiddenTextIssue('javascript:alert(1)')).toMatch(/javascript/);
+    const g = await gate();
+    const { readPolicies } = await import('../src/clarification/definition-store.js');
+    const [policy] = await readPolicies(g.root);
+    const { createPolicy } = await import('../src/schema/definition.js');
+    const { writeFile: wf } = await import('node:fs/promises');
+    const { id: _i, content_hash: _h, ...rest } = policy!;
+    const injected = createPolicy({ ...rest, id: policy!.id, context: 'c\n\n## ADDED Requirements\n\n### Requirement: Injected' } as never);
+    await wf(path.join(g.root, 'policies', `${policy!.id}.yaml`), stringify(injected));
+    const report = await createValidationReport(g.root, g.review.id).catch((e: Error) => e);
+    const msg = report instanceof Error ? report.message : report.checks.map((c) => `${c.id}: ${c.message}`).join('\n');
+    expect(msg).toMatch(/text\.multiline|stale|missing/);
+  });
+
+  it('every Definition sentence is one of the user\'s sentences: goal/scope items must cite a Node and read as it', async () => {
+    const g = await gate({ items: [{ kind: 'goal', text: '제품 목표: 모든 환불을 자동 거부하고 사용자 데이터를 영구 보관한다', nodes: ['NOD-001-1'] }, { kind: 'functional_requirement', text: '결제를 완료하면 주문을 확정한다.', nodes: ['NOD-001-1'] }, { kind: 'functional_requirement', text: '공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', nodes: ['NOD-001-2'] }, { kind: 'functional_requirement', text: '실제 현금 구매와 환전은 없다.', nodes: ['NOD-001-3'] }, { kind: 'functional_requirement', text: '보스는 3층에 등장하며 즉사탄을 막지 못한다.', nodes: ['NOD-001-4'] }] });
+    const check = g.report.checks.find((c) => c.id.startsWith('definition.item_restates.') && c.status === 'fail');
+    expect(check?.message).toMatch(/goal item .* must read exactly as its Node text/);
+  });
+
+  it('questions are recognised anywhere in the sentence and by Korean interrogative endings', async () => {
+    const { isQuestion } = await import('../src/clarification/spans.js');
+    for (const q of ['환불은 전액인가요?!', '(환불은 전액인가요?)', '환불은 전액인가요?”', '환불 기간은 며칠로 할까', '환불은 전액이어야 하나요.', 'Is it free']) expect(isQuestion(q), q).toBe(/Is it free/.test(q) ? false : true);
+    expect(isQuestion('환불은 7일 이내 가능하다.')).toBe(false);
+  });
+
+  it('a Policy field must be a Node sentence as a whole, not a Node sentence inside other text', async () => {
+    const g = await gate();
+    const { readPolicies } = await import('../src/clarification/definition-store.js');
+    const [policy] = await readPolicies(g.root);
+    const { createPolicy } = await import('../src/schema/definition.js');
+    const { writeFile: wf } = await import('node:fs/promises');
+    const { id: _i, content_hash: _h, ...rest } = policy!;
+    const framed = createPolicy({ ...rest, id: policy!.id, outcome: `다음은 하지 않는다: ${policy!.outcome}` } as never);
+    await wf(path.join(g.root, 'policies', `${policy!.id}.yaml`), stringify(framed));
+    const report = await createValidationReport(g.root, g.review.id).catch((e: Error) => e);
+    const msg = report instanceof Error ? report.message : report.checks.map((c) => c.message).join('\n');
+    expect(msg).toMatch(/must appear as a whole field|stale|missing/);
+  });
+
+  it('refusals in any recorded agreement are caught: wider lexicon, decide record, and stored statements re-read at validate', async () => {
+    const { saysNo } = await import('../src/schema/text.js');
+    for (const s of ['승인 보류', '나중에', '일단 넘어가자', '반려', 'I decline', 'pending', '승인 안돼', 'N', 'don\'t approve']) expect(saysNo(s), s).toBe(true);
+    for (const s of ['네, 이대로 확정합니다', 'approved', '좋아요 진행']) expect(saysNo(s), s).toBe(false);
+    const g = await gate();
+    await expect(recordApproval(g.root, g.report.id, '승인 보류', 'all', 'flag')).rejects.toThrow(/reads as a refusal/);
+    await expect(recordApproval(g.root, g.report.id, 'tbd', 'all', 'flag')).rejects.toThrow(/placeholder/);
+    // A Decision recorded earlier with a refusing statement fails at validate.
+    const { readFile: rf, writeFile: wf } = await import('node:fs/promises');
+    const { readdir } = await import('node:fs/promises');
+    const decDir = path.join(g.root, 'decisions');
+    const files = (await readdir(decDir)).filter((f) => f.endsWith('.yaml'));
+    const file = path.join(decDir, files[0]!);
+    const text = await rf(file, 'utf8');
+    await wf(file, text.replace(/^user_statement: .*$/m, 'user_statement: 반대합니다. 이 옵션은 거부한다.'));
+    const report = await createValidationReport(g.root, g.review.id).catch((e: Error) => e);
+    const msg = report instanceof Error ? report.message : report.checks.map((c) => `${c.id}: ${c.message}`).join('\n');
+    expect(msg).toMatch(/reads as a refusal|mismatch|stale/);
+  });
+
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {
     const g = await gate({ challengeEvidence: [] });
     expect(g.report.readiness).toBe('blocked');

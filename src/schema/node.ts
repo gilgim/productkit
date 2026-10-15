@@ -344,6 +344,8 @@ export function judgeNodeSetCompletion(
   if (restate.length) { reasons.push('restatement_mismatch'); detail.push(...restate); }
   const forbidden = forbiddenTextIssue(canonicalJson(group.nodes.map(n => [n.statement, n.atomicity])));
   if (forbidden) { reasons.push('invalid_reference'); detail.push(`Node text ${forbidden}.`); }
+  const inferred = group.nodes.filter(n => n.origin !== 'source');
+  if (inferred.length) { reasons.push('invalid_reference'); detail.push(`Nodes are the user's sentences; origin must be source: ${inferred.map(n => n.id).join(', ')}`); }
   const signalMismatch = group.nodes.filter(n => { const c = computeStructuralSignal(n.statement); return c.conjunction_count !== n.structural_signal.conjunction_count || c.multiple_predicates !== n.structural_signal.multiple_predicates; });
   if (signalMismatch.length) { reasons.push('structural_signal_mismatch'); detail.push(`structural_signal must equal what the CLI computes from the statement (productkit hash atomicity --input prints it): ${signalMismatch.map(n => n.id).join(', ')}`); }
   const clauseHeavy = group.nodes.filter(n => clauseSignalCount(n.statement) >= 3 && n.atomicity.decomposability.verdict === 'not_applicable');

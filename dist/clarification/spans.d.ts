@@ -25,6 +25,8 @@ export declare function contentTokens(text: string): Set<string>;
 export declare function polarityTokens(text: string): string[];
 /** Headings, list markers, table separators and header rows: structure, not content. A heading that carries a number or a negation is content. */
 export declare function isStructuralSpan(text: string): boolean;
+/** A question: a question mark anywhere, or a Korean interrogative ending (할까, 하나요, 할지, 인가요 …). */
+export declare function isQuestion(text: string): boolean;
 /** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
 export declare function hasAsideMarker(text: string): boolean;
 /** Korean conditional connective: a clause that is only a condition. */

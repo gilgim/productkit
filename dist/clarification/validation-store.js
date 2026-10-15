@@ -15,7 +15,7 @@ import { loadGraphWorkspace } from './provenance.js';
 import { readAttestationPolicy } from './workspace.js';
 import { parseClarification } from '../schema/clarification.js';
 import { SEGMENTATION_VERSION } from './spans.js';
-import { forbiddenTextIssue, saysNo } from '../schema/text.js';
+import { forbiddenTextIssue, isMeaningfulText, multilineIssue, saysNo } from '../schema/text.js';
 import { parseProductConfig } from '../schema/config.js';
 import { findingContentHash, toFindingInput } from '../schema/finding.js';
 import { CliError, ExitCode } from '../errors.js';
@@ -211,9 +211,55 @@ async function checksFor(root, review) {
         if ((p.segmentation ?? 1) !== SEGMENTATION_VERSION)
             add(`source.segmentation.${id}`, 'traceability', 'fail', `Prompt ${id} was segmented with rule v${p.segmentation ?? 1}; current is v${SEGMENTATION_VERSION}. Re-run productkit intake.`);
     {
-        const forbidden = forbiddenTextIssue(canonicalJson({ definition: definition.items, policies: (await readPolicies(root)).map(p => [p.context, p.actor, p.condition_text, p.action, p.outcome, p.exceptions]), journeys: (await readJourneys(root)).map(j => [j.goal, j.states, j.transitions]), findings: (await readCurrentFindings(root)).map(f => [f.statement, f.questions, f.counterexamples]) }));
+        const policiesT = await readPolicies(root);
+        const journeysT = await readJourneys(root);
+        const findingsT = await readCurrentFindings(root);
+        const decisionsT = await readDecisions(root);
+        const approvalsT = await readApprovals(root);
+        const reviewsT = [];
+        for (const f of await files(path.join(root, dirs.semantic))) {
+            try {
+                const r = semanticReviewSchema.parse(await readYaml(path.join(root, dirs.semantic, f)));
+                reviewsT.push(r.scope, r.summary, ...r.uncertainty, ...r.unreviewed_scope, ...r.unreviewed_scope_resolved.map(x => x.item), ...Object.values(r.areas).map(a => a?.rationale ?? ''), ...r.item_fidelity.map(x => x.reason));
+            }
+            catch { }
+        }
+        const oneLiners = [...definition.items.flatMap(i => [i.text, i.exclusion?.excluded_scope ?? '', i.exclusion?.impact ?? '', i.exclusion?.residual_risk ?? '']), ...policiesT.flatMap(p => [p.context, p.actor, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)]), ...journeysT.flatMap(j => [j.actor, j.goal, j.entry_state, ...j.states, ...j.terminal_states, ...j.acceptance_criteria]), ...findingsT.flatMap(f => [f.statement, ...f.questions, ...f.confirmation_history.map(c => c.user_statement)]), ...decisionsT.flatMap(d => [d.user_statement, d.rationale, d.scope]), ...approvalsT.flatMap(a => [a.user_statement, a.scope]), ...reviewsT];
+        const clrTexts = [];
+        for (const f of await files(path.join(root, 'discovery'))) {
+            try {
+                const clr = parseClarification(await readFile(path.join(root, 'discovery', f), 'utf8'));
+                clrTexts.push(...(clr.steps.span_coverage ?? []).map(c => c.reason), ...clr.steps.decomposition.map(d => d.merge_reason ?? ''), ...clr.finding_candidates.map(c => c.statement), ...clr.interpretation_check.map(e => e.user_statement));
+            }
+            catch { }
+        }
+        const forbidden = forbiddenTextIssue(canonicalJson([oneLiners, clrTexts]));
         if (forbidden)
             add('text.forbidden', 'structure', 'fail', `Artifact text ${forbidden}.`);
+        const broken = [...oneLiners, ...clrTexts].find(t => multilineIssue(t));
+        if (broken !== undefined)
+            add('text.multiline', 'structure', 'fail', `A one-sentence field contains a line break ("${broken.slice(0, 40).replace(/\n/g, '⏎')}…"); line breaks are how an exported document grows a fake section.`);
+        // Stored agreement statements are re-read: a recorded "approval" that says no is not one.
+        for (const a of approvalsT)
+            if (saysNo(a.user_statement))
+                add(`approval.statement.${a.id}`, 'structure', 'fail', `Approval ${a.id} statement reads as a refusal: "${a.user_statement.slice(0, 40)}"`);
+        for (const d of decisionsT)
+            if (saysNo(d.user_statement))
+                add(`decision.statement.${d.id}`, 'decision', 'fail', `Decision ${d.id} user statement reads as a refusal: "${d.user_statement.slice(0, 40)}"`);
+        for (const f of findingsT) {
+            const last = f.confirmation_history.at(-1);
+            if (last && last.response === 'confirmed' && saysNo(last.user_statement))
+                add(`finding.statement.${f.id}`, 'finding', 'fail', `Finding ${f.id} was confirmed with a statement that reads as a refusal: "${last.user_statement.slice(0, 40)}"`);
+        }
+        for (const f of await files(path.join(root, 'discovery'))) {
+            try {
+                const clr = parseClarification(await readFile(path.join(root, 'discovery', f), 'utf8'));
+                const last = clr.interpretation_check.at(-1);
+                if (last && last.user_response === 'agreed' && saysNo(last.user_statement))
+                    add(`clarification.statement.${clr.id}`, 'traceability', 'fail', `Clarification ${clr.id} was agreed with a statement that reads as a refusal: "${last.user_statement.slice(0, 40)}"`);
+            }
+            catch { }
+        }
     }
     try {
         await validateDefinitionReferences(root, definition);
@@ -249,13 +295,14 @@ async function checksFor(root, review) {
         void journeys;
         const NORMATIVE = new Set(['functional_requirement', 'nonfunctional_requirement', 'acceptance_criterion']);
         for (const item of definition.items) {
-            if (!NORMATIVE.has(item.kind))
+            if (item.kind === 'exclusion')
                 continue;
             const nodes = item.provenance.source_refs.filter(r => r.kind === 'node');
             if (!nodes.length)
-                add(`definition.item_source.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} cites no Node; a requirement must come from a modeled Node.`);
-            for (const r of nodes)
-                placed.add(r.ref);
+                add(`definition.item_source.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} cites no Node; every Definition sentence is one of the user's sentences.`);
+            if (NORMATIVE.has(item.kind))
+                for (const r of nodes)
+                    placed.add(r.ref);
             // The item carries its Node's sentence verbatim; it may frame it, not rewrite it.
             // The item text IS the Node text(s), in Node order, with at most a short
             // allowed prefix ("검증:", "AC:", "수락 기준:"). Framing that could reverse
@@ -355,10 +402,10 @@ async function checksFor(root, review) {
     for (const j of journeys) {
         {
             const sqj = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
-            const body = sqj([j.goal, ...j.acceptance_criteria].join(' '));
-            const missingNode = j.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !body.includes(sqj(t)); });
+            const fields = [j.goal, ...j.acceptance_criteria].map(sqj);
+            const missingNode = j.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !fields.includes(sqj(t)); });
             if (missingNode.length)
-                add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id} does not carry the text of its source Node(s) verbatim in goal/acceptance_criteria: ${missingNode.join(', ')}`);
+                add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id}: each source Node's sentence must be a whole goal or acceptance criterion, not inside other text: ${missingNode.join(', ')}`);
         }
         const states = new Set(j.states);
         const reachable = new Set([j.entry_state]);
@@ -394,10 +441,10 @@ async function checksFor(root, review) {
         try {
             await validatePolicyReferences(root, p);
             const sqp = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
-            const body = sqp([p.context, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)].join(' '));
-            const missingNode = p.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !body.includes(sqp(t)); });
+            const fields = [p.context, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)].map(sqp);
+            const missingNode = p.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !fields.includes(sqp(t)); });
             if (missingNode.length)
-                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id} does not carry the text of its source Node(s) verbatim in context/condition/action/outcome/exceptions: ${missingNode.join(', ')}`);
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: each source Node's sentence must appear as a whole field (context/condition_text/action/outcome/exception), not inside other text: ${missingNode.join(', ')}`);
             else
                 add(`policy.${p.id}`, 'policy', 'pass', `Policy ${p.id} structure and provenance are valid and it carries its source Node text; semantics remain subject to review.`);
         }
@@ -478,7 +525,8 @@ export async function readValidationReports(root) { const out = []; for (const f
     out.push(validationReportSchema.parse(await readYaml(path.join(root, dirs.validations, f)))); return out; }
 export async function reportFreshness(root, report) { const current = await currentValidationFingerprint(root, report.rules_version); return current.fingerprint !== report.input_fingerprint || !(await readDefinition(root))?.content_hash || (await readDefinition(root)).content_hash !== report.definition_hash; }
 export async function recordApproval(root, reportId, userStatement, scope, attestation = 'flag', now = new Date()) { if (!userStatement.trim() || !scope.trim())
-    throw new CliError('Explicit user statement and scope are required.', ExitCode.GATE_BLOCKED); if (saysNo(userStatement))
+    throw new CliError('Explicit user statement and scope are required.', ExitCode.GATE_BLOCKED); if (!isMeaningfulText(userStatement))
+    throw new CliError('The approval statement is a placeholder.', ExitCode.GATE_BLOCKED); if (saysNo(userStatement))
     throw new CliError(`The approval statement reads as a refusal: "${userStatement.trim().slice(0, 60)}". An approval must not say no.`, ExitCode.GATE_BLOCKED); const policy = await readAttestationPolicy(root); if (!policy.declared)
     throw new CliError('config.yaml declares no attestation policy; add `attestation: tty` or `attestation: flag` before approving.', ExitCode.GATE_BLOCKED); if (policy.policy === 'tty' && attestation !== 'tty')
     throw new CliError('This workspace requires the approval statement to be typed on a terminal (config attestation: tty).', ExitCode.GATE_BLOCKED, ['Run `productkit approve record --validation <id> --scope <scope>` without --user-statement, in a terminal, and type the statement when asked.', 'An agent cannot do this step; hand the command to the user.']); const report = (await readValidationReports(root)).find(x => x.id === reportId); if (!report)

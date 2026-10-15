@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { promptIntegrityIssue } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { clauseSignalCount, contentTokenList, contentTokens, endsWithCondition, endsWithConnective, endsWithDangler, endsWithPredicate, hasAsideMarker, isStructuralSpan, lcsLength, leadingCondition, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
+import { clauseSignalCount, contentTokenList, contentTokens, endsWithCondition, endsWithConnective, endsWithDangler, endsWithPredicate, hasAsideMarker, isQuestion, isStructuralSpan, lcsLength, leadingCondition, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 const hashHex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 hex digest');
 /**
@@ -281,8 +281,8 @@ export function mergeReasonIssue(clarification, prompt) {
         if (!isReason(c.reason))
             return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters and 2+ words.`;
         const text = spanTextById(prompt, c.span_ref);
-        if (/[?？]\s*$/.test(text))
-            return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; decompose it or raise it as a finding candidate.`;
+        if (isQuestion(text))
+            return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; raise it as a finding candidate.`;
         // A sentence carrying a number, a negation/condition word, or simply a
         // lot of content is saying something a product must do; it cannot be
         // filed as "not a requirement".
@@ -304,7 +304,7 @@ export function mergeReasonIssue(clarification, prompt) {
     for (const [i, item] of items.entries()) {
         for (const id of item.span_refs) {
             const text = spanTextById(prompt, id);
-            if (/[?？]\s*$/.test(text))
+            if (isQuestion(text))
                 return `decomposition[${i}] reads ${id}, which is a question ("${text.slice(0, 30)}…"); a question is raised as a finding candidate, not read as a requirement.`;
             if (!startsWithException(text))
                 continue;

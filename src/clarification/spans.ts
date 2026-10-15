@@ -87,6 +87,12 @@ export function isStructuralSpan(text: string): boolean {
   return (/^#{1,6}\s/.test(t) && plain) || /^\d{1,3}\.?$/.test(t) || /^[-*+]\s*$/.test(t) || /^\|?[\s|:-]+\|?$/.test(t) || (/^\|?\s*[^|]*(\|[^|]*)*\|?$/.test(t) && plain && t.includes('|'));
 }
 
+/** A question: a question mark anywhere, or a Korean interrogative ending (할까, 하나요, 할지, 인가요 …). */
+export function isQuestion(text: string): boolean {
+  const t = text.trim().replace(/[\s.。!！)\]”"'’]+$/, '');
+  return /[?？]/.test(text) || /(까|나요|가요|ㄴ가요|인가|인가요|할지|일지|ㄹ지|을지|습니까|ㅂ니까|합니까|있나|없나|되나|하나|할까요)$/.test(t);
+}
+
 /** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
 export function hasAsideMarker(text: string): boolean {
   return /^(예|예시|비유|참고|비고|주|메모|note|e\.g\.|eg|tip|hint)\s*[:：]/i.test(text.trim());
@@ -111,7 +117,7 @@ export function endsWithDangler(text: string): boolean {
 
 /** A sentence that states something: Korean sentence-final endings or an English finite verb/modal. */
 export function endsWithPredicate(text: string): boolean {
-  const t = text.trim().replace(/[.。!?！？]+$/, '').trim();
+  const t = text.trim().replace(/[.。!?！？)\]”"'’]+$/, '').trim();
   return /(다|요|니다|습니다|함|됨|음|임|것|가능|불가|필수|제외|포함)$/.test(t) || /\b(must|shall|should|will|can|cannot|may|is|are|does|do|has|have)\b/i.test(t);
 }
 
