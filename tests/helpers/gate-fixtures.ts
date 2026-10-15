@@ -16,6 +16,17 @@ export async function allowFlagAttestation(productRoot: string): Promise<void> {
   await writeFile(file, text.replace(/^attestation:\s*tty\s*$/m, 'attestation: flag'));
 }
 
+/** Two user sentences → two verbatim Nodes (graph tests need two endpoints). */
+export function twoNodeFixtures() {
+  const prompt = promptFixture('사용자가 결제를 완료하면 주문을 확정한다. 주문이 확정되면 영수증을 보낸다.');
+  const steps = validSteps(['사용자가 결제를 완료하면 주문을 확정한다.', '주문이 확정되면 영수증을 보낸다.']);
+  steps.decomposition[1]!.span_refs = ['SPN-002'];
+  const clarification = confirmedFixture(steps, prompt);
+  const second = { ...atomicNodeFixture('주문이 확정되면 영수증을 보낸다.'), id: 'NOD-001-2', derived_from: { clarification_ref: 'CLR-001', decomposition_index: 1 } };
+  const group = nodeGroupSchema.parse({ ...groupFixture(steps, [atomicNodeFixture(), second]), clarification_content_hash: clarificationContentHash(clarification) });
+  return { prompt, clarification, group };
+}
+
 /** Writes a current ImpactReport for one Node and returns its id (ChallengeRun impact_coverage needs one). */
 export async function writeImpactReport(productRoot: string, nodeId = 'NOD-001-1'): Promise<string> {
   const { computeImpactReport } = await import('../../src/clarification/graph.js');

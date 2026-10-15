@@ -6,7 +6,7 @@ import { stringify } from 'yaml';
 import { runInit } from '../src/cli/commands/init.js';
 import { createMemoryOutput } from '../src/cli/output.js';
 import { addRelationCandidate, readRelationCandidates } from '../src/clarification/graph-store.js';
-import { promptFixture, confirmedFixture, groupFixture } from './helpers/gate-fixtures.js';
+import { promptFixture, confirmedFixture, groupFixture, twoNodeFixtures } from './helpers/gate-fixtures.js';
 
 let root = '';
 afterEach(async () => { if (root) await rm(root, { recursive: true, force: true }); });
@@ -15,10 +15,7 @@ async function workspace() {
   root = await mkdtemp(path.join(tmpdir(), 'productkit-graph-store-'));
   await runInit({ cwd: root, now: new Date('2026-10-13T00:00:00Z') }, createMemoryOutput());
   const product = path.join(root, 'product');
-  const prompt = promptFixture();
-  const clr = confirmedFixture(undefined, prompt);
-  const group = groupFixture(clr.steps);
-  group.nodes.push({ ...group.nodes[0]!, id: 'NOD-001-2' });
+  const { prompt, clarification: clr, group } = twoNodeFixtures();
   await writeFile(path.join(product, 'sources', `${prompt.id}.yaml`), stringify(prompt));
   await writeFile(path.join(product, 'discovery', `${clr.id}.yaml`), stringify(clr));
   await writeFile(path.join(product, 'nodes', `${group.id}.yaml`), stringify(group));

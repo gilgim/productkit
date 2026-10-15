@@ -22,12 +22,12 @@ export interface ModelOptions {
  */
 const REASON_MESSAGES: Record<NodeGroupBlockReason, string> = {
   invalid_split_lineage: 'Split replacements must trace to preserved split-required Nodes with new IDs and matching source references.',
-  restatement_mismatch: 'Each Node must be a verbatim slice (or two slices) of its decomposition item, and the slices together must cover every word of it.',
+  restatement_mismatch: 'Each decomposition item yields exactly one Node per user sentence, each the sentence verbatim. Nothing is cut, merged or reworded.',
   structural_signal_mismatch: 'structural_signal must be what the CLI computes from the statement; run `productkit hash atomicity --input` with the statement to get it.',
   split_review_required: 'A statement that still carries 3+ clause separators needs decomposability valid_split or would_orphan_pieces (with a reason), not not_applicable.',
   missing_preservation_review: 'Each source item requires a substantive conditions/operators/exceptions preservation review.',
   invalid_source: 'Current confirmed Clarification and its intact Prompt source are required.',
-  split_required: 'A final Node still requires splitting; preserve it as retired history and create new atomic Nodes.',
+  split_required: 'A final Node carries several outcomes. A Node is the user\'s sentence verbatim and is never cut by the agent: raise it as a question and have the user restate the idea as separate sentences (productkit intake), then clarify again.',
   incomplete_coverage: 'Some decomposition items are not yet covered by any Node.',
   atomicity_undetermined:
     'At least one Node has no determined atomicity.final (its sub-verdicts do not combine to a clear answer yet).',

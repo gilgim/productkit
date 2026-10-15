@@ -414,18 +414,6 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(g.check('definition.node_coverage')?.message).toContain('NOD-001-2, NOD-001-3, NOD-001-4');
   });
 
-  it('a Node is a verbatim slice (or two) of its decomposition item, and the slices cover every word', async () => {
-    const { sliceIssue } = await import('../src/schema/clarification.js');
-    const src = '결제가 완료되면 주문을 확정하고, 확인 이메일을 보내고, 재고를 차감한다.';
-    expect(sliceIssue(src, [src])).toBeUndefined();
-    expect(sliceIssue(src, ['결제가 완료되면 주문을 확정하고', '결제가 완료되면 확인 이메일을 보내고', '결제가 완료되면 재고를 차감한다'])).toBeUndefined();
-    expect(sliceIssue(src, ['결제가 완료되면 주문을 확정하고'])).toMatch(/in no slice: 확인, 이메일을, 보내고/);
-    expect(sliceIssue('환불은 7일 이내 불가.', ['환불은 7일 이내 가능'])).toMatch(/not a verbatim slice/);
-    expect(sliceIssue('관리자가 사용자를 차단한다.', ['사용자가 관리자를 차단한다'])).toMatch(/not a verbatim slice/);
-    expect(sliceIssue('비회원은 결제할 수 없다.', ['비회원은 결제할 수 있다'])).toMatch(/not a verbatim slice/);
-    expect(sliceIssue('세 권까지 무료다.', ['다섯 권까지 무료다'])).toMatch(/not a verbatim slice/);
-  });
-
   it('control, invisible and HTML-comment characters are refused in every artifact', async () => {
     const { forbiddenTextIssue } = await import('../src/schema/text.js');
     expect(forbiddenTextIssue('정상 문장')).toBeUndefined();
@@ -511,34 +499,11 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(judgeCompletion(confirmedFixture(merged, q), q).confirmed).toBe(true);
   });
 
-  it('two-slice Nodes share one sentence-initial trigger; fragments and detached exceptions are refused', async () => {
-    const { sliceIssue } = await import('../src/schema/clarification.js');
-    const src = '결제가 완료되면 주문을 확정하고 결제가 실패하면 주문을 취소한다.';
-    expect(sliceIssue(src, ['결제가 완료되면 주문을 취소한다', '결제가 실패하면 주문을 확정하고'])).toMatch(/different triggers|only a sentence-initial trigger/);
-    expect(sliceIssue(src, ['결제가 완료되면 주문을 확정하고', '결제가 실패하면 주문을 취소한다'])).toBeUndefined();
-    expect(sliceIssue('관리자가 승인한 사용자만 글을 쓸 수 있다.', ['관리자가 승인한', '사용자만 글을 쓸 수 있다'])).toMatch(/is a fragment/);
-    expect(sliceIssue('회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.', ['회원은 환불을 요청할 수 있다.', '단, 구독 상품은 제외한다.'])).toMatch(/exception clause on its own/);
-    expect(sliceIssue('회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.', ['회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.'])).toBeUndefined();
-  });
-
   it('a requirement item reads exactly as its Node text; reversing framing is not expressible', async () => {
     const g = await gate({ items: [{ kind: 'functional_requirement', text: '다음은 하지 않는다: 결제를 완료하면 주문을 확정한다.', nodes: ['NOD-001-1'] }, { kind: 'functional_requirement', text: '공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', nodes: ['NOD-001-2'] }, { kind: 'functional_requirement', text: '실제 현금 구매와 환전은 없다.', nodes: ['NOD-001-3'] }, { kind: 'functional_requirement', text: '보스는 3층에 등장하며 즉사탄을 막지 못한다.', nodes: ['NOD-001-4'] }] });
     const check = g.report.checks.find((c) => c.id.startsWith('definition.item_restates.'));
     expect(check?.status).toBe('fail');
     expect(check?.message).toMatch(/must read exactly as its Node text/);
-  });
-
-  it('no character is too small to drop from a slice; slices sit on word boundaries; questions are never read', async () => {
-    const { sliceIssue } = await import('../src/schema/clarification.js');
-    expect(sliceIssue('비밀번호는 평문으로 안 저장한다.', ['비밀번호는 평문으로 저장한다'])).toMatch(/not a verbatim slice|in no slice: 안/);
-    expect(sliceIssue('수수료는 0.5 퍼센트이다.', ['수수료는 0 퍼센트이다'])).toMatch(/not a verbatim slice|in no slice/);
-    expect(sliceIssue('나이 < 18 이면 가입할 수 없다.', ['나이 18 이면 가입할 수 없다'])).toMatch(/not a verbatim slice|in no slice/);
-    expect(sliceIssue('관리자는 비밀번호를 평문으로 저장할 수 없다.', ['관리자는 비밀번호를 평문으로 저장 할 수 없다'])).toMatch(/not a verbatim slice/);
-    const prompt = promptFixture('환불 비율은 어떻게 할까요? 전액 환불한다.');
-    const merged = validSteps(['환불 비율은 어떻게 할까요? 전액 환불한다.']);
-    merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002']; merged.decomposition[0]!.merge_reason = '질문과 답을 한 요구로 읽는다';
-    const j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
-    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/is a question .* raised as a finding candidate/);
   });
 
   it('only structure and user-marked asides can be set aside; a bare line is content', () => {
@@ -562,17 +527,22 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/negation\/condition word \(만\)/);
   });
 
-  it('a Node cannot be only a condition, drop the condition that opens its sentence, trail off, or cross into another sentence', async () => {
+  it('a Node is one user sentence verbatim: no slicing, no merging, no rewording; questions are never read', async () => {
     const { sliceIssue } = await import('../src/schema/clarification.js');
-    expect(sliceIssue('주문을 취소한다, 결제가 실패하면.', ['주문을 취소한다', '결제가 실패하면'])).toMatch(/only a condition/);
-    expect(sliceIssue('결제가 완료되면 재고를 차감한다.', ['결제가 완료되면', '재고를 차감한다'])).toMatch(/only a condition|drops the condition/);
-    expect(sliceIssue('결제가 완료되면 주문을 확정하고 이메일을 보내고 재고를 차감한다.', ['결제가 완료되면 주문을 확정하고', '이메일을 보내고', '재고를 차감한다'])).toMatch(/drops the condition "결제가 완료되면"/);
-    expect(sliceIssue('결제가 완료되면 주문을 확정하고 이메일을 보내고 재고를 차감한다.', ['결제가 완료되면 주문을 확정하고', '결제가 완료되면 이메일을 보내고', '결제가 완료되면 재고를 차감한다'])).toBeUndefined();
-    expect(sliceIssue('결제가 완료되면 주문을 확정하고 결제가 실패하면 주문을 취소한다.', ['결제가 완료되면 주문을 확정하고', '결제가 실패하면 주문을 취소한다'])).toBeUndefined();
-    expect(sliceIssue('Users can request a refund unless the item is a subscription.', ['Users can request a refund unless', 'the item is a subscription'])).toMatch(/trails off|exception clause/);
+    const src = '결제가 완료되면 주문을 확정하고, 확인 이메일을 보내고, 재고를 차감한다.';
+    expect(sliceIssue(src, [src])).toBeUndefined();
+    expect(sliceIssue(src, ['결제가 완료되면 주문을 확정하고', '결제가 완료되면 확인 이메일을 보내고', '결제가 완료되면 재고를 차감한다'])).toMatch(/expected 1 Node\(s\), one per user sentence, got 3/);
+    expect(sliceIssue('환불은 7일 이내 불가.', ['환불은 7일 이내 가능'])).toMatch(/must be the sentence verbatim/);
+    expect(sliceIssue('비밀번호는 평문으로 안 저장한다.', ['비밀번호는 평문으로 저장한다'])).toMatch(/must be the sentence verbatim/);
+    expect(sliceIssue('관리자가 사용자를 차단한다.', ['사용자가 관리자를 차단한다'])).toMatch(/must be the sentence verbatim/);
     const two = '회원은 반드시 이메일로 가입해야 한다. 환불은 불가능하다.';
-    expect(sliceIssue(two, [two], ['회원은 반드시 이메일로 가입해야 한다.', '환불은 불가능하다.'])).toMatch(/crosses from one of the user's sentences/);
+    expect(sliceIssue(two, [two], ['회원은 반드시 이메일로 가입해야 한다.', '환불은 불가능하다.'])).toMatch(/expected 2 Node\(s\)/);
     expect(sliceIssue(two, ['회원은 반드시 이메일로 가입해야 한다', '환불은 불가능하다'], ['회원은 반드시 이메일로 가입해야 한다.', '환불은 불가능하다.'])).toBeUndefined();
+    const prompt = promptFixture('환불 비율은 어떻게 할까요? 전액 환불한다.');
+    const merged = validSteps(['환불 비율은 어떻게 할까요? 전액 환불한다.']);
+    merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002']; merged.decomposition[0]!.merge_reason = '질문과 답을 한 요구로 읽는다';
+    const j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/is a question .* raised as a finding candidate/);
   });
 
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {

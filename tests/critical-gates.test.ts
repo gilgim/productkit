@@ -86,7 +86,10 @@ describe('critical completion regressions (synthetic confirmations)', () => {
     const group = nodeGroupSchema.parse({ ...groupFixture(splitSteps), clarification_content_hash: clarificationContentHash(clarification), nodes: children, retired_nodes: [old] });
     expect(group.retired_nodes).toEqual([old]);
     expect(group.nodes.map(n => n.split_from)).toEqual([old.id, old.id]);
-    expect(judgeNodeSetCompletion(group, splitSteps, { clarification, prompt: original }).status).toBe('modeled');
+    // Lineage is well-formed, but an agent-made split is still not a modeled NodeGroup: Nodes are whole user sentences.
+    const result = judgeNodeSetCompletion(group, splitSteps, { clarification, prompt: original });
+    expect(result.status).toBe('needs_review');
+    if (result.status === 'needs_review') { expect(result.reasons).toContain('restatement_mismatch'); expect(result.reasons).not.toContain('invalid_split_lineage'); }
   });
   it('blocks dangling replacement lineage rather than silently treating it as an atomic split', () => {
     const child = { ...atomicNodeFixture(), split_from: 'NOD-001-99' };

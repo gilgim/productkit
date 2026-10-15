@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { stringify } from 'yaml';
 import { runInit } from '../src/cli/commands/init.js';
 import { createMemoryOutput } from '../src/cli/output.js';
-import { promptFixture, confirmedFixture, groupFixture } from './helpers/gate-fixtures.js';
+import { promptFixture, confirmedFixture, groupFixture, twoNodeFixtures } from './helpers/gate-fixtures.js';
 
 let root = '';
 afterEach(async () => { if (root) await rm(root, { recursive: true, force: true }); });
@@ -21,10 +21,7 @@ describe('built CLI Graph E2E', () => {
     root = await mkdtemp(path.join(tmpdir(), 'productkit-built-graph-e2e-'));
     await runInit({ cwd: root, now: new Date('2026-10-13T00:00:00Z') }, createMemoryOutput());
     const product = path.join(root, 'product');
-    const prompt = promptFixture();
-    const clarification = confirmedFixture(undefined, prompt);
-    const group = groupFixture(clarification.steps);
-    group.nodes.push({ ...group.nodes[0]!, id: 'NOD-001-2' });
+    const { prompt, clarification, group } = twoNodeFixtures();
     await writeFile(path.join(product, 'sources', `${prompt.id}.yaml`), stringify(prompt));
     await writeFile(path.join(product, 'discovery', `${clarification.id}.yaml`), stringify(clarification));
     await writeFile(path.join(product, 'nodes', `${group.id}.yaml`), stringify(group));

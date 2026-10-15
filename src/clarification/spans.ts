@@ -73,7 +73,7 @@ export function contentTokens(text: string): Set<string> {
  * Words that flip or bound a requirement. Dropping one of these from a
  * restatement changes what is required; they are kept like numbers are.
  */
-const POLARITY = /(어떤 경우에도|언제든지|무조건|불허|결코|전혀|말 것|말것|마라|말아야|하지 말|안된다|안됨|불가능|불가|없이|없다|없음|없는|않는|않고|않은|않아|않음|않도록|안\s|못\s|못한|아니|금지|제외|예외|단,|만\s|만$|만으로|만이|에만|경우에만|이상|이하|미만|초과|이내|이전|이후|전에|전까지|후에|반드시|필수|항상|절대|모든|전부|즉시|최대|최소|최소한|적어도|\bnot\b|\bno\b|\bnever\b|\bonly\b|\bunless\b|\bexcept\b|\bmust\b|\bbefore\b|\bafter\b|\bat least\b|\bat most\b|\bwithin\b|\ball\b|\bevery\b)/g;
+const POLARITY = /(어떤 경우에도|언제든지|무조건|불허|결코|전혀|말 것|말것|마라|말아야|하지 말|안된다|안됨|제한|한정|금지|전용|차단|거부|거절|중지|취소|승인|필요|대신|불가능|불가|없이|없다|없음|없는|않는|않고|않은|않아|않음|않도록|안\s|못\s|못한|아니|금지|제외|예외|단,|만\s|만$|만으로|만이|에만|경우에만|이상|이하|미만|초과|이내|이전|이후|전에|전까지|후에|반드시|필수|항상|절대|모든|전부|즉시|최대|최소|최소한|적어도|\bnot\b|\bno\b|\bnever\b|\bonly\b|\bunless\b|\bexcept\b|\bmust\b|\bbefore\b|\bafter\b|\bat least\b|\bat most\b|\bwithin\b|\ball\b|\bevery\b)/g;
 export function polarityTokens(text: string): string[] {
   return (text.match(POLARITY) ?? []).map((t) => t.trim().replace(/,$/, ''));
 }
@@ -81,7 +81,9 @@ export function polarityTokens(text: string): string[] {
 /** Headings, list markers, table separators and header rows: structure, not content. A heading that carries a number or a negation is content. */
 export function isStructuralSpan(text: string): boolean {
   const t = text.trim();
-  const plain = !/\d/.test(t) && polarityTokens(t).length === 0 && !endsWithPredicate(t);
+  // A heading that reads like a sentence (particles, a verb-ish ending) is content with a hash in front of it.
+  const sentenceLike = /(은|는|이|가|을|를|로|으로|에|에서|만|의)(\s|$)/.test(t.replace(/^#{1,6}\s*/, '')) ;
+  const plain = !/\d/.test(t) && polarityTokens(t).length === 0 && !endsWithPredicate(t) && !sentenceLike;
   return (/^#{1,6}\s/.test(t) && plain) || /^\d{1,3}\.?$/.test(t) || /^[-*+]\s*$/.test(t) || /^\|?[\s|:-]+\|?$/.test(t) || (/^\|?\s*[^|]*(\|[^|]*)*\|?$/.test(t) && plain && t.includes('|'));
 }
 

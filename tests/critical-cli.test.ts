@@ -62,15 +62,17 @@ describe('critical gate CLI counterexamples (run npm run build first)', () => {
     const group = nodeGroupSchema.parse({ ...groupFixture(steps,[parent]), clarification_content_hash: clarificationContentHash(clarification) });
     await writeFile(w.groupPath,stringify(group));
     const blocked = cli(w.cwd,'atomize');
-    expect(blocked.stdout).toContain('still requires splitting');
+    expect(blocked.stdout).toContain('still require splitting');
     expect(blocked.stdout).not.toContain('NodeGroup modeled:');
     const originalParent = structuredClone(parent);
     group.retired_nodes=[parent];
-    // Children are verbatim slices of the sentence; a shared trigger is carried as a second slice.
+    // The agent cannot split a sentence: pieces are refused. The user restates the idea in separate sentences instead.
     group.nodes=['결제가 완료되면 주문을 확정하고','결제가 완료되면 이메일을 보낸다.'].map((s,i)=>({...atomicNodeFixture(s),id:`NOD-001-${i+2}`,split_from:parent.id}));
     group.distortion_checks=[preservedCheck(0,steps.decomposition[0]!.statement)];
     await writeFile(w.groupPath,stringify(group));
-    expect(cli(w.cwd,'atomize').stdout).toContain('NodeGroup modeled:');
+    const afterSplit=cli(w.cwd,'atomize').stdout;
+    expect(afterSplit).toContain('not yet complete');
+    expect(afterSplit).toContain('one per user sentence');
     expect(group.retired_nodes[0]).toEqual(originalParent);
     expect(group.retired_nodes[0]!.atomicity.final).toBe('split_required');
   });

@@ -344,110 +344,23 @@ export function restatementIssue(source, readings) {
     return undefined;
 }
 /**
- * Each statement must be one contiguous slice of `source`, or two slices
- * joined by a space (a shared trigger carried into a split piece). Together
- * the slices must cover every content word of the source. Nothing can be
- * flipped, dropped or reordered: the only freedom is where to cut.
+ * A Node is one of the user's sentences, verbatim — no slicing. Splitting a
+ * sentence into pieces was gamed seven ways (trigger pairing, condition
+ * forms, connective cuts, one-character drops); the only split that loses
+ * nothing is the one the user makes by restating the idea in separate
+ * sentences (a new intake). So: the Node statements of a decomposition item
+ * must be exactly its sentences, one each, in order.
  */
 export function sliceIssue(source, statements, segments) {
-    const src = squash(source).replace(/[.。]$/, '');
-    // A slice stays inside one of the user's sentences: merging several
-    // sentences into one Node would let ten rules become "one atomic Node".
-    const segmentRanges = [];
-    if (segments && segments.length > 1) {
-        let from = 0;
-        for (const seg of segments) {
-            const sq = squash(seg).replace(/[.。]$/, '');
-            const i = src.indexOf(sq, from);
-            if (i >= 0) {
-                segmentRanges.push([i, i + sq.length]);
-                from = i + sq.length;
-            }
-        }
+    const norm = (t) => squash(t).replace(/[.。]$/, '');
+    const sentences = (segments && segments.length ? segments : [source]).map(norm).filter(Boolean);
+    const got = statements.map(norm);
+    if (got.length !== sentences.length)
+        return `expected ${sentences.length} Node(s), one per user sentence, got ${got.length}; a Node is a whole sentence, verbatim — to split a sentence, ask the user to restate it as separate sentences (new intake)`;
+    for (const [i, sentence] of sentences.entries()) {
+        if (got[i] !== sentence)
+            return `Node ${i + 1} must be the sentence verbatim: expected "${sentence.slice(0, 60)}", got "${got[i].slice(0, 60)}"`;
     }
-    const insideOneSegment = (a, b) => !segmentRanges.length || segmentRanges.some(([s0, s1]) => a >= s0 && b <= s1 + 1);
-    // If a sentence opens with a condition, every Node of that sentence must carry it.
-    const condition = leadingCondition(src);
-    const covered = new Array(src.length).fill(false);
-    const mark = (a, b) => { for (let i = a; i < b; i++)
-        covered[i] = true; };
-    // A slice starts and ends on word boundaries: cutting "저장할 수 없다" into
-    // "저장" + "할 수 없다" is not reading the sentence, it is rewriting it.
-    const boundary = (i) => i <= 0 || i >= src.length || /[\s,.;:!?()\[\]{}"'“”‘’·]/.test(src[i - 1]) || /[\s,.;:!?()\[\]{}"'“”‘’·]/.test(src[i]);
-    const findAt = (needle) => { let from = 0; for (;;) {
-        const i = src.indexOf(needle, from);
-        if (i < 0)
-            return -1;
-        if (boundary(i) && boundary(i + needle.length))
-            return i;
-        from = i + 1;
-    } };
-    const locate = (s) => {
-        const whole = findAt(s);
-        if (whole >= 0)
-            return [[whole, whole + s.length]];
-        for (let cut = s.indexOf(' '); cut > 0; cut = s.indexOf(' ', cut + 1)) {
-            const a = s.slice(0, cut);
-            const b = s.slice(cut + 1);
-            const ia = findAt(a);
-            const ib = findAt(b);
-            if (ia >= 0 && ib >= 0)
-                return [[ia, ia + a.length], [ib, ib + b.length]];
-        }
-        return undefined;
-    };
-    const triggers = [];
-    for (const st of statements) {
-        const s = squash(st).replace(/[.。]$/, '');
-        if (!s)
-            return 'an empty statement';
-        const parts = locate(s);
-        if (!parts)
-            return `"${s.slice(0, 50)}${s.length > 50 ? '…' : ''}" is not a verbatim slice (or two slices) of "${src.slice(0, 50)}${src.length > 50 ? '…' : ''}"`;
-        if (parts.length === 2) {
-            // A second slice is only for carrying the sentence-initial trigger into
-            // a split piece: it must start the sentence, come before the action, and
-            // be the same trigger for every two-slice Node of this item.
-            const [[a0, a1], [b0]] = parts;
-            if (a0 !== 0 || b0 <= a1)
-                return `"${s.slice(0, 50)}" pairs two slices, but only a sentence-initial trigger may be carried into a later piece`;
-            triggers.push(src.slice(a0, a1));
-        }
-        if (s !== src && !endsWithPredicate(s) && !endsWithConnective(s) && !startsWithException(s))
-            return `"${s.slice(0, 50)}" is a fragment: a Node must end with a predicate or a connective ending`;
-        if (s !== src && (endsWithCondition(s) || endsWithDangler(s)))
-            return `"${s.slice(0, 50)}" is only a condition or trails off; a Node states what happens`;
-        if (s !== src && startsWithException(s))
-            return `"${s.slice(0, 50)}" is an exception clause on its own; keep it in the Node of the sentence it qualifies`;
-        if (condition && s !== src && !s.startsWith(condition) && !leadingCondition(s))
-            return `"${s.slice(0, 50)}" drops the condition "${condition}" that opens its sentence; every Node of this sentence must carry it (or open with its own condition)`;
-        for (const [a, b] of parts) {
-            if (!insideOneSegment(a, b))
-                return `"${s.slice(0, 50)}" crosses from one of the user's sentences into another; a Node stays within one sentence`;
-            mark(a, b);
-        }
-    }
-    if (new Set(triggers).size > 1)
-        return `two-slice Nodes of this item carry different triggers (${[...new Set(triggers)].join(' / ')}); a split shares one sentence-initial trigger`;
-    // Every character that is not whitespace or sentence punctuation must be
-    // inside some slice — including one-syllable words (안, 못, 만, 외), digits,
-    // decimals and comparison symbols. Nothing is too small to drop.
-    const missing = [];
-    const re = /[^\s,.;:!?()\[\]{}"'`“”‘’·]+/g;
-    let m;
-    while ((m = re.exec(src)) !== null) {
-        const token = m[0];
-        let ok = true;
-        for (let i = m.index; i < m.index + token.length; i++)
-            if (!covered[i] && !/[.,]/.test(src[i])) {
-                ok = false;
-                break;
-            }
-        if (!ok)
-            missing.push(token);
-    }
-    if (missing.length)
-        return `these source words are in no slice: ${missing.slice(0, 8).join(', ')}${missing.length > 8 ? ', …' : ''}`;
     return undefined;
 }
 /** Share of a span's content that its readings must carry. */
