@@ -19,6 +19,7 @@ export declare function convertDefinitionToOpenSpec(input: {
     reviewNotes?: string[];
     decisionNotes?: string[];
     definitionNotes?: string[];
+    decisionText?: Map<string, string>;
 }): {
     proposal: string;
     spec: string;

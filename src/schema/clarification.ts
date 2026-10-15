@@ -322,14 +322,8 @@ export function mergeReasonIssue(clarification: Pick<Clarification, 'steps' | 'f
     for (let a = 0; a < plain.length; a++) for (let b = a + 1; b < plain.length; b++) {
       const ta = contentTokens(plain[a]!), tb = contentTokens(plain[b]!);
       const shared = [...ta].some(x => [...tb].some(y => x.slice(0, 2) === y.slice(0, 2)));
-      const NEG = /(않|안\s|안됨|안된|못|불가|없|금지|불허|아니|숨|꺼|unavailable|\bnot\b|\bno\b|never|hidden|\boff\b|disabled)/;
-      const na = NEG.test(plain[a]!), nb = NEG.test(plain[b]!);
-      const numsA = (plain[a]!.match(/\d+/g) ?? []).join(','), numsB = (plain[b]!.match(/\d+/g) ?? []).join(',');
-      const ANT: Array<[RegExp, RegExp]> = [[/무료/, /유료/], [/보인다|표시/, /숨|안 보/], [/켜/, /꺼/], [/허용/, /금지|불허/], [/있다/, /없다/], [/가능/, /불가능|불가/], [/available/i, /unavailable/i], [/\bon\b/i, /\boff\b/i], [/enabled/i, /disabled/i]];
-      const antonym = ANT.some(([x, y]) => (x.test(plain[a]!) && y.test(plain[b]!)) || (y.test(plain[a]!) && x.test(plain[b]!)));
-      const differ = na !== nb || (numsA !== numsB && numsA && numsB) || antonym;
       void polarityTokens;
-      if (shared && differ) return `decomposition[${i}] merges two sentences that may contradict each other ("${plain[a]!.slice(0, 25)}…" / "${plain[b]!.slice(0, 25)}…"); read them as separate items so the difference stays visible.`;
+      if (shared && contradictionIssue(plain[a]!, plain[b]!)) return `decomposition[${i}] merges two sentences that may contradict each other ("${plain[a]!.slice(0, 25)}…" / "${plain[b]!.slice(0, 25)}…"); read them as separate items so the difference stays visible.`;
     }
   }
   // A candidate carries the user's sentence it questions, verbatim, so it
@@ -368,6 +362,20 @@ export function mergeReasonIssue(clarification: Pick<Clarification, 'steps' | 'f
  * one-character drops); the only split that loses nothing is the one the
  * user makes by restating the idea in separate sentences (a new intake).
  */
+/** Two sentences on a shared subject that pull apart: negation on one side, different numbers, or an antonym pair. A heuristic, shown to a person — never a proof. */
+export function contradictionIssue(a: string, b: string): string | undefined {
+  const ta = contentTokens(a), tb = contentTokens(b);
+  const shared = [...ta].some(x => [...tb].some(y => x.slice(0, 2) === y.slice(0, 2)));
+  if (!shared) return undefined;
+  const NEG = /(않|안\s|안됨|안된|못|불가|없|금지|불허|아니|숨|꺼|unavailable|\bnot\b|\bno\b|never|cannot|can't|prohibited|forbidden|blocked|hidden|\boff\b|disabled)/i;
+  const na = NEG.test(a), nb = NEG.test(b);
+  const numsA = (a.match(/\d+/g) ?? []).join(','), numsB = (b.match(/\d+/g) ?? []).join(',');
+  const ANT: Array<[RegExp, RegExp]> = [[/무료/, /유료|\d\s*원/], [/보인다|표시/, /숨|안 보/], [/켜/, /꺼|끈/], [/허용/, /금지|불허/], [/있다/, /없다/], [/가능/, /불가능|불가/], [/이내/, /이후/], [/이상/, /이하|미만/], [/전액/, /일부/], [/필수/, /선택|생략/], [/평문/, /암호화/], [/보관/, /삭제/], [/온라인/, /오프라인/], [/적립/, /소멸|차감/], [/available/i, /unavailable/i], [/\bon\b/i, /\boff\b/i], [/enabled/i, /disabled/i]];
+  const antonym = ANT.some(([x, y]) => (x.test(a) && y.test(b)) || (y.test(a) && x.test(b)));
+  if (na !== nb || (numsA !== numsB && numsA && numsB) || antonym) return `"${a.slice(0, 30)}" / "${b.slice(0, 30)}"`;
+  return undefined;
+}
+
 export function sliceIssue(source: string, statements: string[], _segments?: string[]): string | undefined {
   const norm = (t: string) => squash(t).replace(/[.。]$/, '');
   const want = norm(source);

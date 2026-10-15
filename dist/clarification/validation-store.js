@@ -6,6 +6,7 @@ import { validateFindingReferences } from './finding-store.js';
 import { atomicCreateFile } from './io.js';
 import { canonicalJson, sha256Hex } from './hash.js';
 import { policyTextIssue, journeyTextIssue } from './text-rules.js';
+import { contradictionIssue } from '../schema/clarification.js';
 import { currentChallengeInputs, readChallengeRuns, refreshChallengeRun, validateChallengeRunReferences } from './challenge-store.js';
 import { readCurrentFindings, readDecisions, readProposals, readAssumptions, decisionStaleness } from './proposal-decision-store.js';
 import { readApplications, applicationFreshness, readDefinition, readPolicies, readJourneys, validateDefinitionReferences, validatePolicyReferences } from './definition-store.js';
@@ -204,7 +205,7 @@ async function checksFor(root, review) {
                     if (!texts.every(t => sq(got.statement).includes(t)))
                         unpromoted.push(`${key} — its Finding ${got.id} does not quote the sentence verbatim ("${texts[0]?.slice(0, 40)}")`);
                     return;
-                } const decided = got.decision_ref ? sq((decisionsForCandidates.find(d => d.id === got.decision_ref)?.user_statement) ?? '') : ''; const decidedItem = decided !== '' && definition.items.some(i => !i.exclusion && sq(i.text) === decided && !i.provenance.source_refs.some(r => r.kind === 'node') && i.provenance.decision_refs.some(r => r.ref === got.decision_ref)); const carried = texts.length > 0 && (texts.every(t => itemTexts.some(it => it === t)) || decidedItem); if (!carried)
+                } const decided = got.decision_ref ? sq((decisionsForCandidates.find(d => d.id === got.decision_ref)?.user_statement) ?? '') : ''; const decidedItem = decided !== '' && definition.items.some(i => ['functional_requirement', 'nonfunctional_requirement', 'acceptance_criterion'].includes(i.kind) && sq(i.text) === decided && !i.provenance.source_refs.some(r => r.kind === 'node') && i.provenance.decision_refs.some(r => r.ref === got.decision_ref)); const carried = texts.length > 0 && (texts.every(t => itemTexts.some(it => it === t)) || decidedItem); if (!carried)
                     unpromoted.push(`${key} — its Finding is ${got.status}, but neither the sentence (${c.span_refs.join(', ')}) nor the resolving Decision's words are a requirement item verbatim`); });
             }
             catch { }
@@ -344,6 +345,41 @@ async function checksFor(root, review) {
                         }
             }
         // A Node is either a requirement or excluded, never both.
+        // Every current content Decision that closed a Finding is in the product as a requirement sentence of its own; an item never cites a superseded Decision; a Decision sentence cites exactly one Decision.
+        {
+            const sqD = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
+            const supersededIds = new Set(decisions.flatMap(d => d.supersedes_decision_ref ? [d.supersedes_decision_ref] : []));
+            for (const d of decisions) {
+                if (d.decision_type !== 'content_decision' || supersededIds.has(d.id) || staleIds.has(d.id))
+                    continue;
+                const closed = findings.some(f => f.decision_ref === d.id && f.resolution_status !== 'unresolved');
+                if (!closed)
+                    continue;
+                const present = definition.items.some(i => ['functional_requirement', 'nonfunctional_requirement', 'acceptance_criterion'].includes(i.kind) && sqD(i.text) === sqD(d.user_statement) && i.provenance.decision_refs.some(r => r.ref === d.id));
+                if (!present)
+                    add(`decision.in_product.${d.id}`, 'traceability', 'fail', `Decision ${d.id} closed a Finding but its words are no longer a requirement item: "${d.user_statement.slice(0, 50)}"`);
+            }
+            for (const i of definition.items) {
+                const cited = i.provenance.decision_refs.map(r => r.ref);
+                const gone = cited.filter(id => supersededIds.has(id));
+                if (gone.length)
+                    add(`definition.item_decision.${i.id}`, 'traceability', 'fail', `Item ${i.id} cites a superseded Decision: ${gone.join(', ')}`);
+                const isDec = !i.provenance.source_refs.some(r => r.kind === 'node');
+                if (isDec && cited.length > 1)
+                    add(`definition.item_decision.${i.id}`, 'traceability', 'fail', `Item ${i.id} is a Decision's sentence and must cite exactly that one Decision (cites ${cited.length}).`);
+            }
+            // Two requirement sentences that may contradict each other are shown side by side; the user decides which wins (supersede, exclude or restate).
+            const norm = definition.items.filter(i => ['functional_requirement', 'nonfunctional_requirement', 'acceptance_criterion'].includes(i.kind));
+            const pairs = [];
+            for (let a = 0; a < norm.length; a++)
+                for (let b = a + 1; b < norm.length; b++) {
+                    const issue = contradictionIssue(norm[a].text, norm[b].text);
+                    if (issue)
+                        pairs.push(`${norm[a].id} "${sqD(norm[a].text).slice(0, 40)}" ↔ ${norm[b].id} "${sqD(norm[b].text).slice(0, 40)}"`);
+                }
+            if (pairs.length)
+                add('definition.contradiction', 'traceability', 'warn', `Requirement sentences that may contradict each other (read both; the later Decision or an exception should say which wins): ${pairs.join('; ')}`);
+        }
         {
             const both = [...excludedNodes].filter(n => definition.items.some(i => !i.exclusion && i.provenance.source_refs.some(r => r.kind === 'node' && r.ref === n)));
             if (both.length)

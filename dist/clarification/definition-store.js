@@ -528,11 +528,9 @@ export async function resolveFindingsByDecision(root, decisionId, now = new Date
         const sq = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
         const words = sq(decision.user_statement);
         const def = await readDefinition(root);
-        const inItems = def?.items.some(i => !i.exclusion && sq(i.text) === words && i.provenance.decision_refs.some(r => r.ref === decision.id)) ?? false;
-        const inPolicies = (await readPolicies(root)).some(p => p.provenance.decision_refs.some(r => r.ref === decision.id) && [p.context, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)].some(f => sq(f) === words));
-        const inJourneys = (await readJourneys(root)).some(j => j.provenance.decision_refs.some(r => r.ref === decision.id) && [j.goal, ...j.acceptance_criteria].some(f => sq(f) === words));
-        if (!inItems && !inPolicies && !inJourneys)
-            throw new CliError(`Decision ${decision.id} is not in the product yet: its words "${words.slice(0, 50)}" must be a Definition item, a Policy field or a Journey goal citing it before it can close a Finding.`, ExitCode.GATE_BLOCKED);
+        const inItems = def?.items.some(i => ['functional_requirement', 'nonfunctional_requirement', 'acceptance_criterion'].includes(i.kind) && sq(i.text) === words && i.provenance.decision_refs.some(r => r.ref === decision.id)) ?? false;
+        if (!inItems)
+            throw new CliError(`Decision ${decision.id} is not in the product yet: its words "${words.slice(0, 50)}" must be a requirement / acceptance-criterion item citing it (a SHALL in the export) before it can close a Finding.`, ExitCode.GATE_BLOCKED);
     }
     const { findingHistoryEntryHash, findingSchema, parseFinding } = await import('../schema/finding.js');
     const resolved = [];

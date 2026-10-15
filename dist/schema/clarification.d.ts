@@ -272,6 +272,8 @@ export declare function mergeReasonIssue(clarification: Pick<Clarification, 'ste
  * one-character drops); the only split that loses nothing is the one the
  * user makes by restating the idea in separate sentences (a new intake).
  */
+/** Two sentences on a shared subject that pull apart: negation on one side, different numbers, or an antonym pair. A heuristic, shown to a person — never a proof. */
+export declare function contradictionIssue(a: string, b: string): string | undefined;
 export declare function sliceIssue(source: string, statements: string[], _segments?: string[]): string | undefined;
 /**
  * A reading must restate the sentence, not label it. Every number in the

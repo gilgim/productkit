@@ -244,6 +244,32 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(g.check('definition.item_restates')?.status).toBe('fail');
   });
 
+  it('round 12: a Decision that closed a Finding must stay a requirement item; items never cite a superseded Decision; contradictions are shown', async () => {
+    const { contradictionIssue } = await import('../src/schema/clarification.js');
+    for (const [x, y] of [['환불은 구매 후 7일 이내 가능하다.', '환불은 구매 후 7일 이후 가능하다.'], ['배송은 무료다.', '배송은 3,000원이다.'], ['Users can delete posts.', 'Users cannot delete posts.'], ['환불은 전액 돌려준다.', '환불은 일부만 돌려준다.']]) expect(contradictionIssue(x!, y!), `${x} / ${y}`).toBeTruthy();
+    for (const t of ['환불 기간은 잠정 7일이다.', '배송비는 별도 공지한다.', '운영자 판단에 맡긴다.', 'Refund window will be set by ops.']) expect(isUndecided(t), t).toBe(true);
+    for (const t of ['디지털 상품은 해당되지 않는다.', '나머지는 불가하다.', '직원은 면제다.', 'Staff are exempt.', 'This does not apply to staff.']) expect(startsWithException(t), t).toBe(true);
+    // Decision A closed its Finding; a later Definition without A's sentence is caught.
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-r12-'));
+    const w = await buildLeakWorkspace(temp);
+    const { draftApplication, recordApplicationVerification, readDefinition, resolveFindingsByDecision } = await import('../src/clarification/definition-store.js');
+    const { readDecisions } = await import('../src/clarification/proposal-decision-store.js');
+    const decision = (await readDecisions(w.root)).find((d) => d.id === w.decisionId)!;
+    const before = await readDefinition(w.root);
+    const nodeItems = before!.items.map((i) => ({ kind: i.kind, text: i.text, provenance: { source_refs: i.provenance.source_refs.filter((r) => r.kind === 'node').map((r) => ({ kind: r.kind, ref: r.ref })), decision_refs: [{ kind: 'decision', ref: decision.id }] } }));
+    // the Decision's words only as a scope item: not in the product yet
+    const r1 = await draftApplication(w.root, decision.id, { scope: 's', rationale: 'r', definition: { product_name: 'Leak', items: [...nodeItems, { kind: 'scope', text: decision.user_statement, provenance: { source_refs: [], decision_refs: [{ kind: 'decision', ref: decision.id }] } }] } });
+    await recordApplicationVerification(w.root, r1.application.id, { status: 'verified', assessor: 'ai', summary: 'ok', evidence_refs: [], uncertainty: ['synthetic'] });
+    await expect(resolveFindingsByDecision(w.root, decision.id)).rejects.toThrow(/not in the product yet/);
+    const r2 = await draftApplication(w.root, decision.id, { scope: 's', rationale: 'r', definition: { product_name: 'Leak', items: [...nodeItems, { kind: 'functional_requirement', text: decision.user_statement, provenance: { source_refs: [], decision_refs: [{ kind: 'decision', ref: decision.id }] } }] } });
+    await recordApplicationVerification(w.root, r2.application.id, { status: 'verified', assessor: 'ai', summary: 'ok', evidence_refs: [], uncertainty: ['synthetic'] });
+    expect((await resolveFindingsByDecision(w.root, decision.id)).resolved).toContain(w.findingId);
+    const r3 = await draftApplication(w.root, decision.id, { scope: 's', rationale: 'r', definition: { product_name: 'Leak', items: nodeItems } });
+    await recordApplicationVerification(w.root, r3.application.id, { status: 'verified', assessor: 'ai', summary: 'ok', evidence_refs: [], uncertainty: ['synthetic'] });
+    const report = await createValidationReport(w.root);
+    expect(report.checks.find((c) => c.id === `decision.in_product.${decision.id}`)?.status).toBe('fail');
+  });
+
   it('round 10: an exclusion places only the Nodes it cites, and a Node cannot be both excluded and required', async () => {
     // Decision snapshot holds every Node, but the exclusion item cites only NOD-001-2: NOD-001-3/4 are not placed by it.
     const g = await gate({ excludeNodes: ['NOD-001-2'], itemNodes: ['NOD-001-1'] });
