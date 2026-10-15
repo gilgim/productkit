@@ -344,6 +344,8 @@ export function judgeNodeSetCompletion(
   if (restate.length) { reasons.push('restatement_mismatch'); detail.push(...restate); }
   const forbidden = forbiddenTextIssue(canonicalJson(group.nodes.map(n => [n.statement, n.atomicity])));
   if (forbidden) { reasons.push('invalid_reference'); detail.push(`Node text ${forbidden}.`); }
+  const multiline = group.nodes.filter(n => /[\r\n]/.test(n.statement));
+  if (multiline.length) { reasons.push('invalid_reference'); detail.push(`Node statements are one line (a merged item joins its sentences with a space): ${multiline.map(n => n.id).join(', ')}`); }
   const inferred = group.nodes.filter(n => n.origin !== 'source');
   if (inferred.length) { reasons.push('invalid_reference'); detail.push(`Nodes are the user's sentences; origin must be source: ${inferred.map(n => n.id).join(', ')}`); }
   const signalMismatch = group.nodes.filter(n => { const c = computeStructuralSignal(n.statement); return c.conjunction_count !== n.structural_signal.conjunction_count || c.multiple_predicates !== n.structural_signal.multiple_predicates; });

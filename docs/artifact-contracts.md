@@ -88,9 +88,7 @@ steps:
   relation_check_no_items_reason   relation_check가 비어 있으면 필수(검토했는데 없음을 명시)
   counterexample  [{ambiguity, possible_interpretations: []}]
   counterexample_no_items_reason   counterexample이 비어 있으면 필수
-  span_coverage   [{span_ref, disposition: non_requirement, reason}]
-                  decomposition·finding_candidates 어디에도 없는 span의 처분. steps 안에
-                  있으므로 presented_hash에 포함되어 사용자가 같이 확인한다
+  span_coverage   (더 이상 인정하지 않음 — 적으면 거부. Agent 는 어떤 문장도 치울 수 없다)
   interpretation_check:      # 단일 값이 아니라 이력 목록. 과거 항목은 수정하지 않는다
     - id                     IC-001
       presented_statement    CLI가 steps·finding_candidates·Prompt에서 그린 블록과 글자 그대로
@@ -135,9 +133,15 @@ finding_candidates  [{statement, type: ambiguity | contradiction | missing_premi
 - `presented_statement`에 대한 사용자 동의는 의미 보존을 증명하지 않는다.
   사람이 원문과 직접 대조해 확인했다는 기록일 뿐이다 — 이게 유일한 안전장치다.
 - **원문 전수 처리(Constitution 11)**: Prompt의 모든 span은 `decomposition[].span_refs`,
-  `finding_candidates[].span_refs`, `steps.span_coverage` 중 한 곳에 있어야 한다. 하나라도
-  없으면 CLI는 `uncovered_spans`로 `confirmed`를 거부하고 빠진 span id를 나열한다.
-  `span_coverage.reason`이 맞는지는 CLI가 판단하지 않는다 — 빠짐없이 이름을 댔는지만 본다.
+  `finding_candidates[].span_refs` 중 한 곳에 있어야 한다. 하나라도 없으면 CLI는
+  `uncovered_spans`로 `confirmed`를 거부하고 빠진 span id를 나열한다. 글자도 숫자도 없는
+  구조 줄(`---`, `|---|`, `▪`)과 번호 표시(`1.`)만 CLI 가 스스로 제외하고, export 의
+  "Set aside" 목록에 그 줄을 그대로 적는다. 숫자만 있는 줄("0", "100")은 값이라 읽어야 한다.
+  한 항목에 span 은 최대 3개(뒤가 전부 예외 문장이면 예외). 예외 문장(단/다만/예외적으로/
+  그렇지만, 앞에 `-`·`(`·`※` 가 붙어도)은 앞 문장과 한 항목이어야 하고 앞 줄이 제목·다른
+  예외면 묶을 수 없다. 미정·TBD·추후 결정·검토 필요·모르겠다 같은 문장은 질문이라 후보로만
+  간다. 후보 `statement` 는 그 문장을 글자 그대로 포함해야 한다. `definition[].origin:
+  user_stated` 는 term·meaning 이 원문에 그대로 있을 때만 통과한다.
 - `finding_candidates`는 쓰레기통이 아니다. validate의 `source.candidates`는 각 후보가
   `candidate_refs`로 그 후보를 가리키는 **사용자 확인(confirmed) Finding**으로 올라갔는지 본다.
   안 올라간 후보가 하나라도 있으면 readiness가 막힌다.
@@ -474,7 +478,10 @@ Node 배치(Constitution 11): 현재 workspace의 모든 Node는 Definition 항�
 배치로 치지 않고, Finding은 `review_status: confirmed`인 것만 Node를 잡는다. `exclusion` 항목은
 `exclusion.decision_ref`가 현재의 `scope_exclusion` Decision으로 풀려야 하고 `excluded_scope`·
 `impact`·`residual_risk`를 그 Decision과 글자 그대로 같게 적어야 하며, 그 Decision을
-`provenance.decision_refs`에도 둔다. Definition에는 `functional_requirement`·
+`provenance.decision_refs`에도 둔다. `excluded_scope`는 제외되는 Node 문장 그대로(id 순, 띄어쓰기로
+이음)여야 하고, export 의 "Not requirements" 에 그 문장이 나온다. Policy 의 모든 텍스트 필드
+(`context`·`condition_text`·`action`·`outcome`·예외 `statement`)와 Journey 의 `goal`·acceptance
+criterion 은 각각 source Node 문장 그대로여야 한다(`policy.*`·`journey.source.*` FAIL). Definition에는 `functional_requirement`·
 `nonfunctional_requirement`·`acceptance_criterion` 중 하나 이상이 있어야 한다
 (`definition.normative`).
 

@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { promptIntegrityIssue } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { contentTokens, isPureStructure, isQuestion, spanText, startsWithException } from '../clarification/spans.js';
+import { contentTokens, isPureStructure, isQuestion, isUndecided, spanText, startsWithException } from '../clarification/spans.js';
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 const hashHex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 hex digest');
 /**
@@ -279,7 +279,27 @@ export function mergeReasonIssue(clarification, prompt) {
             return `decomposition[${i}] cites ${item.span_refs.length} spans (${item.span_refs.join(', ')}) but gives no merge_reason (6+ characters, 2+ words).`;
     }
     if ((clarification.steps.span_coverage ?? []).length)
-        return `steps.span_coverage is not honoured any more: the agent cannot set a sentence aside. Read every sentence verbatim or raise it as a finding candidate; the CLI sets aside pure structure (separators, bare numbers) itself.`;
+        return `steps.span_coverage is not honoured any more: the agent cannot set a sentence aside. Read every sentence verbatim or raise it as a finding candidate; the CLI sets aside wordless structure lines (separators, bullets, list markers) itself.`;
+    // A merged item is a rule with its exception clauses, or a short run of
+    // lines. Eleven sentences in one item is a reading nobody can check.
+    for (const [i, item] of items.entries()) {
+        if (item.span_refs.length > 3 && !item.span_refs.slice(1).every(id => startsWithException(spanTextById(prompt, id))))
+            return `decomposition[${i}] merges ${item.span_refs.length} spans; an item holds at most 3 spans unless every span after the first is an exception clause (단, 다만, but …).`;
+    }
+    // A candidate carries the user's sentence it questions, verbatim, so it
+    // cannot be a bare label ("모호함") that hides which sentence left.
+    for (const [i, f] of clarification.finding_candidates.entries()) {
+        for (const id of f.span_refs) {
+            const text = squash(spanTextById(prompt, id));
+            if (!squash(f.statement).includes(text))
+                return `finding_candidates[${i}] cites ${id} but its statement does not contain that sentence verbatim ("${text.slice(0, 40)}"); a candidate quotes the sentence it questions.`;
+        }
+    }
+    // "The user said" is checked against what the user wrote.
+    for (const [i, d] of clarification.steps.definition.entries()) {
+        if (d.origin === 'user_stated' && !(squash(prompt.raw_text).includes(squash(d.meaning)) && squash(prompt.raw_text).includes(squash(d.term))))
+            return `definition[${i}] is marked user_stated but "${squash(d.meaning).slice(0, 40)}" is not in the prompt; a definition the user did not write is ai_inferred.`;
+    }
     // "단, …" means nothing away from the sentence it qualifies: it must sit in
     // the same decomposition item as the span before it. A question is never a
     // requirement: it goes to finding_candidates, not into a reading.
@@ -288,12 +308,17 @@ export function mergeReasonIssue(clarification, prompt) {
             const text = spanTextById(prompt, id);
             if (isQuestion(text))
                 return `decomposition[${i}] reads ${id}, which is a question ("${text.slice(0, 30)}…"); a question is raised as a finding candidate, not read as a requirement.`;
+            if (isUndecided(text))
+                return `decomposition[${i}] reads ${id}, which says something is not decided yet ("${text.slice(0, 30)}…"); an undecided point is raised as a finding candidate, not read as a requirement.`;
             if (!startsWithException(text))
                 continue;
             const idx = prompt.spans.findIndex(s => s.id === id);
             const prev = idx > 0 ? prompt.spans[idx - 1].id : undefined;
             if (!prev || !item.span_refs.includes(prev))
                 return `decomposition[${i}] reads ${id} ("${text.slice(0, 30)}…") on its own; an exception clause must be merged with the sentence before it (${prev ?? 'none'}) in one item.`;
+            const prevText = spanTextById(prompt, prev).trim();
+            if (/^#{1,6}\s/.test(prevText) || isPureStructure(prevText) || startsWithException(prevText))
+                return `decomposition[${i}] merges the exception ${id} ("${text.slice(0, 30)}…") with ${prev}, which is a heading or another exception, not the rule it qualifies; ask the user which rule it belongs to (finding candidate).`;
         }
     }
     return undefined;
@@ -333,12 +358,11 @@ export function readingCoverageIssue(clarification, prompt) {
     return undefined;
 }
 /**
- * Every span of the Prompt must land somewhere: in a decomposition statement,
- * in a finding candidate, or in `span_coverage` with a reason (Constitution
- * 11). This is the reverse direction of span_refs: span_refs prove that what
- * was decomposed came from the Prompt; this proves that nothing in the Prompt
- * was silently skipped. The CLI cannot judge whether a `non_requirement`
- * reason is right — only that each skipped span was named and reasoned.
+ * Every span of the Prompt must land somewhere: in a decomposition statement
+ * or in a finding candidate (Constitution 11). This is the reverse direction
+ * of span_refs: span_refs prove that what was decomposed came from the
+ * Prompt; this proves that nothing in the Prompt was silently skipped. Only
+ * wordless structure lines are set aside, by the CLI, and the export lists them.
  */
 export function uncoveredSpans(clarification, prompt) {
     const covered = new Set();

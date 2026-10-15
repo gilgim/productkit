@@ -115,6 +115,12 @@ export async function validateExclusionItems(root, definition) {
         for (const n of targeted)
             if (!snapNodes.has(n))
                 throw new CliError(`Exclusion Decision ${dec.id} did not snapshot Node ${n} that its Finding is about.`, ExitCode.GATE_BLOCKED);
+        // What is excluded is named in the user's own words: excluded_scope is the excluded Nodes' sentences, verbatim.
+        const ws = await loadGraphWorkspace(root);
+        const sq = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
+        const expected = [...targeted].sort().map(n => sq(ws.nodes.get(n)?.node.statement ?? '')).join(' ');
+        if (sq(item.exclusion.excluded_scope) !== expected)
+            throw new CliError(`Exclusion item ${item.id}: excluded_scope must be the excluded Node sentence(s) verbatim ("${expected.slice(0, 60)}"), not "${sq(item.exclusion.excluded_scope).slice(0, 60)}".`, ExitCode.GATE_BLOCKED);
     }
 }
 export async function addJourney(root, value) { const journey = journeySchema.parse(value); if (journey.provenance.source_refs.some(ref => ['policy', 'journey'].includes(ref.kind)))

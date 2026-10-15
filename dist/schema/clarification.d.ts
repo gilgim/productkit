@@ -264,7 +264,7 @@ export declare function renderPresentation(clarification: Pick<Clarification, 's
  */
 /** A reason must say something: not a placeholder, not "x". */
 export declare const isReason: (value: unknown) => value is string;
-export declare function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined;
+export declare function mergeReasonIssue(clarification: Pick<Clarification, 'steps' | 'finding_candidates'>, prompt: Prompt): string | undefined;
 /**
  * A Node is a decomposition item's text — the user's sentence(s), verbatim —
  * and there is exactly one per item. Slicing a sentence into pieces was
@@ -281,12 +281,11 @@ export declare function sliceIssue(source: string, statements: string[], _segmen
  */
 export declare function readingCoverageIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined;
 /**
- * Every span of the Prompt must land somewhere: in a decomposition statement,
- * in a finding candidate, or in `span_coverage` with a reason (Constitution
- * 11). This is the reverse direction of span_refs: span_refs prove that what
- * was decomposed came from the Prompt; this proves that nothing in the Prompt
- * was silently skipped. The CLI cannot judge whether a `non_requirement`
- * reason is right — only that each skipped span was named and reasoned.
+ * Every span of the Prompt must land somewhere: in a decomposition statement
+ * or in a finding candidate (Constitution 11). This is the reverse direction
+ * of span_refs: span_refs prove that what was decomposed came from the
+ * Prompt; this proves that nothing in the Prompt was silently skipped. Only
+ * wordless structure lines are set aside, by the CLI, and the export lists them.
  */
 export declare function uncoveredSpans(clarification: Clarification, prompt: Prompt): string[];
 /**

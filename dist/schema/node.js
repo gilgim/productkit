@@ -280,6 +280,11 @@ export function judgeNodeSetCompletion(group, currentSteps, source) {
         reasons.push('invalid_reference');
         detail.push(`Node text ${forbidden}.`);
     }
+    const multiline = group.nodes.filter(n => /[\r\n]/.test(n.statement));
+    if (multiline.length) {
+        reasons.push('invalid_reference');
+        detail.push(`Node statements are one line (a merged item joins its sentences with a space): ${multiline.map(n => n.id).join(', ')}`);
+    }
     const inferred = group.nodes.filter(n => n.origin !== 'source');
     if (inferred.length) {
         reasons.push('invalid_reference');

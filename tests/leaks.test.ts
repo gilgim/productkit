@@ -12,7 +12,8 @@ import { stringify } from 'yaml';
 import { buildLeakWorkspace, type LeakOptions } from './helpers/leak-workspace.js';
 import { createValidationReport, recordApproval, recordSemanticReview } from '../src/clarification/validation-store.js';
 import { exportOpenSpec } from '../src/clarification/export-store.js';
-import { computeEntryHash, judgeCompletion, renderPresentation } from '../src/schema/clarification.js';
+import { computeEntryHash, judgeCompletion, mergeReasonIssue, renderPresentation } from '../src/schema/clarification.js';
+import { isPureStructure, isQuestion, isUndecided, startsWithException } from '../src/clarification/spans.js';
 import { confirmedFixture, promptFixture, validSteps } from './helpers/gate-fixtures.js';
 
 let temp: string;
@@ -63,7 +64,7 @@ describe('leak regression: source content cannot vanish silently', () => {
     const full = validSteps(['쇼핑몰 앱을 만든다.', '## 카드 결제 지원', '| 환불 | 가능 |', '참고: 배송은 택배']);
     full.decomposition.forEach((d, i) => { d.span_refs = [['SPN-001', 'SPN-002', 'SPN-003', 'SPN-005'][i]!]; });
     const clr = confirmedFixture(full, prompt);
-    const withQ = { ...clr, finding_candidates: [{ statement: '비회원 결제 가능 여부가 질문으로 남아 있다', type: 'ambiguity' as const, span_refs: ['SPN-007'] }] };
+    const withQ = { ...clr, finding_candidates: [{ statement: '비회원도 결제할 수 있나요 — 가능 여부가 질문으로 남아 있다', type: 'ambiguity' as const, span_refs: ['SPN-007'] }] };
     const entry = withQ.interpretation_check[0]!; const { entry_hash: _e, ...base } = entry;
     const re = { ...base, presented_statement: renderPresentation(withQ, prompt) };
     const confirmed = { ...withQ, interpretation_check: [{ ...re, entry_hash: computeEntryHash(re) }] };
@@ -158,11 +159,50 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(report.checks.find((c) => c.id === `semantic.${review.id}`)?.message).toContain('hollow');
   });
 
+  it('round 9: bare numbers are values, not structure; only wordless lines are set aside', () => {
+    expect(isPureStructure('0')).toBe(false); expect(isPureStructure('100')).toBe(false); expect(isPureStructure('30000')).toBe(false);
+    expect(isPureStructure('1.')).toBe(true); expect(isPureStructure('2)')).toBe(true); expect(isPureStructure('|---|---|')).toBe(true);
+    expect(isPureStructure('▪')).toBe(true); expect(isPureStructure('※')).toBe(true); expect(isPureStructure('…')).toBe(true); expect(isPureStructure('?')).toBe(true);
+    expect(isPureStructure('허용')).toBe(false);
+    const prompt = promptFixture('환불 수수료(%)\n0\n환불 가능 기간(일)\n7');
+    const steps = validSteps(['환불 수수료(%)', '환불 가능 기간(일)']);
+    steps.decomposition.forEach((d, i) => { d.span_refs = [['SPN-001', 'SPN-003'][i]!]; });
+    const j = judgeCompletion(confirmedFixture(steps, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) { expect(j.reason).toBe('uncovered_spans'); expect(j.detail).toContain('SPN-002'); expect(j.detail).toContain('SPN-004'); }
+  });
+
+  it('round 9: an exception clause behind a bullet, bracket or mark still needs its rule; undecided points are questions; endings like 하나/일지 are not', () => {
+    for (const t of ['- 단, 구독 상품은 제외한다.', '(단, 법인 카드는 제외한다.)', '※ 다만 제주는 제외한다.', '예외적으로 이벤트 상품은 적립하지 않는다.', '그렇지만 중복 사용은 안 된다.', 'Otherwise guests cannot order.']) expect(startsWithException(t), t).toBe(true);
+    for (const t of ['환불 수수료는 TBD', '배송비는 미정', '쿠폰 중복 사용은 추후 결정', '교환 정책 검토 필요', '(포인트 적립률은 논의 예정)', '회원 등급이 몇 개인지는 정해지지 않았다', '관리자 승인이 필요한 건 어떤 경우인지 알려주세요', '아니 막아야 하나 고민 중', '환불이 가능한지 모르겠다', '비회원 결제 가능 여부 확인 요망']) expect(isUndecided(t), t).toBe(true);
+    for (const t of ['상품은 인당 하나', '쿠폰은 한 번에 하나', '작업일지', '결제는 카드나', '회원이거나']) expect(isQuestion(t), t).toBe(false);
+    const prompt = promptFixture('회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다. 배송비는 미정');
+    const steps = validSteps(['회원은 환불을 요청할 수 있다.', '단, 구독 상품은 제외한다.', '배송비는 미정']);
+    steps.decomposition.forEach((d, i) => { d.span_refs = [`SPN-00${i + 1}`]; });
+    expect(mergeReasonIssue({ steps, finding_candidates: [] }, prompt)).toMatch(/exception clause must be merged/);
+    steps.decomposition = [{ statement: '회원은 환불을 요청할 수 있다. 단, 구독 상품은 제외한다.', span_refs: ['SPN-001', 'SPN-002'], merge_reason: '예외는 규칙과 함께 읽는다' }, { statement: '배송비는 미정', span_refs: ['SPN-003'] }];
+    expect(mergeReasonIssue({ steps, finding_candidates: [] }, prompt)).toMatch(/not decided yet/);
+    // An exception may not be hung on a heading instead of its rule.
+    const p2 = promptFixture('## 비고\n단, 미성년자는 제외한다.');
+    expect(mergeReasonIssue({ steps: { ...steps, decomposition: [{ statement: '## 비고 단, 미성년자는 제외한다.', span_refs: ['SPN-001', 'SPN-002'], merge_reason: '제목 아래의 예외라서 함께 읽음' }] }, finding_candidates: [] }, p2)).toMatch(/heading or another exception/);
+  });
+
+  it('round 9: no merging everything into one item; a candidate quotes its sentence; "user said" must be in the prompt', () => {
+    const prompt = promptFixture('하나. 둘. 셋. 넷.');
+    const all = { statement: '하나. 둘. 셋. 넷.', span_refs: ['SPN-001', 'SPN-002', 'SPN-003', 'SPN-004'], merge_reason: '전부 같은 주제라서' };
+    const steps = validSteps(['하나.']); steps.decomposition = [all];
+    expect(mergeReasonIssue({ steps, finding_candidates: [] }, prompt)).toMatch(/at most 3 spans/);
+    const steps2 = validSteps(['하나.']);
+    expect(mergeReasonIssue({ steps: steps2, finding_candidates: [{ statement: '모호함', type: 'ambiguity', span_refs: ['SPN-002'] }] }, prompt)).toMatch(/does not contain that sentence verbatim/);
+    expect(mergeReasonIssue({ steps: steps2, finding_candidates: [{ statement: '둘. — 무슨 뜻인지 모호함', type: 'ambiguity', span_refs: ['SPN-002'] }] }, prompt)).toBeUndefined();
+    steps2.definition = [{ term: '환불', meaning: '환불은 어떤 경우에도 허용되지 않는다', origin: 'user_stated' }];
+    expect(mergeReasonIssue({ steps: steps2, finding_candidates: [] }, prompt)).toMatch(/marked user_stated/);
+  });
+
   it('finding candidates appear in what the user sees, with their spans', () => {
     const prompt = promptFixture('첫 문장이다. 둘째 문장이다.');
     const steps = validSteps(['첫 문장이다.']);
-    const rendered = renderPresentation({ steps, finding_candidates: [{ statement: '둘째 문장의 주체가 불명확하다', type: 'ambiguity', span_refs: ['SPN-002'] }] }, prompt);
-    expect(rendered).toContain('SPN-002 "둘째 문장이다."\n  → 질문 [Q1] ambiguity: 둘째 문장의 주체가 불명확하다');
+    const rendered = renderPresentation({ steps, finding_candidates: [{ statement: '둘째 문장이다. — 주체가 불명확하다', type: 'ambiguity', span_refs: ['SPN-002'] }] }, prompt);
+    expect(rendered).toContain('SPN-002 "둘째 문장이다."\n  → 질문 [Q1] ambiguity: 둘째 문장이다. — 주체가 불명확하다');
     expect(rendered).toContain('질문으로 남김: 1 건');
   });
 

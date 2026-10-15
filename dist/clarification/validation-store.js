@@ -233,7 +233,17 @@ async function checksFor(root, review) {
             }
             catch { }
         }
-        const forbidden = forbiddenTextIssue(canonicalJson([oneLiners, clrTexts]));
+        const conditionTexts = policiesT.map(p => JSON.stringify(p.condition));
+        const nodeTexts2 = [...workspace.nodes.values()].map(n => n.node.statement);
+        for (const f of await files(path.join(root, 'discovery'))) {
+            try {
+                const clr = parseClarification(await readFile(path.join(root, 'discovery', f), 'utf8'));
+                nodeTexts2.push(...clr.steps.decomposition.map(d => d.statement));
+            }
+            catch { }
+        }
+        oneLiners.push(...nodeTexts2);
+        const forbidden = forbiddenTextIssue(canonicalJson([oneLiners, clrTexts, conditionTexts]));
         if (forbidden)
             add('text.forbidden', 'structure', 'fail', `Artifact text ${forbidden}.`);
         const broken = [...oneLiners, ...clrTexts].find(t => multilineIssue(t));
@@ -403,9 +413,13 @@ async function checksFor(root, review) {
         {
             const sqj = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
             const fields = [j.goal, ...j.acceptance_criteria].map(sqj);
+            const nodeTexts = j.provenance.source_refs.filter(r => r.kind === 'node').map(r => sqj(workspace.nodes.get(r.ref)?.node.statement ?? ''));
             const missingNode = j.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !fields.includes(sqj(t)); });
+            const invented = fields.filter(f => f && !nodeTexts.includes(f));
             if (missingNode.length)
                 add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id}: each source Node's sentence must be a whole goal or acceptance criterion, not inside other text: ${missingNode.join(', ')}`);
+            else if (invented.length)
+                add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id}: goal and every acceptance criterion must be one of its source Nodes' sentences verbatim; these are not: ${invented.map(f => `"${f.slice(0, 40)}"`).join(', ')}`);
         }
         const states = new Set(j.states);
         const reachable = new Set([j.entry_state]);
@@ -442,9 +456,15 @@ async function checksFor(root, review) {
             await validatePolicyReferences(root, p);
             const sqp = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
             const fields = [p.context, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)].map(sqp);
+            const nodeTexts = p.provenance.source_refs.filter(r => r.kind === 'node').map(r => sqp(workspace.nodes.get(r.ref)?.node.statement ?? ''));
             const missingNode = p.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !fields.includes(sqp(t)); });
+            const invented = fields.filter(f => f && !nodeTexts.includes(f));
             if (missingNode.length)
                 add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: each source Node's sentence must appear as a whole field (context/condition_text/action/outcome/exception), not inside other text: ${missingNode.join(', ')}`);
+            else if (invented.length)
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: every text field must be one of its source Nodes' sentences verbatim; these are not: ${invented.map(f => `"${f.slice(0, 40)}"`).join(', ')}`);
+            else if (p.priority && !(await readDecisions(root)).some(d => d.id === p.priority.decision_ref))
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id} priority cites a Decision that does not exist: ${p.priority.decision_ref}`);
             else
                 add(`policy.${p.id}`, 'policy', 'pass', `Policy ${p.id} structure and provenance are valid and it carries its source Node text; semantics remain subject to review.`);
         }

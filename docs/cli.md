@@ -166,7 +166,7 @@ Journey는 만들지 않는다.
 
 ### `productkit clarify`
 
-Prompt의 모든 span이 `decomposition`·`finding_candidates`·`steps.span_coverage` 중 한
+Prompt의 모든 span이 `decomposition`·`finding_candidates` 중 한
 곳에 있어야 완료다. 빠진 span은 `uncovered_spans`로 나열한다. 사용자에게 보여줄 문장은
 CLI가 그린다(`Show the user` 블록): 원문 → 해석 쌍, 요구사항 아님 목록, 질문 후보 목록.
 `interpretation_check`의 `presented_statement`는 이 블록과 글자 그대로 같아야 한다.

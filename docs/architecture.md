@@ -267,7 +267,7 @@ Definition은 초안을 작성할 수 있지만, Gate 통과 전에는 확정된
 | 필수 제품 정의 자체가 비어 있음 | FAIL |
 | 요구사항·Acceptance Criteria 항목이 하나도 없음 | FAIL |
 | intake된 Prompt 중 confirmed Clarification·modeled NodeGroup에 못 미친 것 | FAIL |
-| Clarification이 Prompt span을 빠뜨림(분해·finding 후보·span_coverage 어디에도 없음) | FAIL (clarify 단계) |
+| Clarification이 Prompt span을 빠뜨림(분해·finding 후보 어디에도 없음) | FAIL (clarify 단계) |
 | Definition·제외 Decision·unresolved Finding 어디에도 없는 Node | FAIL |
 | exclusion 항목의 Decision이 없거나 current가 아니거나 내용이 다름 | FAIL |
 | reviewed로 표시했는데 evidence_refs가 비었거나 skill 파일만 인용(semantic review·ChallengeRun) | FAIL |

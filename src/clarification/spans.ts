@@ -90,13 +90,19 @@ export function isStructuralSpan(text: string): boolean {
 /** A question: a question mark anywhere, or a Korean interrogative ending (할까, 하나요, 할지, 인가요 …). */
 export function isQuestion(text: string): boolean {
   const t = text.trim().replace(/[\s.。!！)\]”"'’]+$/, '');
-  return /[?？]/.test(text) || /(까|나요|가요|ㄴ가요|인가|인가요|한가|는가|던가|려나|으려나|할지|일지|ㄹ지|을지|습니까|ㅂ니까|합니까|있나|없나|되나|하나|할까요|나)$/.test(t);
+  return /[?？]/.test(text) || /(까|나요|가요|ㄴ가요|인가|인가요|한가|는가|던가|려나|으려나|할지|될지|을지|인지|습니까|ㅂ니까|합니까|있나|없나|되나|할까요)$/.test(t);
+}
+
+/** Something the user has not decided: "TBD", "미정", "추후 결정", "검토 필요", "모르겠다", "고민 중" … It is a question in disguise and goes to finding_candidates. */
+export function isUndecided(text: string): boolean {
+  return /(\bTBD\b|\bTBC\b|미정|미확정|추후\s*결정|추후\s*확정|나중에\s*결정|검토\s*필요|검토\s*중|검토\s*예정|논의\s*필요|논의\s*중|논의\s*예정|정해지지\s*않|정하지\s*않|확정되지\s*않|결정되지\s*않|모르겠|고민\s*중|확인\s*요망|확인\s*필요|확인\s*바람|알려\s*주세요|알려\s*줘|undecided|to be (decided|determined|confirmed)|not (yet )?(decided|sure|determined|confirmed)|pending decision|open question|unclear|unknown)/i.test(text);
 }
 
 /** Pure structure: a line with no words of its own — a table separator, a bare list number or bullet, a bare heading mark. The CLI sets these aside itself; nothing else can be set aside. */
 export function isPureStructure(text: string): boolean {
   const t = text.trim();
-  return t === '' || /^\|?[\s|:\-=]+\|?$/.test(t) || /^\d{1,3}[.)]?$/.test(t) || /^[-*+•]$/.test(t) || /^#{1,6}$/.test(t) || /^[-=_*]{3,}$/.test(t);
+  // A bare number is a value the user wrote ("0", "7", "100"), never structure; only a numbered-list marker ("1.", "2)") is.
+  return t === '' || !/[\p{L}\p{N}]/u.test(t) || /^\d{1,3}[.)]$/.test(t);
 }
 
 /** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
@@ -135,7 +141,8 @@ export function endsWithConnective(text: string): boolean {
 
 /** "단, …", "다만 …", "but …": an exception that only means something next to its rule. */
 export function startsWithException(text: string): boolean {
-  return /^(단[,、\s]|다만[,\s]|단지[,\s]|예외로|그러나|하지만|but\b|except\b|unless\b|however\b)/i.test(text.trim());
+  const t = text.trim().replace(/^[\s\-*+•▪※■◦·(\[【「『"'“‘]+/, '').replace(/^#{1,6}\s*/, '');
+  return /^(단[,、\s]|다만[,\s]|단지[,\s]|예외로|예외적으로|예외는|그러나|하지만|그렇지만|그런데|다만|but\b|except\b|unless\b|however\b|otherwise\b|although\b|though\b)/i.test(t);
 }
 
 /** Length of the longest common subsequence of two token lists. */

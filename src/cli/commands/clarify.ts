@@ -53,7 +53,7 @@ const REASON_MESSAGES: Record<CompletionBlockReason, string> = {
     'without saying why.',
   uncovered_spans:
     'Some Prompt spans are not accounted for. Every span must be decomposed, raised as a ' +
-    'finding candidate, or listed in steps.span_coverage as non_requirement with a reason.',
+    'finding candidate. Only wordless structure lines (separators, bullets, list markers) are set aside, by the CLI itself.',
   no_confirmation: 'No interpretation_check entry yet — nothing has been confirmed.',
   not_agreed: 'The latest interpretation_check entry is not "agreed".',
   missing_user_statement: 'The latest interpretation_check entry has no user_statement.',
@@ -179,7 +179,7 @@ export async function runClarify(options: ClarifyOptions, output: Output): Promi
     output.out(`  Instruction: ${instructionPath}`);
     output.out(`  Write to:    ${path.relative(cwd, clarificationPath)}`);
     output.out('  Completion contract: all steps need outputs; empty relation/counterexample lists need reviewed-no-items reasons.');
-    output.out(`  Span coverage: all ${sourcePrompt.spans.length} Prompt spans must be decomposed, raised as finding candidates, or dispositioned in steps.span_coverage.`);
+    output.out(`  Span coverage: all ${sourcePrompt.spans.length} Prompt spans must be read verbatim (decomposition) or raised as finding candidates; nothing is set aside by the agent.`);
     output.out('  Shape: productkit schema clarification');
     output.out('  Spans:');
     for (const span of sourcePrompt.spans) output.out(`    ${span.id}  "${sourcePrompt.raw_text.slice(span.start, span.end).replace(/\s+/g, ' ').trim()}"`);

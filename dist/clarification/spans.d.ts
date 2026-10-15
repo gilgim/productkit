@@ -27,6 +27,8 @@ export declare function polarityTokens(text: string): string[];
 export declare function isStructuralSpan(text: string): boolean;
 /** A question: a question mark anywhere, or a Korean interrogative ending (할까, 하나요, 할지, 인가요 …). */
 export declare function isQuestion(text: string): boolean;
+/** Something the user has not decided: "TBD", "미정", "추후 결정", "검토 필요", "모르겠다", "고민 중" … It is a question in disguise and goes to finding_candidates. */
+export declare function isUndecided(text: string): boolean;
 /** Pure structure: a line with no words of its own — a table separator, a bare list number or bullet, a bare heading mark. The CLI sets these aside itself; nothing else can be set aside. */
 export declare function isPureStructure(text: string): boolean;
 /** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
