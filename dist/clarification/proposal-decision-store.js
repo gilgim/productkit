@@ -1,0 +1,190 @@
+import { mkdir, readFile, readdir } from 'node:fs/promises';
+import path from 'node:path';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { CliError, ExitCode } from '../errors.js';
+import { readAttestationPolicy } from './workspace.js';
+import { createProposal, parseProposal } from '../schema/proposal.js';
+import { createDecision, parseDecision } from '../schema/decision.js';
+import { findingContentHash, parseFinding, toFindingInput } from '../schema/finding.js';
+import { atomicCreateFile, atomicReplaceIfUnchanged } from './io.js';
+import { currentChallengeInputs } from './challenge-store.js';
+import { createAssumption, assumptionSchema, transitionAssumption } from '../schema/assumption.js';
+const proposalsDir = (root) => path.join(root, 'proposals');
+const decisionsDir = (root) => path.join(root, 'decisions');
+const assumptionsDir = (root) => path.join(root, 'assumptions');
+async function files(dir) { try {
+    return (await readdir(dir)).filter(f => f.endsWith('.yaml')).sort();
+}
+catch (e) {
+    if (e.code === 'ENOENT')
+        return [];
+    throw e;
+} }
+export async function readProposals(root) { const out = []; for (const f of await files(proposalsDir(root))) {
+    const p = parseProposal(await readFile(path.join(proposalsDir(root), f), 'utf8'));
+    if (`${p.id}.yaml` !== f)
+        throw new CliError(`Proposal filename does not match ID: ${f}`, ExitCode.GATE_BLOCKED);
+    out.push(p);
+} return out; }
+export async function readDecisions(root) { const out = []; for (const f of await files(decisionsDir(root))) {
+    const d = parseDecision(await readFile(path.join(decisionsDir(root), f), 'utf8'));
+    if (`${d.id}.yaml` !== f)
+        throw new CliError(`Decision filename does not match ID: ${f}`, ExitCode.GATE_BLOCKED);
+    out.push(d);
+} return out; }
+export async function readAssumptions(root) { const out = []; for (const f of await files(assumptionsDir(root))) {
+    const value = assumptionSchema.parse(parseYaml(await readFile(path.join(assumptionsDir(root), f), 'utf8')));
+    if (`${value.id}.yaml` !== f)
+        throw new CliError(`Assumption filename does not match ID: ${f}`, ExitCode.GATE_BLOCKED);
+    out.push(value);
+} return out; }
+export async function readCurrentFindings(root) { const out = []; for (const f of await files(path.join(root, 'findings'))) {
+    out.push(parseFinding(await readFile(path.join(root, 'findings', f), 'utf8')));
+} return out; }
+function verifyProposalFindings(proposal, findings) { for (const ref of proposal.finding_refs) {
+    const f = findings.find(x => x.id === ref.finding_ref);
+    if (!f)
+        throw new CliError(`Proposal references missing Finding ${ref.finding_ref}.`, ExitCode.GATE_BLOCKED);
+    if (f.review_status !== 'confirmed')
+        throw new CliError(`Finding ${f.id} must be user-confirmed before Proposal creation.`, ExitCode.GATE_BLOCKED);
+    if (findingContentHash(toFindingInput(f)) !== ref.claim_hash)
+        throw new CliError(`Finding ${f.id} hash is stale.`, ExitCode.GATE_BLOCKED);
+} }
+async function verifySnapshot(root, refs) {
+    const current = await currentChallengeInputs(root);
+    const index = new Map(current.inputs.map(i => [`${i.kind}:${i.ref}`, i.content_hash]));
+    for (const proposal of await readProposals(root))
+        index.set(`proposal:${proposal.id}`, proposal.claim_hash);
+    for (const ref of refs) {
+        const key = `${ref.kind}:${ref.ref}`;
+        const actual = index.get(key);
+        if (!actual)
+            throw new CliError(`Proposal/Decision input does not resolve: ${key}.`, ExitCode.GATE_BLOCKED);
+        if (actual !== ref.content_hash)
+            throw new CliError(`Stale input snapshot ${key}.`, ExitCode.GATE_BLOCKED);
+    }
+}
+async function verifyTargetCandidates(root, refs) { const current = await currentChallengeInputs(root); const index = new Map(current.inputs.map(i => [`${i.kind}:${i.ref}`, i.content_hash])); for (const ref of refs) {
+    const actual = index.get(`${ref.kind}:${ref.ref}`);
+    if (actual && actual !== ref.content_hash)
+        throw new CliError(`Stale proposed target ${ref.kind}:${ref.ref}.`, ExitCode.GATE_BLOCKED);
+    if (!actual && ref.kind !== 'policy')
+        throw new CliError(`Proposed target does not resolve: ${ref.kind}:${ref.ref}.`, ExitCode.GATE_BLOCKED);
+} }
+export async function addProposal(root, input) { const proposal = createProposal(input); const findings = await readCurrentFindings(root); verifyProposalFindings(proposal, findings); await verifySnapshot(root, [...proposal.input_snapshot, ...proposal.options.flatMap(o => o.evidence_refs)]); for (const option of proposal.options)
+    await verifyTargetCandidates(root, option.target_candidates); const proposals = await readProposals(root); if (input.supersedes_proposal_ref && !proposals.some(p => p.id === input.supersedes_proposal_ref))
+    throw new CliError(`Superseded Proposal ${input.supersedes_proposal_ref} does not exist.`, ExitCode.GATE_BLOCKED); const dir = proposalsDir(root); await mkdir(dir, { recursive: true }); const file = path.join(dir, `${proposal.id}.yaml`); if (await atomicCreateFile(file, stringifyYaml(proposal)))
+    return { proposal, created: true }; const existing = parseProposal(await readFile(file, 'utf8')); if (existing.claim_hash !== proposal.claim_hash)
+    throw new CliError(`Proposal ID collision: ${proposal.id}`, ExitCode.GATE_BLOCKED); return { proposal: existing, created: false }; }
+export async function addDecision(root, input) {
+    const decision = createDecision(input);
+    const policy = await readAttestationPolicy(root);
+    if (policy.policy === 'tty' && decision.attestation !== 'tty')
+        throw new CliError('This workspace requires the user statement to be typed on a terminal (config attestation: tty).', ExitCode.GATE_BLOCKED, ['Run `productkit decide record --input <yaml> --rationale <r> --scope <s>` without --user-statement, in a terminal, and type the statement when asked.', 'An agent cannot do this step; hand the command to the user.']);
+    const findings = await readCurrentFindings(root);
+    await verifySnapshot(root, decision.input_snapshot);
+    for (const ref of decision.finding_refs) {
+        const f = findings.find(x => x.id === ref.finding_ref);
+        if (!f)
+            throw new CliError(`Decision references missing Finding ${ref.finding_ref}.`, ExitCode.GATE_BLOCKED);
+        if (f.review_status !== 'confirmed')
+            throw new CliError(`Finding ${f.id} must be confirmed before Decision.`, ExitCode.GATE_BLOCKED);
+        if (findingContentHash(toFindingInput(f)) !== ref.claim_hash)
+            throw new CliError(`Finding ${f.id} hash is stale.`, ExitCode.GATE_BLOCKED);
+    }
+    const selection = decision.selection;
+    if (selection.kind === 'proposal_option') {
+        const proposal = (await readProposals(root)).find(p => p.id === selection.proposal_ref);
+        if (!proposal)
+            throw new CliError(`Decision references missing Proposal ${selection.proposal_ref}.`, ExitCode.GATE_BLOCKED);
+        verifyProposalFindings(proposal, findings);
+        await verifySnapshot(root, [...proposal.input_snapshot, ...proposal.options.flatMap(o => o.evidence_refs)]);
+        for (const option of proposal.options)
+            await verifyTargetCandidates(root, option.target_candidates);
+        if (proposal.status !== 'pending')
+            throw new CliError('Proposal is not selectable.', ExitCode.GATE_BLOCKED);
+        const option = proposal.options.find(o => o.id === selection.option_ref);
+        if (!option)
+            throw new CliError(`Unknown option ${selection.option_ref}.`, ExitCode.GATE_BLOCKED);
+        for (const ref of decision.finding_refs)
+            if (!proposal.finding_refs.some(f => f.finding_ref === ref.finding_ref && f.claim_hash === ref.claim_hash))
+                throw new CliError(`Proposal does not cover Finding ${ref.finding_ref}.`, ExitCode.GATE_BLOCKED);
+    }
+    const decisions = await readDecisions(root);
+    const same = decisions.find(d => d.id === decision.id);
+    if (same) {
+        if (same.decision_hash !== decision.decision_hash)
+            throw new CliError(`Decision ID collision: ${decision.id}`, ExitCode.GATE_BLOCKED);
+        return { decision: same, created: false };
+    }
+    const supersededIds = new Set(decisions.flatMap(d => d.supersedes_decision_ref ? [d.supersedes_decision_ref] : []));
+    const active = decisions.filter(d => !supersededIds.has(d.id));
+    const superseded = input.supersedes_decision_ref ? active.find(d => d.id === input.supersedes_decision_ref) : undefined;
+    if (input.supersedes_decision_ref && !superseded)
+        throw new CliError(`Superseded Decision ${input.supersedes_decision_ref} does not exist or is already superseded.`, ExitCode.GATE_BLOCKED);
+    const targetIds = new Set(decision.finding_refs.map(f => f.finding_ref));
+    if (superseded && superseded.finding_refs.some(f => !targetIds.has(f.finding_ref)))
+        throw new CliError('A superseding Decision must retain every Finding target from the prior Decision.', ExitCode.GATE_BLOCKED);
+    for (const prior of active) {
+        if (prior.id === decision.id)
+            continue;
+        const overlap = prior.finding_refs.some(f => targetIds.has(f.finding_ref));
+        if (overlap && prior.id !== input.supersedes_decision_ref)
+            throw new CliError(`Overlapping Decision ${prior.id} exists; explicitly supersede it.`, ExitCode.GATE_BLOCKED);
+    }
+    const dir = decisionsDir(root);
+    await mkdir(dir, { recursive: true });
+    const file = path.join(dir, `${decision.id}.yaml`);
+    if (await atomicCreateFile(file, stringifyYaml(decision)))
+        return { decision, created: true };
+    const existing = parseDecision(await readFile(file, 'utf8'));
+    if (existing.decision_hash !== decision.decision_hash)
+        throw new CliError(`Decision ID collision: ${decision.id}`, ExitCode.GATE_BLOCKED);
+    return { decision: existing, created: false };
+}
+export async function decisionStaleness(root) {
+    const decisions = await readDecisions(root);
+    const proposals = await readProposals(root);
+    const findings = await readCurrentFindings(root);
+    const current = await currentChallengeInputs(root);
+    const hashes = new Map(current.inputs.map(i => [`${i.kind}:${i.ref}`, i.content_hash]));
+    for (const proposal of proposals)
+        hashes.set(`proposal:${proposal.id}`, proposal.claim_hash);
+    const output = [];
+    for (const decision of decisions) {
+        const reasons = [];
+        for (const ref of decision.finding_refs) {
+            const finding = findings.find(f => f.id === ref.finding_ref);
+            if (!finding || findingContentHash(toFindingInput(finding)) !== ref.claim_hash)
+                reasons.push(`finding:${ref.finding_ref} changed or missing`);
+        }
+        for (const ref of decision.input_snapshot)
+            if (hashes.get(`${ref.kind}:${ref.ref}`) !== ref.content_hash)
+                reasons.push(`${ref.kind}:${ref.ref} changed or missing`);
+        const selection = decision.selection;
+        if (selection.kind === 'proposal_option') {
+            const proposal = proposals.find(p => p.id === selection.proposal_ref);
+            if (!proposal)
+                reasons.push(`proposal:${selection.proposal_ref} missing`);
+            else {
+                if (!proposal.options.some(o => o.id === selection.option_ref))
+                    reasons.push(`option:${selection.option_ref} missing`);
+                for (const ref of proposal.input_snapshot)
+                    if (hashes.get(`${ref.kind}:${ref.ref}`) !== ref.content_hash)
+                        reasons.push(`${ref.kind}:${ref.ref} changed since Proposal`);
+            }
+        }
+        if (reasons.length)
+            output.push({ decision, reasons });
+    }
+    return output;
+}
+export async function addAssumption(root, input) { const assumption = createAssumption(input); const findings = await readCurrentFindings(root); const finding = findings.find(f => f.id === assumption.finding_ref); if (!finding || findingContentHash(toFindingInput(finding)) !== assumption.finding_hash)
+    throw new CliError('Assumption Finding reference/hash is missing or stale.', ExitCode.GATE_BLOCKED); await verifySnapshot(root, assumption.evidence_refs); const dir = assumptionsDir(root); await mkdir(dir, { recursive: true }); const file = path.join(dir, `${assumption.id}.yaml`); if (await atomicCreateFile(file, stringifyYaml(assumption)))
+    return { assumption, created: true }; const existing = assumptionSchema.parse(parseYaml(await readFile(file, 'utf8'))); if (existing.fingerprint !== assumption.fingerprint)
+    throw new CliError(`Assumption ID collision: ${assumption.id}`, ExitCode.GATE_BLOCKED); return { assumption: existing, created: false }; }
+export async function updateAssumptionStatus(root, id, next, decisionRef, rationale) { const file = path.join(assumptionsDir(root), `${id}.yaml`); const before = await readFile(file, 'utf8'); const current = assumptionSchema.parse(parseYaml(before)); const findings = await readCurrentFindings(root); const finding = findings.find(f => f.id === current.finding_ref); if (!finding || findingContentHash(toFindingInput(finding)) !== current.finding_hash)
+    throw new CliError('Assumption Finding is stale.', ExitCode.GATE_BLOCKED); const decisions = await readDecisions(root); const decision = decisions.find(d => d.id === decisionRef); if (!decision || !decision.finding_refs.some(f => f.finding_ref === current.finding_ref && f.claim_hash === current.finding_hash) || decisions.some(d => d.supersedes_decision_ref === decisionRef))
+    throw new CliError('Assumption status requires a current active explicit Decision targeting its Finding.', ExitCode.GATE_BLOCKED); if ((await decisionStaleness(root)).some(x => x.decision.id === decisionRef))
+    throw new CliError('Assumption Decision is stale and cannot change status.', ExitCode.GATE_BLOCKED); const updated = transitionAssumption(current, next, decisionRef, rationale); await atomicReplaceIfUnchanged(file, before, stringifyYaml(updated)); return updated; }
+//# sourceMappingURL=proposal-decision-store.js.map

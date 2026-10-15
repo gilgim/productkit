@@ -1,0 +1,44 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import { CliError, ExitCode } from '../../errors.js';
+import { ensureWorkspace, readStatementFromTerminal } from '../../clarification/workspace.js';
+import { addDecision, addProposal, decisionStaleness, readDecisions, readProposals } from '../../clarification/proposal-decision-store.js';
+import { decisionInputSchema } from '../../schema/decision.js';
+import { proposalInputSchema } from '../../schema/proposal.js';
+import { assumptionInputSchema } from '../../schema/assumption.js';
+import { addAssumption, updateAssumptionStatus } from '../../clarification/proposal-decision-store.js';
+function required(value, name) { if (!value?.trim())
+    throw new CliError(`${name} is required.`, ExitCode.USAGE_OR_IO); return value.trim(); }
+function exactStatement(value) { if (!value || !value.trim())
+    throw new CliError('--user-statement is required.', ExitCode.USAGE_OR_IO); return value; }
+export function registerProposalDecisionCommands(program, output) {
+    const propose = program.command('propose').description('record a set of alternatives for confirmed Findings (no LLM invocation)');
+    propose.command('add').requiredOption('--input <yaml>').description('validate and store a Proposal input YAML').action(async (opts) => { const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const input = proposalInputSchema.parse(parseYaml(await readFile(path.resolve(opts.input), 'utf8'))); const result = await addProposal(root, input); output.out(`${result.created ? 'Created' : 'Existing'} Proposal ${result.proposal.id} (${result.proposal.options.length} alternatives; pending).`); output.out('AI recommendation, if present, is not a user selection.'); });
+    propose.command('validate').argument('<file>').description('validate a Proposal input without writing').action(async (file) => { proposalInputSchema.parse(parseYaml(await readFile(path.resolve(file), 'utf8'))); output.out('Proposal structure: PASS. Current workspace references were not checked.'); });
+    const decide = program.command('decide').description('record explicit user choices as pending application; never applies or resolves Findings');
+    decide.command('record').requiredOption('--input <yaml>').option('--user-statement <text>', 'the user\'s words; omit it to type them on the terminal (required when config attestation is tty)').requiredOption('--rationale <text>').requiredOption('--scope <text>').description('record the user response and validate current Finding/Proposal references').action(async (opts) => {
+        const root = path.join(process.cwd(), 'product');
+        await ensureWorkspace(root);
+        const raw = parseYaml(await readFile(path.resolve(opts.input), 'utf8'));
+        // No flag → read from the controlling terminal, which an agent does not have.
+        const attestation = opts.userStatement === undefined ? 'tty' : 'flag';
+        const statement = opts.userStatement ?? await readStatementFromTerminal(`Record a Decision from ${path.basename(opts.input)} (scope: ${opts.scope}).\nType the user's statement and press Enter (empty cancels): `);
+        const input = decisionInputSchema.parse({ ...raw, user_statement: exactStatement(statement), rationale: required(opts.rationale, '--rationale'), scope: required(opts.scope, '--scope'), attestation });
+        const result = await addDecision(root, input);
+        output.out(`${result.created ? 'Recorded' : 'Existing'} Decision ${result.decision.id}: pending_application.`);
+        output.out('No Finding status or Product Definition was changed.');
+        output.out('The CLI validates record structure and hashes; it cannot authenticate who spoke or prove semantic correctness.');
+    });
+    decide.command('validate').argument('<file>').requiredOption('--user-statement <text>').requiredOption('--rationale <text>').requiredOption('--scope <text>').description('validate a Decision input without writing').action(async (file, opts) => { const raw = parseYaml(await readFile(path.resolve(file), 'utf8')); decisionInputSchema.parse({ ...raw, user_statement: exactStatement(opts.userStatement), rationale: required(opts.rationale, '--rationale'), scope: required(opts.scope, '--scope') }); output.out('Decision structure: PASS. User identity and statement authenticity are not verified.'); });
+    decide.command('status').description('report recorded Proposal/Decision counts and stale Decision inputs').action(async () => { const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const proposals = await readProposals(root); const decisions = await readDecisions(root); const superseded = new Set(decisions.flatMap(d => d.supersedes_decision_ref ? [d.supersedes_decision_ref] : [])); const active = decisions.filter(d => !superseded.has(d.id)); const stale = await decisionStaleness(root); output.out(`Proposal(s): ${proposals.length}; active Decision(s): ${active.length} pending application.`); for (const id of superseded)
+        output.out(`SUPERSEDED ${id}: retained in history.`); for (const item of stale)
+        output.out(`STALE ${item.decision.id}: ${item.reasons.join('; ')}`); output.out('This structural status does not establish semantic correctness or user identity.'); if (stale.length)
+        throw new CliError(`Found ${stale.length} stale Decision(s).`, ExitCode.GATE_BLOCKED); output.out('Decision snapshot validation: PASS.'); });
+    const assumption = program.command('assumption').description('record and track assumptions tied to Findings and Decisions');
+    assumption.command('add').requiredOption('--input <yaml>').description('record an unverified assumption').action(async (opts) => { const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const value = assumptionInputSchema.parse(parseYaml(await readFile(path.resolve(opts.input), 'utf8'))); const result = await addAssumption(root, value); output.out(`${result.created ? 'Created' : 'Existing'} Assumption ${result.assumption.id}: unverified.`); });
+    assumption.command('transition').argument('<id>').requiredOption('--status <status>').requiredOption('--decision <id>').requiredOption('--rationale <text>').description('record a Decision-backed assumption status').action(async (id, opts) => { if (!['verified', 'disproven', 'accepted_risk'].includes(opts.status))
+        throw new CliError('Status must be verified, disproven, or accepted_risk.', ExitCode.USAGE_OR_IO); const updated = await updateAssumptionStatus(path.join(process.cwd(), 'product'), id, opts.status, opts.decision, required(opts.rationale, '--rationale')); output.out(`Assumption ${updated.id}: ${updated.status} (Decision ${updated.decision_ref}).`); if (updated.status === 'accepted_risk')
+        output.out('Accepted risk remains unverified; it is not marked verified.'); });
+}
+//# sourceMappingURL=proposal-decision.js.map

@@ -39,9 +39,11 @@ ProductKit은 아이디어와 명세 사이에 안전장치를 둔다.
 Node.js 20.19 이상과 Git이 필요하다.
 
 ```bash
-npm install --global "git+https://github.com/gilgim/productkit.git#v0.1.0-beta.1"
-productkit --version        # 0.1.0-beta.1
+npm install --global "git+https://github.com/gilgim/productkit.git#v0.1.0-beta.2"
+productkit --version        # 0.1.0-beta.2
 ```
+
+설치가 끝이다. 설치하면서 Agent Skill 이 `~/.claude/skills` 와 `~/.agents/skills` 에 같이 복사되므로, Claude Code 나 Codex 를 다시 켜면 어느 프로젝트에서든 에이전트가 ProductKit 을 안다. 내 컴퓨터에서 빌드하는 단계는 없다 — `dist/` 가 저장소에 들어 있다.
 
 > npm 레지스트리의 `productkit` 이름은 다른 프로젝트가 쓰고 있어서, 위처럼 GitHub 태그로 설치한다.
 

@@ -15,11 +15,11 @@ Company users must use the company-approved GitHub identity, repository access r
 Authenticate to GitHub with the approved method, then install the tag:
 
 ```sh
-npm install --global "git+https://github.com/gilgim/productkit.git#v0.1.0-beta.1"
+npm install --global "git+https://github.com/gilgim/productkit.git#v0.1.0-beta.2"
 productkit --version
 ```
 
-The expected version output is `0.1.0-beta.1`. The package's `prepare` script compiles TypeScript during npm's Git dependency packaging step; the installed package contains the compiled CLI and Skills, but not development dependencies. The Git install requires npm and Git to be able to access the repository.
+The expected version output is `0.1.0-beta.2`. The compiled `dist/` is committed, so a git install needs no build step and no dev dependencies; `prepare` compiles only when `dist/` is missing. The package's `prepare` script compiles TypeScript during npm's Git dependency packaging step; the installed package contains the compiled CLI and Skills, but not development dependencies. The Git install requires npm and Git to be able to access the repository.
 
 To update, install the next approved tag explicitly using the same command and replace the tag. To roll back, install a previously approved tag the same way. Avoid an unpinned branch URL for repeatable environments.
 

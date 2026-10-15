@@ -1,0 +1,817 @@
+import { z } from 'zod';
+export declare const productArtifactRefSchema: z.ZodObject<{
+    kind: z.ZodEnum<{
+        application: "application";
+        assumption: "assumption";
+        clarification: "clarification";
+        decision: "decision";
+        definition: "definition";
+        edge: "edge";
+        finding: "finding";
+        impact_report: "impact_report";
+        journey: "journey";
+        node: "node";
+        node_group: "node_group";
+        policy: "policy";
+        prompt: "prompt";
+        proposal: "proposal";
+        relation_candidate: "relation_candidate";
+    }>;
+    ref: z.ZodString;
+    content_hash: z.ZodString;
+}, z.core.$strict>;
+export type ProductArtifactRef = z.infer<typeof productArtifactRefSchema>;
+export declare const policyConditionSchema: z.ZodType<unknown>;
+export declare const policySchema: z.ZodObject<{
+    schema_version: z.ZodLiteral<1>;
+    id: z.ZodString;
+    context: z.ZodString;
+    actor: z.ZodString;
+    condition_text: z.ZodString;
+    condition: z.ZodType<unknown, unknown, z.core.$ZodTypeInternals<unknown, unknown>>;
+    action: z.ZodString;
+    outcome: z.ZodString;
+    exceptions: z.ZodArray<z.ZodObject<{
+        statement: z.ZodString;
+        relation_ref: z.ZodOptional<z.ZodString>;
+        source_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+    }, z.core.$strict>>;
+    priority: z.ZodOptional<z.ZodObject<{
+        value: z.ZodNumber;
+        decision_ref: z.ZodString;
+    }, z.core.$strict>>;
+    provenance: z.ZodObject<{
+        origin: z.ZodEnum<{
+            ai_inference: "ai_inference";
+            source: "source";
+            user_decision: "user_decision";
+        }>;
+        source_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        decision_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        prompt_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+    }, z.core.$strict>;
+    supersedes_policy_ref: z.ZodOptional<z.ZodString>;
+    content_hash: z.ZodString;
+}, z.core.$strict>;
+export type Policy = z.infer<typeof policySchema>;
+export declare const journeySchema: z.ZodObject<{
+    schema_version: z.ZodLiteral<1>;
+    id: z.ZodString;
+    actor: z.ZodString;
+    goal: z.ZodString;
+    entry_state: z.ZodString;
+    states: z.ZodArray<z.ZodString>;
+    transitions: z.ZodArray<z.ZodObject<{
+        from: z.ZodString;
+        to: z.ZodString;
+        trigger: z.ZodString;
+        decision_refs: z.ZodArray<z.ZodString>;
+    }, z.core.$strict>>;
+    terminal_states: z.ZodArray<z.ZodString>;
+    acceptance_criteria: z.ZodArray<z.ZodString>;
+    provenance: z.ZodObject<{
+        origin: z.ZodEnum<{
+            ai_inference: "ai_inference";
+            source: "source";
+            user_decision: "user_decision";
+        }>;
+        source_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        decision_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        prompt_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+    }, z.core.$strict>;
+    content_hash: z.ZodString;
+}, z.core.$strict>;
+export type Journey = z.infer<typeof journeySchema>;
+export declare const definitionItemSchema: z.ZodObject<{
+    id: z.ZodString;
+    kind: z.ZodEnum<{
+        acceptance_criterion: "acceptance_criterion";
+        exclusion: "exclusion";
+        functional_requirement: "functional_requirement";
+        goal: "goal";
+        nonfunctional_requirement: "nonfunctional_requirement";
+        scope: "scope";
+        stakeholder: "stakeholder";
+    }>;
+    text: z.ZodString;
+    provenance: z.ZodObject<{
+        origin: z.ZodEnum<{
+            ai_inference: "ai_inference";
+            source: "source";
+            user_decision: "user_decision";
+        }>;
+        source_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        decision_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        prompt_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+    }, z.core.$strict>;
+    exclusion: z.ZodOptional<z.ZodObject<{
+        decision_ref: z.ZodString;
+        excluded_scope: z.ZodString;
+        impact: z.ZodString;
+        residual_risk: z.ZodString;
+    }, z.core.$strict>>;
+}, z.core.$strict>;
+export declare const productDefinitionSchema: z.ZodObject<{
+    schema_version: z.ZodLiteral<1>;
+    id: z.ZodString;
+    status: z.ZodLiteral<"draft">;
+    product_name: z.ZodString;
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        kind: z.ZodEnum<{
+            acceptance_criterion: "acceptance_criterion";
+            exclusion: "exclusion";
+            functional_requirement: "functional_requirement";
+            goal: "goal";
+            nonfunctional_requirement: "nonfunctional_requirement";
+            scope: "scope";
+            stakeholder: "stakeholder";
+        }>;
+        text: z.ZodString;
+        provenance: z.ZodObject<{
+            origin: z.ZodEnum<{
+                ai_inference: "ai_inference";
+                source: "source";
+                user_decision: "user_decision";
+            }>;
+            source_refs: z.ZodArray<z.ZodObject<{
+                kind: z.ZodEnum<{
+                    application: "application";
+                    assumption: "assumption";
+                    clarification: "clarification";
+                    decision: "decision";
+                    definition: "definition";
+                    edge: "edge";
+                    finding: "finding";
+                    impact_report: "impact_report";
+                    journey: "journey";
+                    node: "node";
+                    node_group: "node_group";
+                    policy: "policy";
+                    prompt: "prompt";
+                    proposal: "proposal";
+                    relation_candidate: "relation_candidate";
+                }>;
+                ref: z.ZodString;
+                content_hash: z.ZodString;
+            }, z.core.$strict>>;
+            decision_refs: z.ZodArray<z.ZodObject<{
+                kind: z.ZodEnum<{
+                    application: "application";
+                    assumption: "assumption";
+                    clarification: "clarification";
+                    decision: "decision";
+                    definition: "definition";
+                    edge: "edge";
+                    finding: "finding";
+                    impact_report: "impact_report";
+                    journey: "journey";
+                    node: "node";
+                    node_group: "node_group";
+                    policy: "policy";
+                    prompt: "prompt";
+                    proposal: "proposal";
+                    relation_candidate: "relation_candidate";
+                }>;
+                ref: z.ZodString;
+                content_hash: z.ZodString;
+            }, z.core.$strict>>;
+            prompt_refs: z.ZodArray<z.ZodObject<{
+                kind: z.ZodEnum<{
+                    application: "application";
+                    assumption: "assumption";
+                    clarification: "clarification";
+                    decision: "decision";
+                    definition: "definition";
+                    edge: "edge";
+                    finding: "finding";
+                    impact_report: "impact_report";
+                    journey: "journey";
+                    node: "node";
+                    node_group: "node_group";
+                    policy: "policy";
+                    prompt: "prompt";
+                    proposal: "proposal";
+                    relation_candidate: "relation_candidate";
+                }>;
+                ref: z.ZodString;
+                content_hash: z.ZodString;
+            }, z.core.$strict>>;
+        }, z.core.$strict>;
+        exclusion: z.ZodOptional<z.ZodObject<{
+            decision_ref: z.ZodString;
+            excluded_scope: z.ZodString;
+            impact: z.ZodString;
+            residual_risk: z.ZodString;
+        }, z.core.$strict>>;
+    }, z.core.$strict>>;
+    journey_refs: z.ZodArray<z.ZodString>;
+    policy_refs: z.ZodArray<z.ZodString>;
+    finding_refs: z.ZodArray<z.ZodString>;
+    assumption_refs: z.ZodArray<z.ZodString>;
+    input_snapshot: z.ZodArray<z.ZodObject<{
+        kind: z.ZodEnum<{
+            application: "application";
+            assumption: "assumption";
+            clarification: "clarification";
+            decision: "decision";
+            definition: "definition";
+            edge: "edge";
+            finding: "finding";
+            impact_report: "impact_report";
+            journey: "journey";
+            node: "node";
+            node_group: "node_group";
+            policy: "policy";
+            prompt: "prompt";
+            proposal: "proposal";
+            relation_candidate: "relation_candidate";
+        }>;
+        ref: z.ZodString;
+        content_hash: z.ZodString;
+    }, z.core.$strict>>;
+    rules_version: z.ZodString;
+    content_hash: z.ZodString;
+    created_at: z.ZodString;
+    history: z.ZodArray<z.ZodObject<{
+        event: z.ZodLiteral<"created">;
+        at: z.ZodString;
+        content_hash: z.ZodString;
+    }, z.core.$strict>>;
+}, z.core.$strict>;
+export type ProductDefinition = z.infer<typeof productDefinitionSchema>;
+export declare const applicationTargetSchema: z.ZodObject<{
+    ref: z.ZodObject<{
+        kind: z.ZodEnum<{
+            application: "application";
+            assumption: "assumption";
+            clarification: "clarification";
+            decision: "decision";
+            definition: "definition";
+            edge: "edge";
+            finding: "finding";
+            impact_report: "impact_report";
+            journey: "journey";
+            node: "node";
+            node_group: "node_group";
+            policy: "policy";
+            prompt: "prompt";
+            proposal: "proposal";
+            relation_candidate: "relation_candidate";
+        }>;
+        ref: z.ZodString;
+        content_hash: z.ZodString;
+    }, z.core.$strict>;
+    path: z.ZodString;
+    before_hash: z.ZodNullable<z.ZodString>;
+    after_hash: z.ZodString;
+    before_content: z.ZodNullable<z.ZodString>;
+    after_content: z.ZodString;
+}, z.core.$strict>;
+export declare const applicationPlanSchema: z.ZodObject<{
+    decision_ref: z.ZodString;
+    decision_hash: z.ZodString;
+    scope: z.ZodString;
+    rationale: z.ZodString;
+    targets: z.ZodArray<z.ZodObject<{
+        ref: z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>;
+        path: z.ZodString;
+        before_hash: z.ZodNullable<z.ZodString>;
+        after_hash: z.ZodString;
+        before_content: z.ZodNullable<z.ZodString>;
+        after_content: z.ZodString;
+    }, z.core.$strict>>;
+    finding_refs: z.ZodArray<z.ZodString>;
+    residual_risks: z.ZodArray<z.ZodString>;
+    before_impact_refs: z.ZodArray<z.ZodString>;
+}, z.core.$strict>;
+export type ApplicationPlan = z.infer<typeof applicationPlanSchema>;
+export declare const applicationSchema: z.ZodObject<{
+    schema_version: z.ZodLiteral<1>;
+    id: z.ZodString;
+    plan: z.ZodObject<{
+        decision_ref: z.ZodString;
+        decision_hash: z.ZodString;
+        scope: z.ZodString;
+        rationale: z.ZodString;
+        targets: z.ZodArray<z.ZodObject<{
+            ref: z.ZodObject<{
+                kind: z.ZodEnum<{
+                    application: "application";
+                    assumption: "assumption";
+                    clarification: "clarification";
+                    decision: "decision";
+                    definition: "definition";
+                    edge: "edge";
+                    finding: "finding";
+                    impact_report: "impact_report";
+                    journey: "journey";
+                    node: "node";
+                    node_group: "node_group";
+                    policy: "policy";
+                    prompt: "prompt";
+                    proposal: "proposal";
+                    relation_candidate: "relation_candidate";
+                }>;
+                ref: z.ZodString;
+                content_hash: z.ZodString;
+            }, z.core.$strict>;
+            path: z.ZodString;
+            before_hash: z.ZodNullable<z.ZodString>;
+            after_hash: z.ZodString;
+            before_content: z.ZodNullable<z.ZodString>;
+            after_content: z.ZodString;
+        }, z.core.$strict>>;
+        finding_refs: z.ZodArray<z.ZodString>;
+        residual_risks: z.ZodArray<z.ZodString>;
+        before_impact_refs: z.ZodArray<z.ZodString>;
+    }, z.core.$strict>;
+    plan_hash: z.ZodString;
+    status: z.ZodEnum<{
+        applied: "applied";
+        applying: "applying";
+        failed: "failed";
+        partially_applied: "partially_applied";
+        pending: "pending";
+        recovery_required: "recovery_required";
+        rolled_back: "rolled_back";
+    }>;
+    verification_status: z.ZodEnum<{
+        failed: "failed";
+        inconclusive: "inconclusive";
+        pending: "pending";
+        stale: "stale";
+        verified: "verified";
+    }>;
+    verification_history: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        status: z.ZodEnum<{
+            failed: "failed";
+            inconclusive: "inconclusive";
+            stale: "stale";
+            verified: "verified";
+        }>;
+        assessor: z.ZodEnum<{
+            ai: "ai";
+            user: "user";
+        }>;
+        summary: z.ZodString;
+        evidence_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                application: "application";
+                assumption: "assumption";
+                clarification: "clarification";
+                decision: "decision";
+                definition: "definition";
+                edge: "edge";
+                finding: "finding";
+                impact_report: "impact_report";
+                journey: "journey";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        uncertainty: z.ZodArray<z.ZodString>;
+        input_fingerprint: z.ZodString;
+        recorded_at: z.ZodString;
+        entry_hash: z.ZodString;
+    }, z.core.$strict>>>;
+    impact_status: z.ZodEnum<{
+        complete: "complete";
+        incomplete: "incomplete";
+        unassessed: "unassessed";
+    }>;
+    impact_snapshots: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        phase: z.ZodEnum<{
+            after: "after";
+            before: "before";
+        }>;
+        seed_node_ref: z.ZodString;
+        report: z.ZodObject<{
+            schema_version: z.ZodLiteral<1>;
+            analysis_id: z.ZodString;
+            seed_node_ref: z.ZodString;
+            rules_version: z.ZodString;
+            input_fingerprint: z.ZodString;
+            completeness: z.ZodEnum<{
+                complete: "complete";
+                incomplete: "incomplete";
+            }>;
+            confirmed_impacts: z.ZodArray<z.ZodObject<{
+                node_ref: z.ZodString;
+                certainty: z.ZodEnum<{
+                    confirmed: "confirmed";
+                    potential: "potential";
+                }>;
+                effect: z.ZodEnum<{
+                    dependency_candidate: "dependency_candidate";
+                    review_candidate: "review_candidate";
+                }>;
+                depth: z.ZodNumber;
+                direct: z.ZodBoolean;
+                path: z.ZodArray<z.ZodObject<{
+                    edge_ref: z.ZodString;
+                    type: z.ZodString;
+                    from: z.ZodString;
+                    to: z.ZodString;
+                    traversal: z.ZodEnum<{
+                        forward: "forward";
+                        reverse: "reverse";
+                    }>;
+                    basis: z.ZodString;
+                    reason: z.ZodString;
+                    effective_status: z.ZodEnum<{
+                        confirmed: "confirmed";
+                        proposed: "proposed";
+                        rejected: "rejected";
+                    }>;
+                    freshness: z.ZodEnum<{
+                        fresh: "fresh";
+                        stale: "stale";
+                    }>;
+                }, z.core.$strip>>;
+                warnings: z.ZodArray<z.ZodString>;
+            }, z.core.$strip>>;
+            potential_impacts: z.ZodArray<z.ZodObject<{
+                node_ref: z.ZodString;
+                certainty: z.ZodEnum<{
+                    confirmed: "confirmed";
+                    potential: "potential";
+                }>;
+                effect: z.ZodEnum<{
+                    dependency_candidate: "dependency_candidate";
+                    review_candidate: "review_candidate";
+                }>;
+                depth: z.ZodNumber;
+                direct: z.ZodBoolean;
+                path: z.ZodArray<z.ZodObject<{
+                    edge_ref: z.ZodString;
+                    type: z.ZodString;
+                    from: z.ZodString;
+                    to: z.ZodString;
+                    traversal: z.ZodEnum<{
+                        forward: "forward";
+                        reverse: "reverse";
+                    }>;
+                    basis: z.ZodString;
+                    reason: z.ZodString;
+                    effective_status: z.ZodEnum<{
+                        confirmed: "confirmed";
+                        proposed: "proposed";
+                        rejected: "rejected";
+                    }>;
+                    freshness: z.ZodEnum<{
+                        fresh: "fresh";
+                        stale: "stale";
+                    }>;
+                }, z.core.$strip>>;
+                warnings: z.ZodArray<z.ZodString>;
+            }, z.core.$strip>>;
+            review_candidates: z.ZodObject<{
+                confirmed: z.ZodArray<z.ZodObject<{
+                    node_ref: z.ZodString;
+                    certainty: z.ZodEnum<{
+                        confirmed: "confirmed";
+                        potential: "potential";
+                    }>;
+                    effect: z.ZodEnum<{
+                        dependency_candidate: "dependency_candidate";
+                        review_candidate: "review_candidate";
+                    }>;
+                    depth: z.ZodNumber;
+                    direct: z.ZodBoolean;
+                    path: z.ZodArray<z.ZodObject<{
+                        edge_ref: z.ZodString;
+                        type: z.ZodString;
+                        from: z.ZodString;
+                        to: z.ZodString;
+                        traversal: z.ZodEnum<{
+                            forward: "forward";
+                            reverse: "reverse";
+                        }>;
+                        basis: z.ZodString;
+                        reason: z.ZodString;
+                        effective_status: z.ZodEnum<{
+                            confirmed: "confirmed";
+                            proposed: "proposed";
+                            rejected: "rejected";
+                        }>;
+                        freshness: z.ZodEnum<{
+                            fresh: "fresh";
+                            stale: "stale";
+                        }>;
+                    }, z.core.$strip>>;
+                    warnings: z.ZodArray<z.ZodString>;
+                }, z.core.$strip>>;
+                potential: z.ZodArray<z.ZodObject<{
+                    node_ref: z.ZodString;
+                    certainty: z.ZodEnum<{
+                        confirmed: "confirmed";
+                        potential: "potential";
+                    }>;
+                    effect: z.ZodEnum<{
+                        dependency_candidate: "dependency_candidate";
+                        review_candidate: "review_candidate";
+                    }>;
+                    depth: z.ZodNumber;
+                    direct: z.ZodBoolean;
+                    path: z.ZodArray<z.ZodObject<{
+                        edge_ref: z.ZodString;
+                        type: z.ZodString;
+                        from: z.ZodString;
+                        to: z.ZodString;
+                        traversal: z.ZodEnum<{
+                            forward: "forward";
+                            reverse: "reverse";
+                        }>;
+                        basis: z.ZodString;
+                        reason: z.ZodString;
+                        effective_status: z.ZodEnum<{
+                            confirmed: "confirmed";
+                            proposed: "proposed";
+                            rejected: "rejected";
+                        }>;
+                        freshness: z.ZodEnum<{
+                            fresh: "fresh";
+                            stale: "stale";
+                        }>;
+                    }, z.core.$strip>>;
+                    warnings: z.ZodArray<z.ZodString>;
+                }, z.core.$strip>>;
+            }, z.core.$strip>;
+            blocked_inputs: z.ZodArray<z.ZodObject<{
+                code: z.ZodString;
+                ref: z.ZodOptional<z.ZodString>;
+                candidate_ref: z.ZodOptional<z.ZodString>;
+                reason: z.ZodString;
+            }, z.core.$strip>>;
+            warnings: z.ZodArray<z.ZodString>;
+            created_at: z.ZodString;
+        }, z.core.$strict>;
+        report_hash: z.ZodString;
+        input_fingerprint: z.ZodString;
+    }, z.core.$strict>>>;
+    target_states: z.ZodArray<z.ZodObject<{
+        path: z.ZodString;
+        state: z.ZodEnum<{
+            pending: "pending";
+            published: "published";
+            restored: "restored";
+            verified: "verified";
+        }>;
+        current_hash: z.ZodNullable<z.ZodString>;
+    }, z.core.$strict>>;
+    created_at: z.ZodString;
+    updated_at: z.ZodString;
+    history: z.ZodArray<z.ZodObject<{
+        event: z.ZodEnum<{
+            applied: "applied";
+            failed: "failed";
+            invalidated: "invalidated";
+            planned: "planned";
+            recovery_required: "recovery_required";
+            resumed: "resumed";
+            rolled_back: "rolled_back";
+            started: "started";
+            target_published: "target_published";
+            verified: "verified";
+        }>;
+        at: z.ZodString;
+        statement: z.ZodString;
+        plan_hash: z.ZodString;
+    }, z.core.$strict>>;
+}, z.core.$strict>;
+export type Application = z.infer<typeof applicationSchema>;
+export declare function parseProductDefinition(text: string): ProductDefinition;
+export declare function parsePolicy(text: string): Policy;
+export declare function parseJourney(text: string): Journey;
+export declare function parseApplication(text: string): Application;
+export declare function createPolicy(input: Omit<Policy, 'content_hash'>): Policy;
+export declare function createJourney(input: Omit<Journey, 'id' | 'content_hash'>): Journey;
+export declare function createProductDefinition(input: Omit<ProductDefinition, 'id' | 'content_hash' | 'history' | 'created_at'>, now?: Date): ProductDefinition;

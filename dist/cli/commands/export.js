@@ -1,0 +1,6 @@
+import path from 'node:path';
+import { ensureWorkspace } from '../../clarification/workspace.js';
+import { exportOpenSpec } from '../../clarification/export-store.js';
+export function registerExportCommand(program, output) { const command = program.command('export').description('export a currently approved Product Definition as a new OpenSpec draft'); command.command('openspec').requiredOption('--change <id>').option('--capability <id>').description('strict-validate and publish a new traceable OpenSpec change; does not start implementation').action(async (opts) => { const productRoot = path.join(process.cwd(), 'product'); await ensureWorkspace(productRoot); const result = await exportOpenSpec(productRoot, process.cwd(), opts.change, opts.capability); output.out(`${result.created ? 'Exported' : 'Existing'} OpenSpec change ${result.manifest.change_id}; strict validation PASS.`); for (const file of result.files)
+    output.out(file); output.out(`Manifest ${result.manifest.id}; this is a product requirement draft and does not start implementation.`); }); }
+//# sourceMappingURL=export.js.map

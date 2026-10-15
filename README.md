@@ -39,9 +39,11 @@ The CLI judges whether each stage is actually complete. The agent cannot declare
 Requires Node.js 20.19+ and Git.
 
 ```bash
-npm install --global "git+https://github.com/gilgim/productkit.git#v0.1.0-beta.1"
-productkit --version        # 0.1.0-beta.1
+npm install --global "git+https://github.com/gilgim/productkit.git#v0.1.0-beta.2"
+productkit --version        # 0.1.0-beta.2
 ```
+
+That is the whole setup. The install also copies the agent Skills into `~/.claude/skills` and `~/.agents/skills`, so after restarting Claude Code or Codex the agent knows ProductKit in every project. Nothing is built on your machine: `dist/` ships in the repo.
 
 > The name `productkit` on the npm registry belongs to another project, so install from the GitHub tag as above.
 

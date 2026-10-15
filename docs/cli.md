@@ -34,8 +34,8 @@ npm run build
 로컬 설치본으로 쓰려면:
 
 ```bash
-npm pack                       # productkit-0.1.0-beta.1.tgz 생성
-npm install -g ./productkit-0.1.0-beta.1.tgz
+npm pack                       # productkit-0.1.0-beta.2.tgz 생성
+npm install -g ./productkit-0.1.0-beta.2.tgz
 ```
 
 beta 태그를 설치하고 Claude Code/Codex Skill을 연결하는 방법은 [설치 가이드](installation.md)를 참고한다.

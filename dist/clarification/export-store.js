@@ -1,0 +1,233 @@
+import { mkdir, open, readFile, readdir, rename, rm, lstat } from 'node:fs/promises';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import { stringify as yaml } from 'yaml';
+import { readDefinition, readPolicies, readJourneys, validateDefinitionReferences, validatePolicyReferences } from './definition-store.js';
+import { approvalStatus, createValidationReport, reportFreshness, readValidationReports } from './validation-store.js';
+import { canonicalJson, sha256Hex } from './hash.js';
+import { exportManifestSchema } from '../schema/export.js';
+import { VERSION } from '../version.js';
+import { loadGraphWorkspace } from './provenance.js';
+import { readAttestationPolicy } from './workspace.js';
+import { readDecisions, readCurrentFindings } from './proposal-decision-store.js';
+import { parseClarification } from '../schema/clarification.js';
+import { spanText } from './spans.js';
+import { CliError, ExitCode } from '../errors.js';
+const safeId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const hash = (s) => sha256Hex(s);
+const quote = (s) => s.split(/\r?\n/).map(line => `> ${line}`).join('\n');
+const refs = (items) => items.flatMap(i => [...i.provenance.source_refs, ...i.provenance.decision_refs, ...i.provenance.prompt_refs].map(r => `- ${i.id} ← ${r.kind}:${r.ref} sha256:${r.content_hash}`)).join('\n');
+// The handoff shows the source Node text next to each item so a reader can
+// see a distortion without opening the workspace. The CLI does not compare
+// the two meanings; it only puts them side by side.
+const sourceText = (item, nodeText, promptText = new Map()) => { const nodes = item.provenance.source_refs.filter(r => r.kind === 'node'); const lines = nodes.map(r => `- ${r.ref}: ${nodeText.get(r.ref) ?? '(Node text not available)'}`); const prompts = [...new Set(nodes.flatMap(r => promptText.get(r.ref) ?? []))].map(l => `- ${l}`); return lines.length ? `\nSource Node text (verbatim, for comparison):\n${lines.join('\n')}${prompts.length ? `\nUser's own words these Nodes came from:\n${prompts.join('\n')}` : ''}` : ''; };
+async function writeSync(file, content) { const h = await open(file, 'wx', 0o600); try {
+    await h.writeFile(content, 'utf8');
+    await h.sync();
+}
+finally {
+    await h.close();
+} }
+async function strictValidate(workspaceRoot, changeId) { let resolved; try {
+    resolved = createRequire(path.join(workspaceRoot, 'package.json')).resolve('@fission-ai/openspec');
+}
+catch {
+    try {
+        resolved = createRequire(import.meta.url).resolve('@fission-ai/openspec');
+    }
+    catch {
+        throw new CliError('OpenSpec CLI 1.14.0 is required for strict Export validation. Install it in this workspace with `npm install --save-dev @fission-ai/openspec@1.14.0` and retry.', ExitCode.GATE_BLOCKED);
+    }
+} const moduleUrl = pathToFileURL(resolved); const bin = fileURLToPath(new URL('../bin/openspec.js', moduleUrl)); const pkg = JSON.parse(await readFile(fileURLToPath(new URL('../package.json', moduleUrl)), 'utf8')); if (pkg.version !== '1.14.0')
+    throw new CliError(`OpenSpec CLI version mismatch: ${pkg.version}`, ExitCode.GATE_BLOCKED); try {
+    execFileSync(process.execPath, [bin, 'validate', changeId, '--strict'], { cwd: workspaceRoot, stdio: 'pipe', timeout: 30_000, maxBuffer: 1024 * 1024 });
+}
+catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new CliError(`OpenSpec Strict Validation failed for '${changeId}': ${detail}`, ExitCode.USAGE_OR_IO);
+} }
+async function checkNoSymlink(workspaceRoot, target) { let cursor = workspaceRoot; for (const component of path.relative(workspaceRoot, target).split(path.sep).filter(Boolean)) {
+    cursor = path.join(cursor, component);
+    try {
+        if ((await lstat(cursor)).isSymbolicLink())
+            throw new CliError(`Symlink path rejected: ${cursor}`, ExitCode.GATE_BLOCKED);
+    }
+    catch (e) {
+        if (e.code !== 'ENOENT')
+            throw e;
+    }
+} }
+export function convertDefinitionToOpenSpec(input) { const held = input.held ?? []; const { changeId, capabilityId, definition, policies, journeys, approval, validation, warnings } = input; const nodeText = input.nodeText ?? new Map(); const promptText = input.promptText ?? new Map(); const asides = input.asides ?? []; const attestation = input.attestation ?? 'unknown'; const goal = definition.items.filter(x => x.kind === 'goal').map(x => `- ${x.id}: ${x.text}${sourceText(x, nodeText, promptText).replace(/\n/g, '\n  ')}`).join('\n') || '- See the approved Product Definition scope.'; const scope = definition.items.filter(x => x.kind === 'scope' || x.kind === 'stakeholder' || x.kind === 'exclusion').map(x => `- ${x.id} (${x.kind}): ${x.text}${x.kind !== 'exclusion' ? sourceText(x, nodeText, promptText).replace(/\n/g, '\n  ') : ''}${x.exclusion ? ` (excluded=${x.exclusion.excluded_scope}; impact=${x.exclusion.impact}; residual risk=${x.exclusion.residual_risk}; Decision=${x.exclusion.decision_ref})${x.provenance.source_refs.filter(r => r.kind === 'node').map(r => `\n  - excluded Node ${r.ref}: ${nodeText.get(r.ref) ?? '(Node text not available)'}${(promptText.get(r.ref) ?? []).map(l => `\n    - ${l}`).join('')}`).join('')}` : ''}`).join('\n') || '- No additional scope statements.'; const requirements = definition.items.filter(x => ['functional_requirement', 'nonfunctional_requirement'].includes(x.kind)).map(item => `### Requirement: Product requirement ${item.id}\n\nThis capability SHALL satisfy the approved product requirement:\n\n${quote(item.text)}\n\n#### Scenario: Preserve approved product requirement ${item.id}\n- **WHEN** the product behavior for ${item.id} is evaluated\n- **THEN** the behavior conforms to the approved requirement stated above\n\nSource provenance:\n${refs([item])}${sourceText(item, nodeText, promptText)}`).join('\n\n'); const criteria = definition.items.filter(x => x.kind === 'acceptance_criterion').map(item => `### Requirement: Acceptance criterion ${item.id}\n\nThis capability SHALL satisfy the approved acceptance criterion below.\n\n#### Scenario: Verify approved criterion ${item.id}\n- **WHEN** the behavior covered by this criterion is tested\n- **THEN** the following approved criterion is satisfied:\n\n${quote(item.text)}\n\nSource provenance:\n${refs([item])}${sourceText(item, nodeText, promptText)}`).join('\n\n'); const policyReq = policies.map(p => { const sourceItems = definition.items.filter(i => i.provenance.source_refs.some(r => p.provenance.source_refs.some(pr => pr.kind === r.kind && pr.ref === r.ref))); const policyRefs = [...p.provenance.source_refs, ...p.provenance.decision_refs, ...p.provenance.prompt_refs].map(r => `- ${r.kind}:${r.ref} sha256:${r.content_hash}`).join('\n'); return `### Requirement: Preserve policy ${p.id}\n\nThe system MUST preserve this approved policy.\n\nContext: ${quote(p.context)}\n\nActor: ${quote(p.actor)}\n\nCondition text: ${quote(p.condition_text)}\n\nStructured condition (bounded representation):\n\n\`\`\`json\n${JSON.stringify(p.condition, null, 2)}\n\`\`\`\n\nAction: ${quote(p.action)}\n\nOutcome: ${quote(p.outcome)}\n\nExceptions:\n${p.exceptions.length ? p.exceptions.map(e => `- ${quote(e.statement)}${e.relation_ref ? ` (relation ${e.relation_ref})` : ''}`).join('\n') : '- None declared.'}\n\nPriority: ${p.priority ? `${p.priority.value} (Decision ${p.priority.decision_ref})` : 'Not specified; no priority is inferred.'}\n\n#### Scenario: Apply policy ${p.id}\n- **WHEN** ${quote(p.condition_text)} applies in its declared context and actor scope\n- **THEN** perform the declared action and outcome, subject to the listed exceptions\n\nSource references:\n${policyRefs}${sourceItems.length ? `\nDefinition items: ${sourceItems.map(i => i.id).join(', ')}` : ''}`; }).join('\n\n'); const journeyNotes = journeys.map(j => `- ${j.id}: ${j.actor} seeks ${j.goal}; entry=${j.entry_state}; terminal=${j.terminal_states.join(', ')}; acceptance=${j.acceptance_criteria.join(' | ')}; hash=${j.content_hash}; provenance=${[...j.provenance.source_refs, ...j.provenance.decision_refs, ...j.provenance.prompt_refs].map(r => `${r.kind}:${r.ref} sha256:${r.content_hash}`).join(', ')}`).join('\n'); const spec = `# ${capabilityId}\n\n## ADDED Requirements\n\n${[requirements, criteria, policyReq].filter(Boolean).join('\n\n') || '### Requirement: Preserve approved product scope\n\nThe product scope is defined by the approved source items.\n\n#### Scenario: Review approved scope\n- **WHEN** the exported capability is reviewed\n- **THEN** retain its source requirements and constraints.'}\n\n## Journey references\n\n${journeyNotes || '- No Journey artifacts are included.'}\n\n## Export provenance\n\n- Product Definition: ${definition.id} sha256:${definition.content_hash}\n- Approval: ${approval} (statement attestation: ${attestation})\n- ValidationReport: ${validation}\n- Change ID: ${changeId}\n- This is a product requirements draft; strict validation is structural and does not prove semantic correctness or implementation readiness.\n`; const proposal = `# ${changeId}\n\n## Why\n\nThis OpenSpec change carries an approved ProductKit Definition into a development-facing requirements draft.\n\n## What Changes\n\n- Add the capability specification \`${capabilityId}\` from the approved product requirements.\n- Preserve acceptance criteria, policy conditions, exceptions, scope exclusions, and trace references.\n\n## Scope\n\n${goal}\n\n${scope}\n\n## Journey references\n\n${journeyNotes || '- No Journey artifacts are included.'}\n\n## Open risks and readiness warnings\n\n- Findings retained for follow-up: ${definition.finding_refs.join(', ') || 'none listed'}\n- Assumptions retained for follow-up: ${definition.assumption_refs.join(', ') || 'none listed'}\n${warnings.length ? warnings.map(w => `- ${quote(w)}`).join('\n') : '- No gate warnings were recorded.'}\n\n## Set aside from the user's prompt (not requirements, by the user's agreement)\n\n${asides.length ? asides.map(a => `- ${a}`).join('\n') : '- Nothing was set aside.'}\n\n## Open Findings and what they hold\n\n${held.length ? held.map(h => `- ${h}`).join('\n') : '- No unresolved Finding.'}\n\n## Source traceability\n\n${refs(definition.items)}\n\n- Product Definition: ${definition.id} sha256:${definition.content_hash}\n- Approval: ${approval} (statement attestation: ${attestation})\n- ValidationReport: ${validation}\n\nThis is a new OpenSpec requirements draft only. It does not generate design/tasks, start implementation, or prove semantic completeness.\n`; return { proposal, spec }; }
+export async function exportOpenSpec(root, workspaceRoot, changeId, capabilityId = changeId, now = new Date()) {
+    if (!safeId.test(changeId) || !safeId.test(capabilityId))
+        throw new CliError('Change and capability IDs must use lowercase kebab-case.', ExitCode.USAGE_OR_IO);
+    const changes = path.join(workspaceRoot, 'openspec', 'changes');
+    await checkNoSymlink(workspaceRoot, changes);
+    const destination = path.join(changes, changeId);
+    const definition = await readDefinition(root);
+    if (!definition)
+        throw new CliError('Product Definition is missing.', ExitCode.GATE_BLOCKED);
+    await validateDefinitionReferences(root, definition);
+    const approvalState = await approvalStatus(root);
+    if (approvalState.status !== 'valid')
+        throw new CliError(`A current user Approval is required; current state is ${approvalState.status}.`, ExitCode.GATE_BLOCKED);
+    const approval = approvalState.approval;
+    {
+        const policy = await readAttestationPolicy(root);
+        const flagged = [];
+        if (policy.policy === 'tty') {
+            if (approval.attestation !== 'tty')
+                flagged.push(`approval ${approval.id}`);
+            for (const d of await readDecisions(root))
+                if (d.attestation !== 'tty')
+                    flagged.push(`decision ${d.id}`);
+            for (const f of await readCurrentFindings(root)) {
+                const last = f.confirmation_history.at(-1);
+                if (last && last.attestation !== 'tty')
+                    flagged.push(`finding ${f.id}`);
+            }
+        }
+        if (flagged.length)
+            throw new CliError(`This workspace requires terminal-typed statements, but these records were passed as flags: ${flagged.join(', ')}. The policy was changed around them.`, ExitCode.GATE_BLOCKED);
+    }
+    if (approval.definition_hash !== definition.content_hash || approval.definition_ref !== definition.id)
+        throw new CliError('Current Approval is for a different Product Definition.', ExitCode.GATE_BLOCKED);
+    const report = (await readValidationReports(root)).find(x => x.id === approval.validation_ref);
+    if (!report || await reportFreshness(root, report))
+        throw new CliError('Approved ValidationReport is stale.', ExitCode.GATE_BLOCKED);
+    const recomputed = await createValidationReport(root, report.review_ref, now);
+    if (recomputed.readiness !== 'ready' || recomputed.report_hash !== report.report_hash)
+        throw new CliError('Current readiness differs from the approved ValidationReport.', ExitCode.GATE_BLOCKED);
+    const policies = await readPolicies(root);
+    const journeys = await readJourneys(root);
+    for (const id of definition.policy_refs)
+        if (!policies.some(p => p.id === id))
+            throw new CliError(`Definition Policy reference missing: ${id}`, ExitCode.GATE_BLOCKED);
+    for (const id of definition.journey_refs)
+        if (!journeys.some(j => j.id === id))
+            throw new CliError(`Definition Journey reference missing: ${id}`, ExitCode.GATE_BLOCKED);
+    for (const p of policies.filter(p => definition.policy_refs.includes(p.id)))
+        await validatePolicyReferences(root, p);
+    const workspace = await loadGraphWorkspace(root);
+    const nodeText = new Map([...workspace.nodes].map(([id, record]) => [id, record.node.statement]));
+    // The user's own sentences behind each Node, and every sentence the user
+    // agreed to set aside, go into the handoff so a reader compares against the
+    // prompt, not against the agent's restatement of it.
+    const clarifications = new Map();
+    for (const f of (await readdir(path.join(root, 'discovery')).catch(() => [])).filter(x => x.endsWith('.yaml'))) {
+        try {
+            const c = parseClarification(await readFile(path.join(root, 'discovery', f), 'utf8'));
+            clarifications.set(c.id, c);
+        }
+        catch { }
+    }
+    const quote = (promptId, spanId) => { const p = workspace.prompts.get(promptId); const s = p?.spans.find(x => x.id === spanId); return p && s ? `${promptId} ${spanId}: "${spanText(p.raw_text, s)}"` : `${promptId} ${spanId}: (not found)`; };
+    const promptText = new Map();
+    for (const [id, record] of workspace.nodes) {
+        const clr = clarifications.get(record.clarification_ref);
+        const item = clr?.steps.decomposition[record.node.derived_from.decomposition_index];
+        if (item)
+            promptText.set(id, item.span_refs.map(sid => quote(record.prompt_ref, sid)));
+    }
+    const asides = [];
+    for (const clr of clarifications.values())
+        for (const c of clr.steps.span_coverage ?? [])
+            asides.push(`${quote(clr.prompt_ref, c.span_ref)} — ${c.reason}`);
+    // What is still open, in the reader's face: each unresolved Finding with
+    // the Node text and the user's sentences it holds. Nothing held stays silent.
+    const held = [];
+    for (const f of await readCurrentFindings(root)) {
+        if (f.resolution_status !== 'unresolved')
+            continue;
+        const nodes = f.related_refs.filter(r => r.kind === 'node').map(r => r.ref);
+        held.push(`${f.id} [${f.severity}, ${f.review_status}]: ${f.statement}${nodes.map(n => `\n  - Node ${n}: ${nodeText.get(n) ?? '(not available)'}${(promptText.get(n) ?? []).map(l => `\n    - ${l}`).join('')}`).join('')}${(f.candidate_refs ?? []).map(c => `\n  - carries clarification candidate ${c.clarification_ref}#${c.index}: ${c.span_refs.map(sid => { const clr = clarifications.get(c.clarification_ref); return clr ? quote(clr.prompt_ref, sid) : sid; }).join(' / ')}`).join('')}`);
+    }
+    const output = convertDefinitionToOpenSpec({ changeId, capabilityId, definition, policies: policies.filter(p => definition.policy_refs.includes(p.id)), journeys: journeys.filter(j => definition.journey_refs.includes(j.id)), approval: approval.id, validation: report.id, warnings: report.checks.filter(c => c.status === 'warn').map(c => `${c.id}: ${c.message}`), nodeText, promptText, asides, held, attestation: approval.attestation });
+    const outputHashes = [{ path: 'proposal.md', sha256: hash(output.proposal) }, { path: `specs/${capabilityId}/spec.md`, sha256: hash(output.spec) }];
+    const base = { schema_version: 1, change_id: changeId, capability_id: capabilityId, definition_ref: definition.id, definition_hash: definition.content_hash, approval_ref: approval.id, approval_hash: approval.entry_hash, validation_ref: report.id, validation_hash: report.report_hash, input_fingerprint: report.input_fingerprint, openspec_version: '1.14.0', exporter_version: VERSION, output_hashes: outputHashes };
+    const manifest_hash = sha256Hex(canonicalJson(base));
+    const manifest = exportManifestSchema.parse({ ...base, id: `EXP-${manifest_hash.slice(0, 16)}`, manifest_hash, created_at: now.toISOString() });
+    const manifestPath = path.join(root, 'exports', `${manifest.id}.yaml`);
+    await checkNoSymlink(root, manifestPath);
+    try {
+        const existing = await readFile(manifestPath, 'utf8');
+        if (existing) {
+            const prior = (await import('../schema/export.js')).parseExportManifest(existing);
+            if (prior.manifest_hash === manifest.manifest_hash && await exists(destination)) {
+                await checkNoSymlink(workspaceRoot, destination);
+                await strictValidate(workspaceRoot, changeId);
+                for (const output of prior.output_hashes) {
+                    if (hash(await readFile(path.join(destination, output.path), 'utf8')) !== output.sha256)
+                        throw new CliError(`Existing export output was modified: ${output.path}`, ExitCode.GATE_BLOCKED);
+                }
+                return { manifest: prior, created: false, files: [path.join(destination, 'proposal.md'), path.join(destination, 'specs', capabilityId, 'spec.md')] };
+            }
+        }
+    }
+    catch (e) {
+        if (e.code !== 'ENOENT')
+            throw e;
+    }
+    if (await exists(destination))
+        throw new CliError(`OpenSpec change already exists; refusing to overwrite: ${destination}`, ExitCode.GATE_BLOCKED);
+    try {
+        if (await exists(manifestPath))
+            throw new CliError(`Export manifest already exists: ${manifestPath}`, ExitCode.GATE_BLOCKED);
+    }
+    catch (e) {
+        if (e.code !== 'ENOENT')
+            throw e;
+    }
+    const stageName = `productkit-stage-${changeId}-${manifest_hash.slice(0, 8)}`;
+    const stage = path.join(changes, stageName);
+    if (await exists(stage))
+        throw new CliError(`Export staging path already exists: ${stage}`, ExitCode.GATE_BLOCKED);
+    await mkdir(path.join(stage, 'specs', capabilityId), { recursive: true });
+    let published = false;
+    try {
+        await writeSync(path.join(stage, 'proposal.md'), output.proposal);
+        await writeSync(path.join(stage, 'specs', capabilityId, 'spec.md'), output.spec);
+        if (hash(await readFile(path.join(stage, 'proposal.md'), 'utf8')) !== outputHashes[0].sha256 || hash(await readFile(path.join(stage, 'specs', capabilityId, 'spec.md'), 'utf8')) !== outputHashes[1].sha256)
+            throw new CliError('Staged OpenSpec output hash mismatch.', ExitCode.GATE_BLOCKED);
+        await strictValidate(workspaceRoot, stageName);
+        if (await exists(destination))
+            throw new CliError(`OpenSpec change appeared during export: ${destination}`, ExitCode.GATE_BLOCKED);
+        await rename(stage, destination);
+        published = true;
+        for (const output of manifest.output_hashes)
+            if (hash(await readFile(path.join(destination, output.path), 'utf8')) !== output.sha256)
+                throw new CliError(`Published OpenSpec output changed before manifest publication: ${output.path}`, ExitCode.GATE_BLOCKED);
+        await mkdir(path.dirname(manifestPath), { recursive: true });
+        if (!await (await import('./io.js')).atomicCreateFile(manifestPath, yaml(manifest)))
+            throw new CliError('Export manifest appeared during publish.', ExitCode.GATE_BLOCKED);
+        return { manifest, created: true, files: [path.join(destination, 'proposal.md'), path.join(destination, 'specs', capabilityId, 'spec.md')] };
+    }
+    catch (error) {
+        if (published) {
+            const p = path.join(destination, 'proposal.md');
+            const s = path.join(destination, 'specs', capabilityId, 'spec.md');
+            const matches = await Promise.all([[p, output.proposal], [s, output.spec]].map(async ([f, content]) => { try {
+                return hash(await readFile(f, 'utf8')) === hash(content);
+            }
+            catch {
+                return false;
+            } }));
+            if (matches.every(Boolean) && !(await exists(manifestPath)))
+                await rm(destination, { recursive: true, force: true });
+        }
+        await rm(stage, { recursive: true, force: true }).catch(() => undefined);
+        throw error;
+    }
+}
+async function exists(p) { try {
+    await lstat(p);
+    return true;
+}
+catch (e) {
+    if (e.code === 'ENOENT')
+        return false;
+    throw e;
+} }
+//# sourceMappingURL=export-store.js.map

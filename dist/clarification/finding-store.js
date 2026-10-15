@@ -1,0 +1,141 @@
+import { readdir, readFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { stringify as stringifyYaml } from 'yaml';
+import { CliError, ExitCode } from '../errors.js';
+import { readAttestationPolicy } from './workspace.js';
+import { createFinding, findingSchema, parseFinding, toFindingInput, appendFindingConfirmation } from '../schema/finding.js';
+import { atomicCreateFile, atomicReplaceIfUnchanged } from './io.js';
+import { loadGraphWorkspace } from './provenance.js';
+import { readGraphDocument, readRelationCandidates } from './graph-store.js';
+import { parseApplication, parsePolicy, parseProductDefinition } from '../schema/definition.js';
+import { canonicalJson, sha256Hex } from './hash.js';
+const findingsDir = (root) => path.join(root, 'findings');
+async function yamlFiles(dir) { try {
+    return (await readdir(dir)).filter((f) => f.endsWith('.yaml')).sort();
+}
+catch (e) {
+    if (e.code === 'ENOENT')
+        return [];
+    throw e;
+} }
+export async function readFindings(root) {
+    const dir = findingsDir(root);
+    const out = [];
+    for (const file of await yamlFiles(dir)) {
+        const item = parseFinding(await readFile(path.join(dir, file), 'utf8'));
+        if (`${item.id}.yaml` !== file)
+            throw new CliError(`Finding filename does not match ID: ${file}`, ExitCode.GATE_BLOCKED);
+        out.push(item);
+    }
+    return out;
+}
+export async function validateFindingReferences(root, finding) {
+    const workspace = await loadGraphWorkspace(root);
+    const { graph } = await readGraphDocument(root);
+    const candidates = await readRelationCandidates(root);
+    const findings = new Set((await readFindings(root)).map((f) => f.id));
+    const missing = [];
+    for (const ref of [...finding.related_refs, ...finding.evidence_refs.map(({ kind, ref }) => ({ kind, ref })), ...finding.counterexamples.flatMap((c) => c.evidence_refs)]) {
+        let exists = false;
+        switch (ref.kind) {
+            case 'prompt':
+                exists = workspace.prompts.has(ref.ref);
+                break;
+            case 'node':
+                exists = workspace.nodes.has(ref.ref);
+                break;
+            case 'node_group':
+                exists = [...workspace.nodes.values()].some((n) => n.node_group_ref === ref.ref);
+                break;
+            case 'clarification':
+                exists = [...workspace.nodes.values()].some((n) => n.clarification_ref === ref.ref);
+                break;
+            case 'edge':
+                exists = graph.edges.some((e) => e.id === ref.ref);
+                break;
+            case 'relation_candidate':
+                exists = candidates.some((c) => c.id === ref.ref);
+                break;
+            case 'impact_report':
+                exists = (await yamlFiles(path.join(root, 'graph', 'reports'))).some((f) => path.basename(f, '.yaml') === ref.ref);
+                break;
+            case 'finding':
+                exists = findings.has(ref.ref);
+                break;
+            case 'policy': {
+                try {
+                    const item = parsePolicy(await readFile(path.join(root, 'policies', `${ref.ref}.yaml`), 'utf8'));
+                    exists = item.id === ref.ref;
+                    const evidence = finding.evidence_refs.find(e => e.kind === ref.kind && e.ref === ref.ref);
+                    if (evidence?.source_hash && evidence.source_hash !== item.content_hash)
+                        exists = false;
+                }
+                catch {
+                    exists = false;
+                }
+                break;
+            }
+            case 'definition': {
+                try {
+                    const item = parseProductDefinition(await readFile(path.join(root, 'definition.yaml'), 'utf8'));
+                    exists = item.id === ref.ref;
+                    const evidence = finding.evidence_refs.find(e => e.kind === ref.kind && e.ref === ref.ref);
+                    if (evidence?.source_hash && evidence.source_hash !== item.content_hash)
+                        exists = false;
+                }
+                catch {
+                    exists = false;
+                }
+                break;
+            }
+            case 'application': {
+                try {
+                    const item = parseApplication(await readFile(path.join(root, 'applications', `${ref.ref}.yaml`), 'utf8'));
+                    exists = item.id === ref.ref;
+                    const evidence = finding.evidence_refs.find(e => e.kind === ref.kind && e.ref === ref.ref);
+                    if (evidence?.source_hash && evidence.source_hash !== sha256Hex(canonicalJson(item)))
+                        exists = false;
+                }
+                catch {
+                    exists = false;
+                }
+                break;
+            }
+        }
+        if (!exists)
+            missing.push(`${ref.kind}:${ref.ref}`);
+    }
+    return [...new Set(missing)];
+}
+export async function addFinding(root, input) {
+    const proposed = createFinding(input);
+    const unresolved = await validateFindingReferences(root, proposed);
+    if (unresolved.length)
+        throw new CliError(`Finding has unresolved references: ${unresolved.join(', ')}`, ExitCode.GATE_BLOCKED);
+    const dir = findingsDir(root);
+    await mkdir(dir, { recursive: true });
+    const file = path.join(dir, `${proposed.id}.yaml`);
+    const text = stringifyYaml(proposed);
+    if (await atomicCreateFile(file, text))
+        return { finding: proposed, created: true };
+    const existingText = await readFile(file, 'utf8');
+    const existing = parseFinding(existingText);
+    if (JSON.stringify(toFindingInput(existing)) !== JSON.stringify(toFindingInput(proposed)))
+        throw new CliError(`Finding ID collision: ${proposed.id}`, ExitCode.GATE_BLOCKED);
+    return { finding: existing, created: false };
+}
+export async function confirmFinding(root, id, response, statement, rationale, attestation = 'flag') {
+    const policy = await readAttestationPolicy(root);
+    if (policy.policy === 'tty' && attestation !== 'tty')
+        throw new CliError('This workspace requires the confirmation statement to be typed on a terminal (config attestation: tty).', ExitCode.GATE_BLOCKED, [`Run \`productkit challenge finding confirm ${id} --response ${response} --rationale <r>\` without --user-statement, in a terminal, and type the statement when asked.`, 'An agent cannot do this step; hand the command to the user.']);
+    const file = path.join(findingsDir(root), `${id}.yaml`);
+    const before = await readFile(file, 'utf8');
+    const current = parseFinding(before);
+    const missing = await validateFindingReferences(root, current);
+    if (missing.length)
+        throw new CliError(`Finding has unresolved references: ${missing.join(', ')}`, ExitCode.GATE_BLOCKED);
+    const updated = appendFindingConfirmation(current, response, statement, rationale, new Date(), attestation);
+    await atomicReplaceIfUnchanged(file, before, stringifyYaml(updated));
+    return updated;
+}
+//# sourceMappingURL=finding-store.js.map

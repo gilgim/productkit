@@ -1,0 +1,258 @@
+import { z } from 'zod';
+export declare const proposalRefSchema: z.ZodObject<{
+    kind: z.ZodEnum<{
+        clarification: "clarification";
+        edge: "edge";
+        finding: "finding";
+        graph: "graph";
+        impact_report: "impact_report";
+        node: "node";
+        node_group: "node_group";
+        policy: "policy";
+        prompt: "prompt";
+        proposal: "proposal";
+        relation_candidate: "relation_candidate";
+    }>;
+    ref: z.ZodString;
+    content_hash: z.ZodString;
+}, z.core.$strict>;
+export declare const proposalFindingRefSchema: z.ZodObject<{
+    finding_ref: z.ZodString;
+    claim_hash: z.ZodString;
+    review_status: z.ZodLiteral<"confirmed">;
+}, z.core.$strict>;
+export declare const proposalOptionSchema: z.ZodObject<{
+    id: z.ZodString;
+    description: z.ZodString;
+    evidence_refs: z.ZodArray<z.ZodObject<{
+        kind: z.ZodEnum<{
+            clarification: "clarification";
+            edge: "edge";
+            finding: "finding";
+            graph: "graph";
+            impact_report: "impact_report";
+            node: "node";
+            node_group: "node_group";
+            policy: "policy";
+            prompt: "prompt";
+            proposal: "proposal";
+            relation_candidate: "relation_candidate";
+        }>;
+        ref: z.ZodString;
+        content_hash: z.ZodString;
+    }, z.core.$strict>>;
+    benefits: z.ZodArray<z.ZodString>;
+    costs: z.ZodArray<z.ZodString>;
+    risks: z.ZodArray<z.ZodString>;
+    assumptions: z.ZodArray<z.ZodString>;
+    expected_impacts: z.ZodArray<z.ZodString>;
+    side_effects: z.ZodArray<z.ZodString>;
+    target_candidates: z.ZodArray<z.ZodObject<{
+        kind: z.ZodEnum<{
+            clarification: "clarification";
+            edge: "edge";
+            finding: "finding";
+            graph: "graph";
+            impact_report: "impact_report";
+            node: "node";
+            node_group: "node_group";
+            policy: "policy";
+            prompt: "prompt";
+            proposal: "proposal";
+            relation_candidate: "relation_candidate";
+        }>;
+        ref: z.ZodString;
+        content_hash: z.ZodString;
+    }, z.core.$strict>>;
+    finding_coverage: z.ZodArray<z.ZodObject<{
+        finding_ref: z.ZodString;
+        approach: z.ZodString;
+        residual_issues: z.ZodArray<z.ZodString>;
+    }, z.core.$strict>>;
+}, z.core.$strict>;
+export declare const proposalInputSchema: z.ZodObject<{
+    finding_refs: z.ZodArray<z.ZodObject<{
+        finding_ref: z.ZodString;
+        claim_hash: z.ZodString;
+        review_status: z.ZodLiteral<"confirmed">;
+    }, z.core.$strict>>;
+    input_snapshot: z.ZodArray<z.ZodObject<{
+        kind: z.ZodEnum<{
+            clarification: "clarification";
+            edge: "edge";
+            finding: "finding";
+            graph: "graph";
+            impact_report: "impact_report";
+            node: "node";
+            node_group: "node_group";
+            policy: "policy";
+            prompt: "prompt";
+            proposal: "proposal";
+            relation_candidate: "relation_candidate";
+        }>;
+        ref: z.ZodString;
+        content_hash: z.ZodString;
+    }, z.core.$strict>>;
+    options: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        description: z.ZodString;
+        evidence_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                clarification: "clarification";
+                edge: "edge";
+                finding: "finding";
+                graph: "graph";
+                impact_report: "impact_report";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        benefits: z.ZodArray<z.ZodString>;
+        costs: z.ZodArray<z.ZodString>;
+        risks: z.ZodArray<z.ZodString>;
+        assumptions: z.ZodArray<z.ZodString>;
+        expected_impacts: z.ZodArray<z.ZodString>;
+        side_effects: z.ZodArray<z.ZodString>;
+        target_candidates: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                clarification: "clarification";
+                edge: "edge";
+                finding: "finding";
+                graph: "graph";
+                impact_report: "impact_report";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        finding_coverage: z.ZodArray<z.ZodObject<{
+            finding_ref: z.ZodString;
+            approach: z.ZodString;
+            residual_issues: z.ZodArray<z.ZodString>;
+        }, z.core.$strict>>;
+    }, z.core.$strict>>;
+    ai_recommendation: z.ZodOptional<z.ZodObject<{
+        is_ai_recommendation: z.ZodLiteral<true>;
+        option_ref: z.ZodString;
+        rationale: z.ZodString;
+        confidence: z.ZodEnum<{
+            high: "high";
+            low: "low";
+            medium: "medium";
+        }>;
+        uncertainty: z.ZodArray<z.ZodString>;
+    }, z.core.$strict>>;
+    supersedes_proposal_ref: z.ZodOptional<z.ZodString>;
+}, z.core.$strict>;
+export type ProposalInput = z.infer<typeof proposalInputSchema>;
+export declare const proposalSchema: z.ZodObject<{
+    finding_refs: z.ZodArray<z.ZodObject<{
+        finding_ref: z.ZodString;
+        claim_hash: z.ZodString;
+        review_status: z.ZodLiteral<"confirmed">;
+    }, z.core.$strict>>;
+    input_snapshot: z.ZodArray<z.ZodObject<{
+        kind: z.ZodEnum<{
+            clarification: "clarification";
+            edge: "edge";
+            finding: "finding";
+            graph: "graph";
+            impact_report: "impact_report";
+            node: "node";
+            node_group: "node_group";
+            policy: "policy";
+            prompt: "prompt";
+            proposal: "proposal";
+            relation_candidate: "relation_candidate";
+        }>;
+        ref: z.ZodString;
+        content_hash: z.ZodString;
+    }, z.core.$strict>>;
+    options: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        description: z.ZodString;
+        evidence_refs: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                clarification: "clarification";
+                edge: "edge";
+                finding: "finding";
+                graph: "graph";
+                impact_report: "impact_report";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        benefits: z.ZodArray<z.ZodString>;
+        costs: z.ZodArray<z.ZodString>;
+        risks: z.ZodArray<z.ZodString>;
+        assumptions: z.ZodArray<z.ZodString>;
+        expected_impacts: z.ZodArray<z.ZodString>;
+        side_effects: z.ZodArray<z.ZodString>;
+        target_candidates: z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                clarification: "clarification";
+                edge: "edge";
+                finding: "finding";
+                graph: "graph";
+                impact_report: "impact_report";
+                node: "node";
+                node_group: "node_group";
+                policy: "policy";
+                prompt: "prompt";
+                proposal: "proposal";
+                relation_candidate: "relation_candidate";
+            }>;
+            ref: z.ZodString;
+            content_hash: z.ZodString;
+        }, z.core.$strict>>;
+        finding_coverage: z.ZodArray<z.ZodObject<{
+            finding_ref: z.ZodString;
+            approach: z.ZodString;
+            residual_issues: z.ZodArray<z.ZodString>;
+        }, z.core.$strict>>;
+    }, z.core.$strict>>;
+    ai_recommendation: z.ZodOptional<z.ZodObject<{
+        is_ai_recommendation: z.ZodLiteral<true>;
+        option_ref: z.ZodString;
+        rationale: z.ZodString;
+        confidence: z.ZodEnum<{
+            high: "high";
+            low: "low";
+            medium: "medium";
+        }>;
+        uncertainty: z.ZodArray<z.ZodString>;
+    }, z.core.$strict>>;
+    supersedes_proposal_ref: z.ZodOptional<z.ZodString>;
+    schema_version: z.ZodLiteral<1>;
+    id: z.ZodString;
+    claim_hash: z.ZodString;
+    fingerprint: z.ZodString;
+    status: z.ZodLiteral<"pending">;
+    selected_option_ref: z.ZodOptional<z.ZodNever>;
+    created_at: z.ZodString;
+    history: z.ZodArray<z.ZodObject<{
+        event: z.ZodLiteral<"created">;
+        at: z.ZodString;
+        claim_hash: z.ZodString;
+    }, z.core.$strict>>;
+}, z.core.$strict>;
+export type Proposal = z.infer<typeof proposalSchema>;
+export declare function createProposal(inputValue: unknown, now?: Date): Proposal;
+export declare function parseProposal(value: string): Proposal;

@@ -1,6 +1,6 @@
 {
   "name": "productkit",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "Turn natural-language product ideas into a traceable Product Definition and OpenSpec handoff",
   "type": "module",
   "bin": {
@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prepare": "npm run build",
+    "prepare": "node -e \"require('fs').existsSync('dist/cli/bin.js')||require('child_process').execSync('npm run build',{stdio:'inherit'})\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "prepack": "npm run build",
