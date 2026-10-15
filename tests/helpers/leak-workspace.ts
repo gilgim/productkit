@@ -41,6 +41,8 @@ export interface LeakOptions {
   excludeNodes?: string[];
   /** Replace the exclusion item's decision_ref with this (attack). */
   exclusionDecisionRef?: string;
+  /** Make the exclusion item cite these Nodes instead of the Finding's (attack). */
+  exclusionItemNodes?: string[];
   /** Add an unresolved Finding related to these Nodes. */
   openFindingNodes?: string[];
   /** Mark a second Finding `resolved` citing the content Decision that does not target it. */
@@ -142,23 +144,30 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const items: unknown[] = specs.map((x, i) => ({ id: `ITM-${String(i).padStart(12, 'a')}`, kind: x.kind, text: x.text, provenance: prov(x.nodes) }));
   if (exclusion) {
     const decisions = await (await import('../../src/clarification/proposal-decision-store.js')).readDecisions(root); const ex = decisions.find((d) => d.id === exclusionDecisionId)!;
-    items.push({ id: 'ITM-eeeeeeeeeeee', kind: 'exclusion', text: exclusion.excluded_scope, provenance: { origin: 'user_decision', source_refs: o.excludeNodes!.map(nodeRef), decision_refs: [{ kind: 'decision', ref: ex.id, content_hash: ex.decision_hash }, decisionRef], prompt_refs: [promptRef] }, exclusion: { decision_ref: o.exclusionDecisionRef ?? ex.id, ...exclusion } });
+    items.push({ id: 'ITM-eeeeeeeeeeee', kind: 'exclusion', text: exclusion.excluded_scope, provenance: { origin: 'user_decision', source_refs: (o.exclusionItemNodes ?? o.excludeNodes!).map(nodeRef), decision_refs: [{ kind: 'decision', ref: ex.id, content_hash: ex.decision_hash }, decisionRef], prompt_refs: [promptRef] }, exclusion: { decision_ref: o.exclusionDecisionRef ?? ex.id, ...exclusion } });
   }
   const definition = createProductDefinition({ schema_version: 1, status: 'draft', product_name: 'Leak', items: items as never, journey_refs: [], policy_refs: [policy.id], finding_refs: [finding.id], assumption_refs: [], input_snapshot: [promptRef, ...itemNodes.map(nodeRef), decisionRef], rules_version: 'definition/1' });
   const pc = stringify(policy); const dc = stringify(definition);
-  const plan = { decision_ref: decision.id, decision_hash: decision.decision_hash, scope: 's', rationale: 'r', targets: [{ ref: { kind: 'policy', ref: policy.id, content_hash: policy.content_hash }, path: `product/policies/${policy.id}.yaml`, before_hash: null, after_hash: sha256Hex(pc), before_content: null, after_content: pc }, { ref: { kind: 'definition', ref: definition.id, content_hash: definition.content_hash }, path: 'product/definition.yaml', before_hash: null, after_hash: sha256Hex(dc), before_content: null, after_content: dc }], finding_refs: [finding.id], residual_risks: ['rr', ...(exclusion ? [exclusion.residual_risk] : [])], before_impact_refs: [...new Set(['NOD-001-1', ...itemNodes, ...(o.excludeNodes ?? [])])].map((id) => impactByNode.get(id)!) };
+  const plan = { decision_ref: decision.id, decision_hash: decision.decision_hash, scope: 's', rationale: 'r', targets: [{ ref: { kind: 'policy', ref: policy.id, content_hash: policy.content_hash }, path: `product/policies/${policy.id}.yaml`, before_hash: null, after_hash: sha256Hex(pc), before_content: null, after_content: pc }, { ref: { kind: 'definition', ref: definition.id, content_hash: definition.content_hash }, path: 'product/definition.yaml', before_hash: null, after_hash: sha256Hex(dc), before_content: null, after_content: dc }], finding_refs: [finding.id], residual_risks: ['rr', ...(exclusion ? [exclusion.residual_risk] : [])], before_impact_refs: [...new Set(['NOD-001-1', ...itemNodes, ...(o.exclusionItemNodes ?? o.excludeNodes ?? [])])].map((id) => impactByNode.get(id)!) };
   const app = (await createApplication(root, plan)).application; const applied = await applyApplication(root, app.id);
   await recordApplicationVerification(root, applied.id, { status: 'verified', assessor: 'user', summary: 'SYNTHETIC USER: ok', evidence_refs: [decisionRef], uncertainty: ['synthetic'] });
   if (exclusionDecisionId && !o.exclusionDecisionRef) {
     const decisions = await (await import('../../src/clarification/proposal-decision-store.js')).readDecisions(root); const ex = decisions.find((d) => d.id === exclusionDecisionId)!;
-    const plan2 = { ...plan, decision_ref: ex.id, decision_hash: ex.decision_hash, targets: [{ ref: { kind: 'definition', ref: definition.id, content_hash: definition.content_hash }, path: 'product/definition.yaml', before_hash: sha256Hex(dc), after_hash: sha256Hex(dc), before_content: dc, after_content: dc }], finding_refs: [], residual_risks: [exclusion!.residual_risk], before_impact_refs: [...new Set([...itemNodes, ...(o.excludeNodes ?? [])])].map((id) => impactByNode.get(id)!) };
+    const plan2 = { ...plan, decision_ref: ex.id, decision_hash: ex.decision_hash, targets: [{ ref: { kind: 'definition', ref: definition.id, content_hash: definition.content_hash }, path: 'product/definition.yaml', before_hash: sha256Hex(dc), after_hash: sha256Hex(dc), before_content: dc, after_content: dc }], finding_refs: [], residual_risks: [exclusion!.residual_risk], before_impact_refs: [...new Set([...itemNodes, ...(o.exclusionItemNodes ?? o.excludeNodes ?? [])])].map((id) => impactByNode.get(id)!) };
     const app2 = (await createApplication(root, plan2)).application; const applied2 = await applyApplication(root, app2.id);
     await recordApplicationVerification(root, applied2.id, { status: 'verified', assessor: 'user', summary: 'SYNTHETIC USER: ok', evidence_refs: [{ kind: 'decision', ref: ex.id, content_hash: ex.decision_hash }], uncertainty: ['synthetic'] });
   }
 
   const snap = await currentValidationFingerprint(root);
-  const evidence = o.semanticEvidence === 'none' ? [] : o.semanticEvidence === 'skill' ? [snap.snapshot.find((x) => x.kind === 'skill')!] : [snap.snapshot.find((x) => x.kind === 'node' && x.ref === 'NOD-001-1')!];
-  const areas = Object.fromEntries(['requirement_completeness', 'user_flow', 'policy_consistency', 'acceptance_criteria', 'assumptions', 'graph_impact', 'traceability', 'counterexamples'].map((a) => [a, { status: 'reviewed', evidence_refs: evidence, rationale: 'SYNTHETIC AGENT REVIEW' }]));
-  const semanticInput = { schema_version: 1, definition_ref: definition.id, definition_hash: definition.content_hash, input_fingerprint: snap.fingerprint, assessor: 'ai', scope: 'all', areas, finding_refs: [finding.id], unreviewed_scope: [], uncertainty: ['synthetic'], summary: 's', created_at: new Date().toISOString() };
+  // Each area cites the artifact kinds AREA_EVIDENCE requires for it.
+  const of = (kind: string, ref?: string) => snap.snapshot.find((x) => x.kind === kind && (ref === undefined || x.ref === ref))!;
+  const perArea: Record<string, Array<{ kind: string; ref: string; content_hash: string }>> = {
+    requirement_completeness: [of('prompt'), of('definition')], user_flow: [of('node', 'NOD-001-1')], policy_consistency: [of('definition'), of('policy')],
+    acceptance_criteria: [of('definition')], assumptions: [of('finding', finding.id)], graph_impact: [of('impact_report')], traceability: [of('decision', decision.id), of('prompt')], counterexamples: [of('finding', finding.id)],
+  };
+  const evidenceFor = (area: string) => o.semanticEvidence === 'none' ? [] : o.semanticEvidence === 'skill' ? [of('skill')] : perArea[area]!;
+  const areas = Object.fromEntries(Object.keys(perArea).map((a) => [a, { status: 'reviewed', evidence_refs: evidenceFor(a), rationale: 'SYNTHETIC AGENT REVIEW' }]));
+  const item_fidelity = (items as Array<{ id: string; provenance: { source_refs: Array<{ kind: string; ref: string }> } }>).flatMap((item) => item.provenance.source_refs.filter((r) => r.kind === 'node').map((r) => ({ item_ref: item.id, node_ref: r.ref, verdict: 'same', reason: 'SYNTHETIC: item text equals Node text' })));
+  const semanticInput = { schema_version: 1, definition_ref: definition.id, definition_hash: definition.content_hash, input_fingerprint: snap.fingerprint, assessor: 'ai', scope: 'all', areas, item_fidelity, unreviewed_scope_resolved: [], finding_refs: [finding.id], unreviewed_scope: [], uncertainty: ['synthetic'], summary: 's', created_at: new Date().toISOString() };
   return { temp, root, definitionId: definition.id, definitionHash: definition.content_hash, findingId: finding.id, decisionId: decision.id, semanticInput };
 }

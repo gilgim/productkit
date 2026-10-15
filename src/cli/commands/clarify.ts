@@ -31,6 +31,9 @@ const REASON_MESSAGES: Record<CompletionBlockReason, string> = {
   prompt_changed_since_clarification: 'Prompt snapshot is missing or changed; review and re-confirm without overwriting the original.',
   incomplete_steps: 'Clarification has incomplete steps or placeholder output.',
   invalid_step_reference: 'Clarification step references do not resolve.',
+  presented_statement_missing_source:
+    'The presented_statement the user agreed to must quote every decomposed or set-aside Prompt ' +
+    'span verbatim, so the original sentence sits next to its restatement.',
   uncovered_spans:
     'Some Prompt spans are not accounted for. Every span must be decomposed, raised as a ' +
     'finding candidate, or listed in steps.span_coverage as non_requirement with a reason.',

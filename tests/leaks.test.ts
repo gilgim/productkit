@@ -12,7 +12,7 @@ import { stringify } from 'yaml';
 import { buildLeakWorkspace, type LeakOptions } from './helpers/leak-workspace.js';
 import { createValidationReport, recordApproval, recordSemanticReview } from '../src/clarification/validation-store.js';
 import { exportOpenSpec } from '../src/clarification/export-store.js';
-import { judgeCompletion } from '../src/schema/clarification.js';
+import { computeEntryHash, judgeCompletion } from '../src/schema/clarification.js';
 import { confirmedFixture, promptFixture, validSteps } from './helpers/gate-fixtures.js';
 
 let temp: string;
@@ -128,6 +128,63 @@ describe('leak regression: source content cannot vanish silently', () => {
     const report = await createValidationReport(w.root, review.id);
     expect(report.readiness).toBe('blocked');
     expect(report.checks.find((c) => c.id === `semantic.${review.id}`)?.message).toContain('hollow');
+  });
+
+  it('the statement the user agrees to must quote every decomposed or set-aside span verbatim', () => {
+    const prompt = promptFixture('첫 문장이다. 둘째 문장이다.');
+    const steps = validSteps(['첫 문장이다.']);
+    steps.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '서술' }];
+    const good = confirmedFixture(steps, prompt);
+    expect(judgeCompletion(good, prompt).confirmed).toBe(true);
+    // Same steps, but the agent's summary paraphrases instead of quoting.
+    const { entry_hash: _e, ...entry } = good.interpretation_check[0]!;
+    const paraphrased = { ...entry, presented_statement: 'SYNTHETIC: 첫 번째 문장만 요구사항이고 나머지는 서술이다.' };
+    const bad = { ...good, interpretation_check: [{ ...paraphrased, entry_hash: computeEntryHash(paraphrased) }] };
+    const judgement = judgeCompletion(bad, prompt);
+    expect(judgement.confirmed).toBe(false);
+    if (!judgement.confirmed) { expect(judgement.reason).toBe('presented_statement_missing_source'); expect(judgement.detail).toContain('SPN-001, SPN-002'); }
+  });
+
+  it('a semantic review must carry a fidelity verdict for every item/Node pair; contradicts blocks', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    const w = await buildLeakWorkspace(temp);
+    const input = w.semanticInput as { item_fidelity: Array<{ item_ref: string; node_ref: string; verdict: string; reason: string }> };
+    const full = input.item_fidelity;
+    await expect(recordSemanticReview(w.root, { ...input, item_fidelity: full.slice(1) } as never)).rejects.toThrow(/item_fidelity has no verdict for 1 item\/Node pair/);
+    const flagged = full.map((f, i) => (i === 0 ? { ...f, verdict: 'contradicts', reason: 'item says auto-accrue; Node says separate payment' } : f));
+    const review = await recordSemanticReview(w.root, { ...input, item_fidelity: flagged } as never);
+    const report = await createValidationReport(w.root, review.id);
+    expect(report.readiness).toBe('blocked');
+    const check = report.checks.find((c) => c.id === `definition.fidelity.${full[0]!.item_ref}`);
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('contradicts its source');
+  });
+
+  it('an exclusion item must cite exactly the Nodes its Finding is about', async () => {
+    const g = await gate({ excludeNodes: ['NOD-001-4'], exclusionItemNodes: ['NOD-001-3'] });
+    expect(g.report.readiness).toBe('blocked');
+    expect(g.check('definition.references')?.message).toMatch(/must cite exactly the Nodes its Finding\(s\) are about \(NOD-001-4\); it cites NOD-001-3/);
+  });
+
+  it('a reviewed area must cite the artifact kinds that area is about', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    const w = await buildLeakWorkspace(temp);
+    const input = w.semanticInput as { areas: Record<string, { evidence_refs: unknown[] }> };
+    const wrong = { ...input, areas: { ...input.areas, graph_impact: { ...input.areas.graph_impact, evidence_refs: input.areas.user_flow!.evidence_refs } } };
+    await expect(recordSemanticReview(w.root, wrong as never)).rejects.toThrow(/graph_impact must cite at least one impact_report/);
+  });
+
+  it('a later review of the same inputs cannot drop what an earlier one listed as unreviewed', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    const w = await buildLeakWorkspace(temp);
+    const input = w.semanticInput as { unreviewed_scope: string[]; unreviewed_scope_resolved: unknown[]; areas: Record<string, { evidence_refs: unknown[] }>; created_at: string };
+    const first = await recordSemanticReview(w.root, { ...input, unreviewed_scope: ['계약서 8종'], created_at: '2026-10-15T13:00:00.000Z' } as never);
+    expect((await createValidationReport(w.root, first.id)).readiness).toBe('blocked');
+    // PAYLOAD's move: same fingerprint, unreviewed item silently moved out.
+    await expect(recordSemanticReview(w.root, { ...input, unreviewed_scope: [], created_at: '2026-10-15T13:30:00.000Z' } as never)).rejects.toThrow(/listed "계약서 8종" as unreviewed; it must stay/);
+    // The honest way: name it as resolved, with evidence.
+    const second = await recordSemanticReview(w.root, { ...input, unreviewed_scope: [], unreviewed_scope_resolved: [{ item: '계약서 8종', evidence_refs: input.areas.acceptance_criteria!.evidence_refs }], created_at: '2026-10-15T13:31:00.000Z' } as never);
+    expect((await createValidationReport(w.root, second.id)).readiness).toBe('ready');
   });
 
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {

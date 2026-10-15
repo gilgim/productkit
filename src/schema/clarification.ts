@@ -170,7 +170,8 @@ export type CompletionBlockReason =
   | 'invalid_prompt_reference'
   | 'prompt_integrity_violation'
   | 'prompt_changed_since_clarification'
-  | 'uncovered_spans';
+  | 'uncovered_spans'
+  | 'presented_statement_missing_source';
 
 export type CompletionJudgement =
   | { confirmed: true }
@@ -228,7 +229,33 @@ export function judgeCompletion(clarification: Clarification, prompt?: Prompt): 
   if (clarification.steps.decomposition.some(d => d.span_refs.some(ref => !spanIds.has(ref))) || clarification.finding_candidates.some(f => f.span_refs.some(ref => !spanIds.has(ref))) || (clarification.steps.span_coverage ?? []).some(c => !spanIds.has(c.span_ref))) return { confirmed: false, reason: 'invalid_step_reference', detail: 'A source span reference does not resolve in the current Prompt.' };
   const uncovered = uncoveredSpans(clarification, prompt);
   if (uncovered.length) return { confirmed: false, reason: 'uncovered_spans', detail: `Prompt spans not decomposed, not raised as a finding candidate, and not dispositioned as non_requirement: ${uncovered.join(', ')}` };
+  const unquoted = unquotedSpans(clarification, prompt, latest.presented_statement);
+  if (unquoted.length) return { confirmed: false, reason: 'presented_statement_missing_source', detail: `The statement the user agreed to does not quote these Prompt spans verbatim: ${unquoted.join(', ')}` };
   return { confirmed: true };
+}
+
+const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+/**
+ * What the user agrees to must show the user's own words, not only the
+ * agent's restatement of them. Every span that was decomposed or set aside
+ * must appear verbatim in `presented_statement`, so a wrong restatement or a
+ * wrong "not a requirement" label sits next to the original sentence when the
+ * user reads it. The CLI checks presence, not that the user read it.
+ */
+export function unquotedSpans(clarification: Clarification, prompt: Prompt, presented: string): string[] {
+  const shown = squash(presented);
+  const ids = new Set<string>();
+  for (const d of clarification.steps.decomposition) for (const ref of d.span_refs) ids.add(ref);
+  for (const c of clarification.steps.span_coverage ?? []) ids.add(c.span_ref);
+  const missing: string[] = [];
+  for (const id of ids) {
+    const span = prompt.spans.find(s => s.id === id);
+    if (!span) continue;
+    const text = squash(prompt.raw_text.slice(span.start, span.end));
+    if (text && !shown.includes(text)) missing.push(id);
+  }
+  return missing;
 }
 
 /**

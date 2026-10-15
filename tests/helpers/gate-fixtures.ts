@@ -16,7 +16,10 @@ export function validSteps(statements = ['사용자가 결제를 완료하면 �
   };
 }
 export function confirmedFixture(steps = validSteps(), prompt = promptFixture()) {
-  const entry = { id: 'IC-TEST-001', presented_statement: 'SYNTHETIC: ' + steps.decomposition.map(s => s.statement).join(' '), presented_hash: stepsContentHash(steps), prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, user_response: 'agreed' as const, user_statement: 'SYNTHETIC TEST ONLY: 이 해석에 동의합니다.', checked_at: '2026-10-12T00:00:00Z' };
+  // The presented statement must quote every decomposed or set-aside span verbatim.
+  const spanText = (id: string) => { const s = prompt.spans.find(x => x.id === id); return s ? prompt.raw_text.slice(s.start, s.end).trim() : ''; };
+  const quoted = [...new Set([...steps.decomposition.flatMap(d => d.span_refs), ...(steps.span_coverage ?? []).map(c => c.span_ref)])].map(spanText).join(' ');
+  const entry = { id: 'IC-TEST-001', presented_statement: 'SYNTHETIC — 원문: ' + quoted + ' / 해석: ' + steps.decomposition.map(s => s.statement).join(' '), presented_hash: stepsContentHash(steps), prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, user_response: 'agreed' as const, user_statement: 'SYNTHETIC TEST ONLY: 이 해석에 동의합니다.', checked_at: '2026-10-12T00:00:00Z' };
   const { entry_hash: _unused, ...storedEntry } = interpretationCheckEntrySchema.parse({ ...entry, entry_hash: '0'.repeat(64) });
   return clarificationSchema.parse({ id: 'CLR-001', prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, steps, status: 'confirmed', interpretation_check: [{ ...storedEntry, entry_hash: computeEntryHash(storedEntry) }], finding_candidates: [] });
 }

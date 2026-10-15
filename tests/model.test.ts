@@ -46,7 +46,7 @@ afterEach(async () => {
 function confirmedEntry(forSteps: ClarificationSteps) {
   const base = {
     id: 'IC-001',
-    presented_statement: '결제 완료 시 주문 확정, 이메일 발송, 재고 차감이 모두 일어난다',
+    presented_statement: `원문: ${originalPrompt.raw_text} / 해석: 결제 완료 시 주문 확정, 이메일 발송, 재고 차감이 모두 일어난다`,
     presented_hash: stepsContentHash(forSteps),
     prompt_ref: originalPrompt.id,
     prompt_content_hash: originalPrompt.content_hash,
