@@ -14,7 +14,7 @@ import { judgeNodeSetCompletion, parseNodeGroup } from '../../schema/node.js';
  */
 const REASON_MESSAGES = {
     invalid_split_lineage: 'Split replacements must trace to preserved split-required Nodes with new IDs and matching source references.',
-    restatement_mismatch: 'A Node drops or invents numbers, or keeps under 60% of the content words, of the decomposition item it came from.',
+    restatement_mismatch: 'Each Node must be a verbatim slice (or two slices) of its decomposition item, and the slices together must cover every word of it.',
     structural_signal_mismatch: 'structural_signal must be what the CLI computes from the statement; run `productkit hash atomicity --input` with the statement to get it.',
     split_review_required: 'A statement that still carries 3+ clause separators needs decomposability valid_split or would_orphan_pieces (with a reason), not not_applicable.',
     missing_preservation_review: 'Each source item requires a substantive conditions/operators/exceptions preservation review.',

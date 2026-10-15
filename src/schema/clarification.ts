@@ -309,21 +309,17 @@ export const isReason = (value: unknown): value is string => isMeaningfulText(va
 export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined {
   const items = clarification.steps.decomposition;
   for (const [i, item] of items.entries()) {
-    if (item.span_refs.length > 1 && !isReason(item.merge_reason)) return `decomposition[${i}] cites ${item.span_refs.length} spans (${item.span_refs.join(', ')}) but gives no merge_reason (6+ characters).`;
-    // Merging several spans does not exempt any of them from the clause rule.
-    for (const id of item.span_refs) {
-      const readers = items.filter(other => other.span_refs.includes(id));
-      const signals = clauseSignalCount(spanTextById(prompt, id));
-      if (readers.length === 1 && signals >= CLAUSE_SIGNAL_THRESHOLD && !isReason(item.single_statement_reason)) return `decomposition[${i}] is the only reading of ${id}, which carries ${signals} clause separators; give a single_statement_reason (6+ characters) or split it.`;
-    }
+    if (item.span_refs.length > 1 && !isReason(item.merge_reason)) return `decomposition[${i}] cites ${item.span_refs.length} spans (${item.span_refs.join(', ')}) but gives no merge_reason (6+ characters, 2+ words).`;
   }
   for (const [i, c] of (clarification.steps.span_coverage ?? []).entries()) {
-    if (!isReason(c.reason)) return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters.`;
+    if (!isReason(c.reason)) return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters and 2+ words.`;
     const text = spanTextById(prompt, c.span_ref);
     if (/[?？]\s*$/.test(text)) return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; decompose it or raise it as a finding candidate.`;
-    // A sentence carrying a number or a negation/condition word is saying
-    // something a product must do; it cannot be filed as "not a requirement".
+    // A sentence carrying a number, a negation/condition word, or simply a
+    // lot of content is saying something a product must do; it cannot be
+    // filed as "not a requirement".
     if (!isStructuralSpan(text) && (numberTokens(text).length || polarityTokens(text).length)) return `span_coverage[${i}] sets aside ${c.span_ref}, which carries ${numberTokens(text).length ? 'a number' : 'a negation/condition word'} (${[...numberTokens(text), ...polarityTokens(text)].slice(0, 4).join(', ')}); decompose it or raise it as a finding candidate.`;
+    if (!isStructuralSpan(text) && contentTokenList(text).length >= 10) return `span_coverage[${i}] sets aside ${c.span_ref}, which has ${contentTokenList(text).length} content words; a sentence that long is not a heading or an aside — decompose it or raise it as a finding candidate.`;
   }
   return undefined;
 }
@@ -352,6 +348,45 @@ export function restatementIssue(source: string, readings: string[]): string | u
   return undefined;
 }
 
+/**
+ * Each statement must be one contiguous slice of `source`, or two slices
+ * joined by a space (a shared trigger carried into a split piece). Together
+ * the slices must cover every content word of the source. Nothing can be
+ * flipped, dropped or reordered: the only freedom is where to cut.
+ */
+export function sliceIssue(source: string, statements: string[]): string | undefined {
+  const src = squash(source);
+  const covered = new Array<boolean>(src.length).fill(false);
+  const mark = (a: number, b: number) => { for (let i = a; i < b; i++) covered[i] = true; };
+  const locate = (s: string): Array<[number, number]> | undefined => {
+    const whole = src.indexOf(s);
+    if (whole >= 0) return [[whole, whole + s.length]];
+    for (let cut = s.indexOf(' '); cut > 0; cut = s.indexOf(' ', cut + 1)) {
+      const a = s.slice(0, cut); const b = s.slice(cut + 1);
+      const ia = src.indexOf(a); const ib = src.indexOf(b);
+      if (ia >= 0 && ib >= 0) return [[ia, ia + a.length], [ib, ib + b.length]];
+    }
+    return undefined;
+  };
+  for (const st of statements) {
+    const s = squash(st).replace(/[.。]$/, '');
+    if (!s) return 'an empty statement';
+    const parts = locate(s);
+    if (!parts) return `"${s.slice(0, 50)}${s.length > 50 ? '…' : ''}" is not a verbatim slice (or two slices) of "${src.slice(0, 50)}${src.length > 50 ? '…' : ''}"`;
+    for (const [a, b] of parts) mark(a, b);
+  }
+  const missing: string[] = [];
+  const re = /[^\s,.;:!?()\[\]{}"'`“”‘’·/|]+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    const token = m[0]; if (token.length < 2 && !/^[한두세네열백천]$/.test(token)) continue;
+    let ok = true; for (let i = m.index; i < m.index + token.length; i++) if (!covered[i]) { ok = false; break; }
+    if (!ok) missing.push(token);
+  }
+  if (missing.length) return `these source words are in no slice: ${missing.slice(0, 8).join(', ')}${missing.length > 8 ? ', …' : ''}`;
+  return undefined;
+}
+
 /** Share of a span's content that its readings must carry. */
 export const READING_COVERAGE_RATIO = 0.6;
 
@@ -362,13 +397,13 @@ export const READING_COVERAGE_RATIO = 0.6;
  * here; a near-verbatim reading passes, and the split happens at atomize.
  */
 export function readingCoverageIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined {
-  const items = clarification.steps.decomposition;
-  const cited = new Set(items.flatMap(d => d.span_refs));
-  for (const id of cited) {
-    const text = spanTextById(prompt, id);
-    const readings = items.filter(d => d.span_refs.includes(id)).map(d => d.statement);
-    const issue = restatementIssue(text, readings);
-    if (issue) return `readings of ${id} ${issue}`;
+  // A reading is the user's sentence, verbatim. There is nothing to
+  // paraphrase at this stage: the user decides which sentences are
+  // requirements, which are set aside, which are questions. Splitting into
+  // atomic pieces happens at atomize, as verbatim slices of these sentences.
+  for (const [i, item] of clarification.steps.decomposition.entries()) {
+    const expected = squash(item.span_refs.map(id => spanTextById(prompt, id)).join(' '));
+    if (squash(item.statement) !== expected) return `decomposition[${i}] must be the span text verbatim: expected "${expected.slice(0, 60)}${expected.length > 60 ? '…' : ''}"`;
   }
   return undefined;
 }

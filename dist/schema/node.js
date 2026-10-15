@@ -4,7 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { clauseSignalCount } from '../clarification/spans.js';
 import { forbiddenTextIssue } from './text.js';
-import { restatementIssue } from './clarification.js';
+import { sliceIssue } from './clarification.js';
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 const hashHex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 hex digest');
 const confidenceSchema = z.enum(['low', 'medium', 'high']);
@@ -253,9 +253,9 @@ export function judgeNodeSetCompletion(group, currentSteps, source) {
     // Structural signals are the CLI's numbers, not the author's. A statement
     // that still carries several clauses cannot be waved through with
     // decomposability: not_applicable — it must be split or defended.
-    // Nodes must restate their decomposition item, not re-decide it: every
-    // number of the source present in the Nodes for that item, none invented,
-    // most content words kept. Same bar as a reading against its span.
+    // Nodes are verbatim slices of their decomposition item (the user's own
+    // sentence), and together the slices cover every word of it. The only
+    // freedom at this stage is where to cut.
     const restate = [];
     const byIndex = new Map();
     for (const n of group.nodes)
@@ -264,9 +264,9 @@ export function judgeNodeSetCompletion(group, currentSteps, source) {
         const source = currentSteps.decomposition[index]?.statement;
         if (!source)
             continue;
-        const issue = restatementIssue(source, statements);
+        const issue = sliceIssue(source, statements);
         if (issue)
-            restate.push(`decomposition[${index}] → ${statements.length} Node(s) ${issue}`);
+            restate.push(`decomposition[${index}] → ${statements.length} Node(s): ${issue}`);
     }
     if (restate.length) {
         reasons.push('restatement_mismatch');

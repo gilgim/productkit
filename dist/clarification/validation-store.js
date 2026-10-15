@@ -13,7 +13,7 @@ import { parseImpactReport } from '../schema/impact.js';
 import { createSemanticReview, semanticReviewIssue, semanticReviewSchema, validationReportSchema, approvalSchema, semanticAreas } from '../schema/validation.js';
 import { loadGraphWorkspace } from './provenance.js';
 import { readAttestationPolicy } from './workspace.js';
-import { parseClarification, restatementIssue } from '../schema/clarification.js';
+import { parseClarification } from '../schema/clarification.js';
 import { SEGMENTATION_VERSION } from './spans.js';
 import { forbiddenTextIssue } from '../schema/text.js';
 import { parseProductConfig } from '../schema/config.js';
@@ -246,14 +246,14 @@ async function checksFor(root, review) {
                 add(`definition.item_source.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} cites no Node; a requirement must come from a modeled Node.`);
             for (const r of nodes)
                 placed.add(r.ref);
-            // The item must restate its Node(s), not label them: same numbers, same negations, most words in order.
+            // The item carries its Node's sentence verbatim; it may frame it, not rewrite it.
+            const squashT = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
             for (const r of nodes) {
                 const nodeStatement = workspace.nodes.get(r.ref)?.node.statement;
                 if (!nodeStatement)
                     continue;
-                const issue = restatementIssue(nodeStatement, [item.text.replace(/^검증:\s*/, '')]);
-                if (issue)
-                    add(`definition.item_restates.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} does not restate ${r.ref}: ${issue}`);
+                if (!squashT(item.text).includes(squashT(nodeStatement)))
+                    add(`definition.item_restates.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} does not contain the text of ${r.ref} verbatim: "${squashT(nodeStatement).slice(0, 60)}"`);
             }
         }
         for (const item of definition.items)

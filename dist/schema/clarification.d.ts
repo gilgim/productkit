@@ -269,6 +269,13 @@ export declare const isReason: (value: unknown) => value is string;
 export declare function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined;
 /** Does `readings` restate `source`: every number of source present, 60%+ of its content words, and no number invented? */
 export declare function restatementIssue(source: string, readings: string[]): string | undefined;
+/**
+ * Each statement must be one contiguous slice of `source`, or two slices
+ * joined by a space (a shared trigger carried into a split piece). Together
+ * the slices must cover every content word of the source. Nothing can be
+ * flipped, dropped or reordered: the only freedom is where to cut.
+ */
+export declare function sliceIssue(source: string, statements: string[]): string | undefined;
 /** Share of a span's content that its readings must carry. */
 export declare const READING_COVERAGE_RATIO = 0.6;
 /**
