@@ -26,7 +26,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "prepack": "npm run build",
-    "postinstall": "node scripts/postinstall.mjs"
+    "postinstall": "node \"$npm_package_json/../scripts/postinstall.mjs\""
   },
   "keywords": [
     "product",
