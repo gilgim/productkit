@@ -13,4 +13,6 @@ export declare function forbiddenTextIssue(text: string): string | undefined;
 /** Fields that hold one sentence may not hold a line break: a line break is how an exported document grows a fake section. */
 export declare function multilineIssue(text: string): string | undefined;
 export declare function saysNo(statement: string): boolean;
+/** A Decision names a choice; the choice may itself be "cancel" or "no refund". Only a statement that opens as a refusal is one. */
+export declare function startsWithRefusal(statement: string): boolean;
 export declare function isMeaningfulText(value: unknown): value is string;

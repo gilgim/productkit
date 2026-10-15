@@ -3,7 +3,7 @@ import path from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { CliError, ExitCode } from '../errors.js';
 import { readAttestationPolicy } from './workspace.js';
-import { saysNo } from '../schema/text.js';
+import { startsWithRefusal } from '../schema/text.js';
 import { createProposal, parseProposal } from '../schema/proposal.js';
 import { createDecision, parseDecision } from '../schema/decision.js';
 import { findingContentHash, parseFinding, toFindingInput } from '../schema/finding.js';
@@ -78,7 +78,7 @@ export async function addProposal(root, input) { const proposal = createProposal
     return { proposal, created: true }; const existing = parseProposal(await readFile(file, 'utf8')); if (existing.claim_hash !== proposal.claim_hash)
     throw new CliError(`Proposal ID collision: ${proposal.id}`, ExitCode.GATE_BLOCKED); return { proposal: existing, created: false }; }
 export async function addDecision(root, input) {
-    if (saysNo(input.user_statement))
+    if (startsWithRefusal(input.user_statement))
         throw new CliError(`The Decision statement reads as a refusal: "${input.user_statement.trim().slice(0, 60)}". A Decision records a choice the user made, not one they declined.`, ExitCode.GATE_BLOCKED);
     const decision = createDecision(input);
     const policy = await readAttestationPolicy(root);

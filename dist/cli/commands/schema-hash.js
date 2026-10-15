@@ -120,5 +120,29 @@ export function registerSchemaHashCommands(program, output) {
         const body = { ...rest2, attestation: 'flag' };
         output.out(stringifyYaml({ ...body, entry_hash: computeEntryHash(body) }).trimEnd());
     });
+    // Artifacts whose id/content_hash the gate recomputes: print the finished record from the input.
+    hash
+        .command('policy').requiredOption('--input <yaml>', 'a Policy without content_hash').description('print the Policy with its content_hash filled in')
+        .exitOverride().action(async (opts) => { const { createPolicy } = await import('../../schema/definition.js'); const raw = parseYaml(await readFile(path.resolve(opts.input), 'utf8')); const { content_hash: _c, ...rest } = raw; output.out(stringifyYaml(createPolicy(rest)).trimEnd()); });
+    hash
+        .command('journey').requiredOption('--input <yaml>', 'a Journey without id/content_hash').description('print the Journey with id and content_hash filled in')
+        .exitOverride().action(async (opts) => { const { createJourney } = await import('../../schema/definition.js'); const raw = parseYaml(await readFile(path.resolve(opts.input), 'utf8')); const { content_hash: _c, id: _i, ...rest } = raw; output.out(stringifyYaml(createJourney(rest)).trimEnd()); });
+    hash
+        .command('definition').requiredOption('--input <yaml>', 'a Product Definition without id/content_hash/history/created_at').description('print the Definition with id, content_hash, history and created_at filled in')
+        .exitOverride().action(async (opts) => { const { createProductDefinition } = await import('../../schema/definition.js'); const raw = parseYaml(await readFile(path.resolve(opts.input), 'utf8')); const { content_hash: _c, id: _i, history: _h, created_at: _a, ...rest } = raw; output.out(stringifyYaml(createProductDefinition(rest)).trimEnd()); });
+    hash
+        .command('semantic-review').requiredOption('--input <yaml>', 'a semantic review without id/content_hash').description('print the review with id and content_hash filled in (prefer `productkit validate review --input`, which stores it)')
+        .exitOverride().action(async (opts) => { const { createSemanticReview } = await import('../../schema/validation.js'); const raw = parseYaml(await readFile(path.resolve(opts.input), 'utf8')); const { content_hash: _c, id: _i, ...rest } = raw; output.out(stringifyYaml(createSemanticReview(rest)).trimEnd()); });
+    hash
+        .command('inputs').description('print every current artifact reference with the hash a Decision/Application/Definition snapshot must cite (kind, ref, content_hash)')
+        .exitOverride().action(async () => { const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const { currentChallengeInputs } = await import('../../clarification/challenge-store.js'); const { readDecisions, readProposals, readCurrentFindings } = await import('../../clarification/proposal-decision-store.js'); const { findingContentHash, toFindingInput } = await import('../../schema/finding.js'); const cur = await currentChallengeInputs(root); for (const i of cur.inputs)
+        output.out(`${i.kind.padEnd(19)} ${i.ref.padEnd(26)} ${i.content_hash}`); for (const p of await readProposals(root))
+        output.out(`${'proposal'.padEnd(19)} ${p.id.padEnd(26)} ${p.claim_hash}  (claim_hash)`); for (const d of await readDecisions(root))
+        output.out(`${'decision'.padEnd(19)} ${d.id.padEnd(26)} ${d.decision_hash}`); for (const f of await readCurrentFindings(root))
+        output.out(`${'finding.claim_hash'.padEnd(19)} ${f.id.padEnd(26)} ${findingContentHash(toFindingInput(f))}  (for finding_refs[].claim_hash)`); });
+    hash
+        .command('fingerprint').description('print the current validation input fingerprint and the evidence hashes a semantic review cites')
+        .exitOverride().action(async () => { const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const { currentValidationFingerprint } = await import('../../clarification/validation-store.js'); const fp = await currentValidationFingerprint(root); output.out(`input_fingerprint: ${fp.fingerprint}`); for (const s of fp.snapshot)
+        output.out(`${s.kind.padEnd(19)} ${s.ref.padEnd(26)} ${s.content_hash}`); });
 }
 //# sourceMappingURL=schema-hash.js.map

@@ -17,6 +17,8 @@ export declare function convertDefinitionToOpenSpec(input: {
     approvalStatement?: string;
     approvalScope?: string;
     reviewNotes?: string[];
+    decisionNotes?: string[];
+    definitionNotes?: string[];
 }): {
     proposal: string;
     spec: string;

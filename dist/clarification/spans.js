@@ -82,13 +82,14 @@ export function isQuestion(text) {
 }
 /** Something the user has not decided: "TBD", "미정", "추후 결정", "검토 필요", "모르겠다", "고민 중" … It is a question in disguise and goes to finding_candidates. */
 export function isUndecided(text) {
-    return /(\bTBD\b|\bTBC\b|미정|미확정|추후\s*결정|추후\s*확정|나중에\s*결정|검토\s*필요|검토\s*중|검토\s*예정|논의\s*필요|논의\s*중|논의\s*예정|정해지지\s*않|정하지\s*않|확정되지\s*않|결정되지\s*않|모르겠|고민\s*중|확인\s*요망|확인\s*필요|확인\s*바람|알려\s*주세요|알려\s*줘|undecided|to be (decided|determined|confirmed)|not (yet )?(decided|sure|determined|confirmed)|pending decision|open question|unclear|unknown)/i.test(text);
+    return /(\bTBD\b|\bTBC\b|\bTBA\b|미정|미확정|미결정|추후|나중에\s*정|안\s*정함|안\s*정했|정하지\s*못|협의\s*후|협의한다|협의\s*필요|검토\s*필요|검토\s*중|검토\s*예정|여부\s*검토|여부는\s*검토|논의\s*필요|논의\s*중|논의\s*예정|논의한다|정해지지\s*않|정하지\s*않|확정되지\s*않|결정되지\s*않|확정\s*전|보류|모르겠|모름|몰라|고민\s*중|확인\s*요망|확인\s*필요|확인\s*바람|필요한지|인지\s*확인|알려\s*주세요|알려\s*줘|중\s*하나다|중\s*하나이다|둘\s*중|undecided|to be (decided|determined|confirmed|announced)|not (yet |been |yet been )?(decided|sure|determined|confirmed|settled)|pending decision|open question|unclear|unknown|\bmaybe\b|\bmight\b|\bpossibly\b|may be added|\beither\b.*\bor\b|could be)/i.test(text);
 }
 /** Pure structure: a line with no words of its own — a table separator, a bare list number or bullet, a bare heading mark. The CLI sets these aside itself; nothing else can be set aside. */
 export function isPureStructure(text) {
     const t = text.trim();
-    // A bare number is a value the user wrote ("0", "7", "100"), never structure; only a numbered-list marker ("1.", "2)") is.
-    return t === '' || !/[\p{L}\p{N}]/u.test(t) || /^\d{1,3}[.)]$/.test(t);
+    // Only separator/bullet/punctuation lines are structure. A bare number ("0", "7.", "100") is a value; a mark
+    // ("✓", "✗", "%", "→", an emoji) means something next to its line: both are read, never set aside.
+    return t === '' || /^[\s|:\-=_*+•▪■◦·#.,;>~`]+$/.test(t);
 }
 /** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
 export function hasAsideMarker(text) {
@@ -120,8 +121,8 @@ export function endsWithConnective(text) {
 }
 /** "단, …", "다만 …", "but …": an exception that only means something next to its rule. */
 export function startsWithException(text) {
-    const t = text.trim().replace(/^[\s\-*+•▪※■◦·(\[【「『"'“‘]+/, '').replace(/^#{1,6}\s*/, '');
-    return /^(단[,、\s]|다만[,\s]|단지[,\s]|예외로|예외적으로|예외는|그러나|하지만|그렇지만|그런데|다만|but\b|except\b|unless\b|however\b|otherwise\b|although\b|though\b)/i.test(t);
+    const t = text.trim().replace(/^(?:[\s\-*+•▪※■◦·(\[【「『"'“‘>–—→☞✔✓○▶・_~]|\d{1,3}[.)]|[a-z][.)]|#{1,6})+\s*/i, '').replace(/^[\s\-*+•▪※■◦·(\[【「『"'“‘>–—→☞✔✓○▶・_~]+/, '');
+    return /^(단[,，、:：\s]|단서[:：]|다만[,，\s]|단지[,，\s]|예외[:：]|예외로|예외적으로|예외는|그러나|하지만|그렇지만|그런데|근데|대신|반면|물론|그렇지 않으면|그 ?외에는|but\b|except\b|exception[:：]?|excepting\b|excluding\b|unless\b|however\b|otherwise\b|although\b|though\b|with the exception of|apart from|save for|barring\b|provided that|only if|still,|yet\b|if not,)/i.test(t) || /(제외한다|제외된다|제외함|제외다|제외이다|예외다|예외이다|예외로 한다)[.。!]?$/.test(t);
 }
 /** Length of the longest common subsequence of two token lists. */
 export function lcsLength(a, b) {

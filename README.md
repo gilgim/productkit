@@ -157,7 +157,7 @@ ProductKit holds eleven rules ([CONSTITUTION.md](CONSTITUTION.md)). The ones tha
 
 ## Honest limits
 
-- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 311 automated tests, including a regression suite built from adversarial attacks that once reached READY.
+- This is a **v0 beta**. The structure (files, schemas, gates, hashes) is covered by 313 automated tests, including a regression suite built from adversarial attacks that once reached READY.
 - Passing validation proves **structure**, not that the product is right. Semantic quality depends on the agent and on you.
 - The coverage gates catch **omission**, not **distortion**. A sentence can be marked "not a requirement" with a wrong reason, or a Definition item can say the opposite of its source Node, and the CLI will not notice; it only puts the source text next to the item in the export so a reader can. Read the comparison.
 - A review must cite evidence to count as reviewed, but the CLI cannot tell whether the cited artifact is the right one for that area. "Cited something" is the floor, not the bar.

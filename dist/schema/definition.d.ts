@@ -550,6 +550,7 @@ export declare const applicationSchema: z.ZodObject<{
     status: z.ZodEnum<{
         applied: "applied";
         applying: "applying";
+        cancelled: "cancelled";
         failed: "failed";
         partially_applied: "partially_applied";
         pending: "pending";

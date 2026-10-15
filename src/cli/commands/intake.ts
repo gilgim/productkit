@@ -50,6 +50,8 @@ export async function runIntake(options: IntakeOptions, output: Output): Promise
 
   await ensureWorkspace(productRoot);
 
+  // Mac copy-paste yields decomposed Hangul (NFD); every later comparison and word list is NFC.
+  rawText = rawText.normalize('NFC');
   const sourcesDir = path.join(productRoot, 'sources');
   const id = await nextSequentialId(sourcesDir, 'PRM');
 

@@ -114,7 +114,7 @@ export const applicationPlanSchema = z.object({
 });
 export const applicationSchema = z.object({
     schema_version: z.literal(1), id: id('APP'), plan: applicationPlanSchema, plan_hash: hash,
-    status: z.enum(['pending', 'applying', 'partially_applied', 'applied', 'failed', 'recovery_required', 'rolled_back']),
+    status: z.enum(['pending', 'applying', 'partially_applied', 'applied', 'failed', 'recovery_required', 'rolled_back', 'cancelled']),
     verification_status: z.enum(['pending', 'verified', 'failed', 'inconclusive', 'stale']),
     verification_history: z.array(z.object({ id: z.string().regex(/^AVF-[0-9a-f]{16}$/), status: z.enum(['verified', 'failed', 'inconclusive', 'stale']), assessor: z.enum(['ai', 'user']), summary: z.string().trim().min(1), evidence_refs: z.array(productArtifactRefSchema), uncertainty: z.array(z.string().trim().min(1)).min(1), input_fingerprint: hash, recorded_at: z.string().datetime({ offset: true }), entry_hash: hash }).strict()).default([]),
     impact_status: z.enum(['unassessed', 'incomplete', 'complete']),

@@ -51,7 +51,7 @@ describe('leak regression: source content cannot vanish silently', () => {
   });
 
   it('every sentence of the prompt is read verbatim or raised as a question; only wordless structure is set aside, by the CLI', () => {
-    const prompt = promptFixture('쇼핑몰 앱을 만든다.\n## 카드 결제 지원\n| 환불 | 가능 |\n|---|---|\n참고: 배송은 택배\n1.\n비회원도 결제할 수 있나요');
+    const prompt = promptFixture('쇼핑몰 앱을 만든다.\n## 카드 결제 지원\n| 환불 | 가능 |\n|---|---|\n참고: 배송은 택배\n---\n비회원도 결제할 수 있나요');
     const steps = validSteps(['쇼핑몰 앱을 만든다.']);
     let j = judgeCompletion(confirmedFixture(steps, prompt), prompt);
     expect(j.confirmed).toBe(false);
@@ -71,7 +71,7 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(judgeCompletion(confirmed, prompt).confirmed).toBe(true);
     const rendered = renderPresentation(confirmed, prompt);
     expect(rendered).toContain('SPN-004 "|---|---|"  → 구조 줄 (CLI 자동 제외)');
-    expect(rendered).toContain('SPN-006 "1."  → 구조 줄 (CLI 자동 제외)');
+    expect(rendered).toContain('SPN-006 "---"  → 구조 줄 (CLI 자동 제외)');
     expect(rendered).toContain('SPN-002 "## 카드 결제 지원"\n  → 해석 [2]: ## 카드 결제 지원');
     expect(rendered).toContain('→ 질문 [Q1] ambiguity');
     expect(rendered).toContain('구조 줄(자동 제외): 2 / 질문으로 남김: 1 건');
@@ -160,10 +160,8 @@ describe('leak regression: source content cannot vanish silently', () => {
   });
 
   it('round 9: bare numbers are values, not structure; only wordless lines are set aside', () => {
-    expect(isPureStructure('0')).toBe(false); expect(isPureStructure('100')).toBe(false); expect(isPureStructure('30000')).toBe(false);
-    expect(isPureStructure('1.')).toBe(true); expect(isPureStructure('2)')).toBe(true); expect(isPureStructure('|---|---|')).toBe(true);
-    expect(isPureStructure('▪')).toBe(true); expect(isPureStructure('※')).toBe(true); expect(isPureStructure('…')).toBe(true); expect(isPureStructure('?')).toBe(true);
-    expect(isPureStructure('허용')).toBe(false);
+    for (const t of ['0', '7.', '0)', '100', '30000', '1.', '2)', '※', '…', '?', '✓', '✗', '%', '→', '₩', '🚫', '|✓|✗|', 'Ⓧ', '허용']) expect(isPureStructure(t), t).toBe(false);
+    for (const t of ['|---|---|', '---', '-', '•', '▪', '|', '===', '> ', '#']) expect(isPureStructure(t), t).toBe(true);
     const prompt = promptFixture('환불 수수료(%)\n0\n환불 가능 기간(일)\n7');
     const steps = validSteps(['환불 수수료(%)', '환불 가능 기간(일)']);
     steps.decomposition.forEach((d, i) => { d.span_refs = [['SPN-001', 'SPN-003'][i]!]; });
@@ -196,6 +194,34 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(mergeReasonIssue({ steps: steps2, finding_candidates: [{ statement: '둘. — 무슨 뜻인지 모호함', type: 'ambiguity', span_refs: ['SPN-002'] }] }, prompt)).toBeUndefined();
     steps2.definition = [{ term: '환불', meaning: '환불은 어떤 경우에도 허용되지 않는다', origin: 'user_stated' }];
     expect(mergeReasonIssue({ steps: steps2, finding_candidates: [] }, prompt)).toMatch(/marked user_stated/);
+  });
+
+  it('round 10: exception phrasings, undecided phrasings, NFD prompts, exclusion placement, decision words', async () => {
+    for (const t of ['예외: 디지털 상품은 불가하다.', 'Exception: digital goods.', '> 단, 7일 이내만.', '2) 단, 법인은 제외.', '— 단, 주말 제외', '단， 전각 쉼표', '단: 콜론', '제주도는 제외한다.', '학생은 예외다.', '그 외에는 불가하다.', 'With the exception of staff.', 'Provided that it is paid.', 'Only if the store accepted.']) expect(startsWithException(t), t).toBe(true);
+    for (const t of ['배송 업체는 아직 안 정함.', '결제 수단은 미결정.', '협의 후 정한다', '확정 전이다', '추후 논의한다', '가격은 모름', '배송비 여부 검토', '푸시 알림이 필요한지 확인한다', '소셜 또는 이메일 중 하나다', 'Payment may be added later', 'Maybe we support PayPal', 'We might add dark mode', 'Shipping fee is TBA', 'The refund window has not been settled']) expect(isUndecided(t), t).toBe(true);
+    for (const t of ['카드 또는 계좌이체로 결제할 수 있다.', '환불은 7일 이내 가능하다.']) expect(isUndecided(t), t).toBe(false);
+    // NFD Hangul (Mac copy) is normalized at intake, so word lists apply.
+    const { runIntake } = await import('../src/cli/commands/intake.js'); const { createMemoryOutput } = await import('../src/cli/output.js');
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-nfd-')); const { runInit } = await import('../src/cli/commands/init.js'); await runInit({ cwd: temp, name: 'nfd' }, createMemoryOutput());
+    await runIntake({ cwd: temp, text: '배송비는 미정이다.'.normalize('NFD') }, createMemoryOutput());
+    const saved = await readFile(path.join(temp, 'product', 'sources', 'PRM-001.yaml'), 'utf8'); expect(saved.normalize('NFC')).toBe(saved); expect(saved).toContain('배송비는 미정이다.');
+    // Two contradicting plain sentences cannot share one item.
+    const prompt = promptFixture('비회원은 결제할 수 있다. 비회원은 결제할 수 없다.');
+    const steps = validSteps(['비회원은 결제할 수 있다.']); steps.decomposition = [{ statement: '비회원은 결제할 수 있다. 비회원은 결제할 수 없다.', span_refs: ['SPN-001', 'SPN-002'], merge_reason: '같은 주제라서 함께 읽음' }];
+    expect(mergeReasonIssue({ steps, finding_candidates: [] }, prompt)).toMatch(/may contradict/);
+    // A Decision's words may be the choice itself; only an opening refusal is refused.
+    const { startsWithRefusal } = await import('../src/schema/text.js');
+    for (const t of ['10분 안이어도 조리를 시작했으면 취소할 수 없어.', '환불 수수료는 받지 않는다.', '취소 불가로 해줘']) expect(startsWithRefusal(t), t).toBe(false);
+    for (const t of ['아니, 그건 아냐', 'no, keep it', '싫어']) expect(startsWithRefusal(t), t).toBe(true);
+  });
+
+  it('round 10: an exclusion places only the Nodes it cites, and a Node cannot be both excluded and required', async () => {
+    // Decision snapshot holds every Node, but the exclusion item cites only NOD-001-2: NOD-001-3/4 are not placed by it.
+    const g = await gate({ excludeNodes: ['NOD-001-2'], itemNodes: ['NOD-001-1'] });
+    expect(g.check('definition.node_coverage')?.status).toBe('fail'); expect(g.check('definition.node_coverage')?.message).toContain('NOD-001-3');
+    await rm(temp, { recursive: true, force: true });
+    const d = await gate({ excludeNodes: ['NOD-001-2'], itemNodes: ['NOD-001-1', 'NOD-001-2', 'NOD-001-3', 'NOD-001-4'] });
+    expect(d.check('definition.double_placement')?.status).toBe('fail'); expect(d.check('definition.double_placement')?.message).toContain('NOD-001-2');
   });
 
   it('finding candidates appear in what the user sees, with their spans', () => {
@@ -396,7 +422,7 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(g.check('source.candidates')).toBeUndefined();
     await rm(temp, { recursive: true, force: true });
     g = await gate({ candidate: 'dismissed', itemNodes: ['NOD-001-2', 'NOD-001-3', 'NOD-001-4'] });
-    expect(g.check('source.candidates')?.message).toMatch(/its Finding is dismissed, but the sentence .* is in no requirement item verbatim/);
+    expect(g.check('source.candidates')?.message).toMatch(/its Finding is dismissed, but neither the sentence .* nor the resolving Decision/);
   });
 
   it('an approval or an agreed confirmation whose statement says no is refused', async () => {

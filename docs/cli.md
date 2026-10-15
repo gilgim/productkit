@@ -260,3 +260,12 @@ npx openspec validate atomic-node-modeling --strict
 ## 라이선스
 
 MIT
+
+## 추가 명령 (beta.2 후반)
+
+- `productkit hash policy|journey|definition|semantic-review --input <yaml>` — id·content_hash 를 CLI 가 채운 기록을 찍는다.
+- `productkit hash inputs` — Decision·Application·Definition 의 `input_snapshot` 에 적을 현재 해시 전부(`finding.claim_hash` 포함).
+- `productkit hash fingerprint` — 의미 검토의 `input_fingerprint` 와 evidence 해시.
+- `productkit decide resolve <DEC>` — 적용·검증된 Application 이 있는 Decision 이 다룬 Finding 을 닫는다(resolved / 제외면 deferred). 결정은 export 의 "User decisions" 에 사용자 말 그대로 나온다.
+- `productkit define application cancel <APP>` — 적용하지 않을 pending 계획을 닫는다.
+- `productkit graph impact --node <id> --output <file>` — challenge 의 `impact_coverage` 와 define 의 `before_impact_refs` 가 인용하는 ImpactReport 저장.

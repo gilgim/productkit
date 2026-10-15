@@ -30,8 +30,9 @@ catch (e) {
 } };
 const readYaml = async (file) => parseYaml(await readFile(file, 'utf8'));
 async function inventory(root) {
+    // Findings enter the validation inventory with their full state (resolution included) below, not with the review-level hash the challenge inputs use.
     const current = await currentChallengeInputs(root);
-    const out = current.inputs.map(x => ({ kind: x.kind, ref: x.ref, content_hash: x.content_hash }));
+    const out = current.inputs.filter(x => x.kind !== 'finding').map(x => ({ kind: x.kind, ref: x.ref, content_hash: x.content_hash }));
     const add = (kind, ref, value) => out.push({ kind, ref, content_hash: sha256Hex(canonicalJson(value)) });
     for (const x of await readProposals(root))
         add('proposal', x.id, x);
@@ -178,8 +179,9 @@ async function checksFor(root, review) {
             if (f.review_status !== 'confirmed')
                 continue;
             for (const c of f.candidate_refs ?? [])
-                promoted.set(`${c.clarification_ref}#${c.index}`, { spans: [...c.span_refs].sort(), status: f.resolution_status });
+                promoted.set(`${c.clarification_ref}#${c.index}`, { spans: [...c.span_refs].sort(), status: f.resolution_status, id: f.id, statement: f.statement, decision_ref: f.decision_ref });
         }
+        const decisionsForCandidates = await readDecisions(root);
         // A candidate's sentence ends in exactly one of two places: an open,
         // user-confirmed Finding (visible in the export), or a requirement item
         // that carries the sentence verbatim. A Finding closed by any other route
@@ -197,9 +199,12 @@ async function checksFor(root, review) {
                 } if (got.spans.length !== want.length || got.spans.some((x, k) => x !== want[k])) {
                     unpromoted.push(`${key} — carrying Finding names spans ${got.spans.join(', ')}, candidate has ${want.join(', ')}`);
                     return;
-                } if (got.status === 'unresolved')
-                    return; const texts = prompt ? c.span_refs.map(sid => { const s = prompt.spans.find(x => x.id === sid); return s ? sq(prompt.raw_text.slice(s.start, s.end)) : ''; }).filter(Boolean) : []; const carried = texts.length > 0 && texts.every(t => itemTexts.some(it => it.includes(t))); if (!carried)
-                    unpromoted.push(`${key} — its Finding is ${got.status}, but the sentence (${c.span_refs.join(', ')}) is in no requirement item verbatim`); });
+                } const texts = prompt ? c.span_refs.map(sid => { const s = prompt.spans.find(x => x.id === sid); return s ? sq(prompt.raw_text.slice(s.start, s.end)) : ''; }).filter(Boolean) : []; if (got.status === 'unresolved') {
+                    if (!texts.every(t => sq(got.statement).includes(t)))
+                        unpromoted.push(`${key} — its Finding ${got.id} does not quote the sentence verbatim ("${texts[0]?.slice(0, 40)}")`);
+                    return;
+                } const decided = got.decision_ref ? sq((decisionsForCandidates.find(d => d.id === got.decision_ref)?.user_statement) ?? '') : ''; const carried = texts.length > 0 && (texts.every(t => itemTexts.some(it => it === t)) || (decided !== '' && itemTexts.includes(decided))); if (!carried)
+                    unpromoted.push(`${key} — its Finding is ${got.status}, but neither the sentence (${c.span_refs.join(', ')}) nor the resolving Decision's words are a requirement item verbatim`); });
             }
             catch { }
         }
@@ -308,8 +313,10 @@ async function checksFor(root, review) {
             if (item.kind === 'exclusion')
                 continue;
             const nodes = item.provenance.source_refs.filter(r => r.kind === 'node');
-            if (!nodes.length)
-                add(`definition.item_source.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} cites no Node; every Definition sentence is one of the user's sentences.`);
+            const decisionWords = item.provenance.decision_refs.map(r => (decisions.find(d => d.id === r.ref)?.user_statement ?? '').replace(/\s+/g, ' ').trim().replace(/[.。]$/, ''));
+            const isDecisionText = decisionWords.includes(item.text.replace(/\s+/g, ' ').trim().replace(/[.。]$/, ''));
+            if (!nodes.length && !isDecisionText)
+                add(`definition.item_source.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} cites no Node and is not a cited Decision's user statement; every Definition sentence is one of the user's sentences.`);
             if (NORMATIVE.has(item.kind))
                 for (const r of nodes)
                     placed.add(r.ref);
@@ -320,17 +327,27 @@ async function checksFor(root, review) {
             const squashT = (t) => t.replace(/\s+/g, ' ').trim().replace(/[.。]$/, '');
             const expected = nodes.map(r => squashT(workspace.nodes.get(r.ref)?.node.statement ?? '')).join(' ');
             const actual = squashT(item.text).replace(/^(검증|AC|수락 기준|acceptance)\s*[:：]\s*/i, '');
-            if (expected && actual !== expected)
+            const decisionTexts = item.provenance.decision_refs.map(r => squashT(decisions.find(d => d.id === r.ref)?.user_statement ?? ''));
+            if (expected && actual !== expected && !decisionTexts.includes(actual))
                 add(`definition.item_restates.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} must read exactly as its Node text (optionally after "검증:"): expected "${expected.slice(0, 60)}", got "${actual.slice(0, 60)}"`);
         }
+        const excludedNodes = new Set();
         for (const item of definition.items)
             if (item.exclusion) {
                 const dec = decisions.find(d => d.id === item.exclusion.decision_ref && d.decision_type === 'scope_exclusion' && !staleIds.has(d.id));
                 if (dec)
-                    for (const r of dec.input_snapshot)
-                        if (r.kind === 'node')
+                    for (const r of item.provenance.source_refs)
+                        if (r.kind === 'node') {
                             placed.add(r.ref);
+                            excludedNodes.add(r.ref);
+                        }
             }
+        // A Node is either a requirement or excluded, never both.
+        {
+            const both = [...excludedNodes].filter(n => definition.items.some(i => !i.exclusion && i.provenance.source_refs.some(r => r.kind === 'node' && r.ref === n)));
+            if (both.length)
+                add('definition.double_placement', 'traceability', 'fail', `Nodes both excluded and used as a Definition item: ${both.sort().join(', ')}`);
+        }
         // An agent-written (proposed) Finding cannot hold a Node out of the
         // Definition; the user must have confirmed the Finding exists.
         for (const f of findings)
@@ -403,11 +420,14 @@ async function checksFor(root, review) {
         const freshness = await applicationFreshness(root, app);
         if (freshness.stale)
             add(`application.${app.id}`, 'application', 'stale', `Application ${app.id} is stale: ${freshness.reasons.join('; ')}`);
+        else if (app.status === 'cancelled')
+            add(`application.${app.id}`, 'application', 'pass', `Application ${app.id} was cancelled before application; nothing changed.`);
         else if (app.status !== 'applied' || app.verification_status !== 'verified')
             add(`application.${app.id}`, 'application', 'fail', `Application ${app.id} must be applied and verified; found ${app.status}/${app.verification_status}.`);
         else
             add(`application.${app.id}`, 'application', 'pass', `Application ${app.id} is applied and current verification is recorded.`);
     }
+    const decisionsAll = await readDecisions(root);
     const journeys = await readJourneys(root);
     for (const j of journeys) {
         {
@@ -415,11 +435,17 @@ async function checksFor(root, review) {
             const fields = [j.goal, ...j.acceptance_criteria].map(sqj);
             const nodeTexts = j.provenance.source_refs.filter(r => r.kind === 'node').map(r => sqj(workspace.nodes.get(r.ref)?.node.statement ?? ''));
             const missingNode = j.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !fields.includes(sqj(t)); });
-            const invented = fields.filter(f => f && !nodeTexts.includes(f));
+            const decTexts = j.provenance.decision_refs.map(r => sqj(decisionsAll.find(d => d.id === r.ref)?.user_statement ?? ''));
+            const allowed = [...nodeTexts, ...decTexts];
+            const invented = fields.filter(f => f && !allowed.includes(f));
+            const pieces = [j.actor, j.entry_state, ...j.states, ...j.terminal_states, ...j.transitions.flatMap(t => [t.from, t.to, t.trigger])].map(sqj);
+            const stray = pieces.filter(x => !allowed.some(t => t.includes(x)));
             if (missingNode.length)
                 add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id}: each source Node's sentence must be a whole goal or acceptance criterion, not inside other text: ${missingNode.join(', ')}`);
             else if (invented.length)
-                add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id}: goal and every acceptance criterion must be one of its source Nodes' sentences verbatim; these are not: ${invented.map(f => `"${f.slice(0, 40)}"`).join(', ')}`);
+                add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id}: goal and every acceptance criterion must be a source Node sentence or a cited Decision's user statement verbatim; these are not: ${invented.map(f => `"${f.slice(0, 40)}"`).join(', ')}`);
+            else if (stray.length)
+                add(`journey.source.${j.id}`, 'journey', 'fail', `Journey ${j.id}: actor, states, triggers must be words taken from its source sentences; these are not: ${[...new Set(stray)].map(f => `"${f.slice(0, 30)}"`).join(', ')}`);
         }
         const states = new Set(j.states);
         const reachable = new Set([j.entry_state]);
@@ -458,11 +484,23 @@ async function checksFor(root, review) {
             const fields = [p.context, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)].map(sqp);
             const nodeTexts = p.provenance.source_refs.filter(r => r.kind === 'node').map(r => sqp(workspace.nodes.get(r.ref)?.node.statement ?? ''));
             const missingNode = p.provenance.source_refs.filter(r => r.kind === 'node').map(r => r.ref).filter(n => { const t = workspace.nodes.get(n)?.node.statement; return t && !fields.includes(sqp(t)); });
-            const invented = fields.filter(f => f && !nodeTexts.includes(f));
-            if (missingNode.length)
+            const decTextsP = p.provenance.decision_refs.map(r => sqp(decisionsAll.find(d => d.id === r.ref)?.user_statement ?? ''));
+            const allowedP = [...nodeTexts, ...decTextsP];
+            const invented = fields.filter(f => f && !allowedP.includes(f));
+            const nodeCount = p.provenance.source_refs.filter(r => r.kind === 'node').length;
+            const astNums = (JSON.stringify(p.condition).match(/-?\d+(?:\.\d+)?/g) ?? []).filter(n => !/^\d+$/.test(n) || true);
+            const textNums = new Set((p.condition_text.match(/\d+(?:\.\d+)?/g) ?? []));
+            const astStray = astNums.filter(n => !textNums.has(n.replace(/^-/, '')));
+            if (nodeCount > 1)
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id} cites ${nodeCount} Nodes; a Policy is one user sentence (one Node) plus cited Decisions, so its fields cannot be mixed between sentences.`);
+            else if (missingNode.length)
                 add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: each source Node's sentence must appear as a whole field (context/condition_text/action/outcome/exception), not inside other text: ${missingNode.join(', ')}`);
             else if (invented.length)
-                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: every text field must be one of its source Nodes' sentences verbatim; these are not: ${invented.map(f => `"${f.slice(0, 40)}"`).join(', ')}`);
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: every text field must be its source Node sentence or a cited Decision's user statement verbatim; these are not: ${invented.map(f => `"${f.slice(0, 40)}"`).join(', ')}`);
+            else if (!allowedP.some(t => t.includes(sqp(p.actor))))
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: actor "${p.actor.slice(0, 30)}" is not a word of its source sentences.`);
+            else if (astStray.length)
+                add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id}: the structured condition uses numbers that are not in condition_text: ${astStray.join(', ')}`);
             else if (p.priority && !(await readDecisions(root)).some(d => d.id === p.priority.decision_ref))
                 add(`policy.${p.id}`, 'policy', 'fail', `Policy ${p.id} priority cites a Decision that does not exist: ${p.priority.decision_ref}`);
             else

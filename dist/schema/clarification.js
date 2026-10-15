@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { promptIntegrityIssue } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { contentTokens, isPureStructure, isQuestion, isUndecided, spanText, startsWithException } from '../clarification/spans.js';
+import { contentTokens, isPureStructure, isQuestion, isUndecided, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 const hashHex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 hex digest');
 /**
@@ -205,7 +205,7 @@ export function judgeCompletion(clarification, prompt) {
         return { confirmed: false, reason: 'presented_statement_not_rendered', detail: 'presented_statement must be exactly the text `productkit clarify` renders from the current steps (run it and copy the block verbatim).' };
     return { confirmed: true };
 }
-const squash = (text) => text.replace(/\s+/g, ' ').trim();
+const squash = (text) => text.normalize('NFC').replace(/\s+/g, ' ').trim();
 const spanTextById = (prompt, id) => { const span = prompt.spans.find(s => s.id === id); return span ? spanText(prompt.raw_text, span) : '(span not found)'; };
 /**
  * The text the user is asked to agree to is rendered by the CLI, not written
@@ -286,6 +286,20 @@ export function mergeReasonIssue(clarification, prompt) {
         if (item.span_refs.length > 3 && !item.span_refs.slice(1).every(id => startsWithException(spanTextById(prompt, id))))
             return `decomposition[${i}] merges ${item.span_refs.length} spans; an item holds at most 3 spans unless every span after the first is an exception clause (단, 다만, but …).`;
     }
+    // Two plain sentences about the same thing with opposite polarity do not
+    // belong in one item: read separately, the contradiction stays visible.
+    for (const [i, item] of items.entries()) {
+        const plain = item.span_refs.map(id => spanTextById(prompt, id)).filter(t => !startsWithException(t));
+        for (let a = 0; a < plain.length; a++)
+            for (let b = a + 1; b < plain.length; b++) {
+                const ta = contentTokens(plain[a]), tb = contentTokens(plain[b]);
+                const shared = [...ta].some(x => [...tb].some(y => x.slice(0, 2) === y.slice(0, 2)));
+                const pa = new Set(polarityTokens(plain[a])), pb = new Set(polarityTokens(plain[b]));
+                const differ = [...pa].some(x => !pb.has(x)) || [...pb].some(x => !pa.has(x));
+                if (shared && differ)
+                    return `decomposition[${i}] merges two sentences that may contradict each other ("${plain[a].slice(0, 25)}…" / "${plain[b].slice(0, 25)}…"); read them as separate items so the difference stays visible.`;
+            }
+    }
     // A candidate carries the user's sentence it questions, verbatim, so it
     // cannot be a bare label ("모호함") that hides which sentence left.
     for (const [i, f] of clarification.finding_candidates.entries()) {
@@ -297,8 +311,9 @@ export function mergeReasonIssue(clarification, prompt) {
     }
     // "The user said" is checked against what the user wrote.
     for (const [i, d] of clarification.steps.definition.entries()) {
-        if (d.origin === 'user_stated' && !(squash(prompt.raw_text).includes(squash(d.meaning)) && squash(prompt.raw_text).includes(squash(d.term))))
-            return `definition[${i}] is marked user_stated but "${squash(d.meaning).slice(0, 40)}" is not in the prompt; a definition the user did not write is ai_inferred.`;
+        const spanTexts = prompt.spans.map(s => squash(spanText(prompt.raw_text, s)).replace(/[.。]$/, ''));
+        if (d.origin === 'user_stated' && !(spanTexts.includes(squash(d.meaning).replace(/[.。]$/, '')) && squash(prompt.raw_text).includes(squash(d.term))))
+            return `definition[${i}] is marked user_stated but "${squash(d.meaning).slice(0, 40)}" is not a whole sentence of the prompt; a definition the user did not write is ai_inferred.`;
     }
     // "단, …" means nothing away from the sentence it qualifies: it must sit in
     // the same decomposition item as the span before it. A question is never a
@@ -317,7 +332,7 @@ export function mergeReasonIssue(clarification, prompt) {
             if (!prev || !item.span_refs.includes(prev))
                 return `decomposition[${i}] reads ${id} ("${text.slice(0, 30)}…") on its own; an exception clause must be merged with the sentence before it (${prev ?? 'none'}) in one item.`;
             const prevText = spanTextById(prompt, prev).trim();
-            if (/^#{1,6}\s/.test(prevText) || isPureStructure(prevText) || startsWithException(prevText))
+            if (/^#{1,6}\s/.test(prevText) || isPureStructure(prevText) || (startsWithException(prevText) && !item.span_refs.includes(prev)))
                 return `decomposition[${i}] merges the exception ${id} ("${text.slice(0, 30)}…") with ${prev}, which is a heading or another exception, not the rule it qualifies; ask the user which rule it belongs to (finding candidate).`;
         }
     }

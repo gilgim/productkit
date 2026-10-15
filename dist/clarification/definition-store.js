@@ -496,6 +496,52 @@ export async function recordApplicationVerification(root, id, input, now = new D
     await atomicSaveApp(file, app);
     return app;
 }
+/** A pending plan that will never be applied (planned twice, wrong targets) is closed, not deleted: the record stays, nothing changes. */
+export async function cancelApplication(root, id, now = new Date()) { const file = path.join(appDir(root), `${id}.yaml`); const app = parseApplication(await readFile(file, 'utf8')); if (app.status !== 'pending')
+    throw new CliError(`Only a pending Application can be cancelled; ${id} is ${app.status}.`, ExitCode.GATE_BLOCKED); const at = now.toISOString(); const next = applicationSchema.parse({ ...app, status: 'cancelled', updated_at: at, history: [...app.history, { event: 'cancelled', at, statement: 'Plan cancelled before application; no target was changed.', plan_hash: app.plan_hash }] }); await atomicSaveApp(file, next); return next; }
+/**
+ * The user's Decision, once applied and verified, closes the Findings it was
+ * about: resolved for a content Decision, deferred for a scope exclusion. The
+ * CLI writes the resolution event with the Decision id and the user's words.
+ */
+export async function resolveFindingsByDecision(root, decisionId, now = new Date()) {
+    const decision = (await readDecisions(root)).find(d => d.id === decisionId);
+    if (!decision)
+        throw new CliError(`Decision not found: ${decisionId}`, ExitCode.USAGE_OR_IO);
+    if ((await decisionStaleness(root)).some(x => x.decision.id === decisionId))
+        throw new CliError(`Decision ${decisionId} is stale; its inputs changed.`, ExitCode.GATE_BLOCKED);
+    if ((await readDecisions(root)).some(d => d.supersedes_decision_ref === decisionId))
+        throw new CliError(`Decision ${decisionId} was superseded.`, ExitCode.GATE_BLOCKED);
+    const app = (await readApplications(root)).find(a => a.plan.decision_ref === decisionId && a.status === 'applied' && a.verification_status === 'verified');
+    if (!app)
+        throw new CliError(`Decision ${decisionId} has no applied and verified Application; apply it first (productkit define application plan/apply/verify).`, ExitCode.GATE_BLOCKED);
+    if ((await applicationFreshness(root, app)).stale)
+        throw new CliError(`Application ${app.id} is stale.`, ExitCode.GATE_BLOCKED);
+    const { findingHistoryEntryHash, findingSchema, parseFinding } = await import('../schema/finding.js');
+    const resolved = [];
+    const skipped = [];
+    const status = decision.decision_type === 'scope_exclusion' ? 'deferred' : 'resolved';
+    for (const ref of decision.finding_refs) {
+        const file = path.join(root, 'findings', `${ref.finding_ref}.yaml`);
+        const before = await readFile(file, 'utf8');
+        const f = parseFinding(before);
+        if (f.review_status !== 'confirmed' || f.resolution_status !== 'unresolved') {
+            skipped.push(`${f.id} (${f.review_status}/${f.resolution_status})`);
+            continue;
+        }
+        const finding_hash = findingContentHash(toFindingInput(f));
+        if (finding_hash !== ref.claim_hash) {
+            skipped.push(`${f.id} (changed since the Decision)`);
+            continue;
+        }
+        const at = now.toISOString();
+        const base = { id: `FHE-${sha256Hex(canonicalJson({ finding: f.id, event: 'resolution_recorded', decision: decision.id, at })).slice(0, 16)}`, event: 'resolution_recorded', actor: 'change06_decision', prior_review_status: f.review_status, review_status: f.review_status, prior_resolution_status: f.resolution_status, resolution_status: status, finding_hash, statement: `${status} by Decision ${decision.id} (Application ${app.id}): "${decision.user_statement}"`, decision_ref: decision.id, recorded_at: at };
+        const next = findingSchema.parse({ ...f, resolution_status: status, decision_ref: decision.id, updated_at: at, history: [...f.history, { ...base, entry_hash: findingHistoryEntryHash(base) }] });
+        await atomicReplaceIfUnchanged(file, before, stringifyYaml(next));
+        resolved.push(f.id);
+    }
+    return { resolved, skipped };
+}
 export async function applicationFreshness(root, app) { const reasons = []; const decision = (await readDecisions(root)).find(d => d.id === app.plan.decision_ref); if (!decision || decision.decision_hash !== app.plan.decision_hash)
     reasons.push('Decision missing or changed'); if ((await decisionStaleness(root)).some(x => x.decision.id === app.plan.decision_ref))
     reasons.push('Decision input snapshot stale'); if (app.status === 'applied' || app.verification_history.length) {

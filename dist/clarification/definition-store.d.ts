@@ -36,6 +36,17 @@ export declare function recordApplicationVerification(root: string, id: string, 
     evidence_refs: unknown[];
     uncertainty: string[];
 }, now?: Date): Promise<Application>;
+/** A pending plan that will never be applied (planned twice, wrong targets) is closed, not deleted: the record stays, nothing changes. */
+export declare function cancelApplication(root: string, id: string, now?: Date): Promise<Application>;
+/**
+ * The user's Decision, once applied and verified, closes the Findings it was
+ * about: resolved for a content Decision, deferred for a scope exclusion. The
+ * CLI writes the resolution event with the Decision id and the user's words.
+ */
+export declare function resolveFindingsByDecision(root: string, decisionId: string, now?: Date): Promise<{
+    resolved: string[];
+    skipped: string[];
+}>;
 export declare function applicationFreshness(root: string, app: Application): Promise<{
     stale: boolean;
     reasons: string[];

@@ -32,6 +32,8 @@ export async function runIntake(options, output) {
         throw new CliError('Prompt text must not be empty.', ExitCode.USAGE_OR_IO);
     }
     await ensureWorkspace(productRoot);
+    // Mac copy-paste yields decomposed Hangul (NFD); every later comparison and word list is NFC.
+    rawText = rawText.normalize('NFC');
     const sourcesDir = path.join(productRoot, 'sources');
     const id = await nextSequentialId(sourcesDir, 'PRM');
     const prompt = {

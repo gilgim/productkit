@@ -5,6 +5,7 @@ import { atomicCreateFile, atomicReplaceIfUnchanged } from './io.js';
 import { graphNodeSnapshotHash, loadGraphWorkspace } from './provenance.js';
 import { readGraphDocument, readRelationCandidates } from './graph-store.js';
 import { readFindings } from './finding-store.js';
+import { toFindingInput } from '../schema/finding.js';
 import { challengeAreas, challengeRunHash, challengeRunSchema, judgeChallengeCompletion } from '../schema/challenge.js';
 import { canonicalJson, sha256Hex } from './hash.js';
 import { parseImpactReport } from '../schema/impact.js';
@@ -47,8 +48,10 @@ export async function currentChallengeInputs(root) {
         const parsed = parseImpactReport(raw);
         inputs.push({ kind: 'impact_report', ref: parsed.analysis_id, content_hash: sha256Hex(canonicalJson(parsed)) });
     }
+    // A Finding's input hash covers what it says and whether the user confirmed it. A resolution
+    // recorded by `decide resolve` is bookkeeping and does not stale reviews, Decisions or Applications.
     for (const finding of await readFindings(root))
-        inputs.push({ kind: 'finding', ref: finding.id, content_hash: sha256Hex(canonicalJson(finding)) });
+        inputs.push({ kind: 'finding', ref: finding.id, content_hash: sha256Hex(canonicalJson({ input: toFindingInput(finding), review_status: finding.review_status, confirmations: finding.confirmation_history.map((c) => c.entry_hash) })) });
     const skillText = await readFile(path.join(SKILLS_ROOT, 'challenge', 'SKILL.md'), 'utf8');
     inputs.push({ kind: 'skill', ref: 'challenge/SKILL.md', content_hash: sha256Hex(skillText) });
     inputs.push({ kind: 'rules', ref: 'challenge-rules-v1', content_hash: sha256Hex(canonicalJson({ version: 1, areas: challengeAreas })) });

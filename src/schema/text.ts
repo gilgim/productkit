@@ -30,6 +30,12 @@ export function saysNo(statement: string): boolean {
   return /(않|안\s|안돼|안됨|안함|못|불가|불승인|비승인|불허|기각|부결|유보|반대|거부|거절|반려|보류|대기|철회|중단|나중|아직|검토 중|넘어가|패스|다시|수정|미승인|조건부|아니|아님|아닙|틀렸|틀림|취소|싫|별로|글쎄|모르|하지마|그만|ㄴㄴ|\?|^n$|\bno\b|\bnot\b|never|reject|disagree|disapprove|wrong|\bhold\b|on hold|pending|defer|decline|denied|nope|nah|stop|abort|skip|don't|maybe|conditional|unsure|\bwait\b|postpone|veto|oppose|refuse|cancel|revise|needs work|incomplete|unapproved|\bfalse\b|nothing|\bnone\b|\bnull\b|guess|opposite)/i.test(statement.trim());
 }
 
+/** A Decision names a choice; the choice may itself be "cancel" or "no refund". Only a statement that opens as a refusal is one. */
+export function startsWithRefusal(statement: string): boolean {
+  const head = statement.trim().split(/\s+/).slice(0, 2).join(' ');
+  return /^(아니|아뇨|아냐|아니오|아니요|싫|안 |안해|안할|못해|거부|거절|반대|보류|취소해|취소할게|그만|하지마|ㄴㄴ|글쎄|모르|no\b|nope|nah|not\b|never|stop|wait|hold|cancel this|don't|refuse|reject|decline|disagree)/i.test(head);
+}
+
 export function isMeaningfulText(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const text = value.trim();
