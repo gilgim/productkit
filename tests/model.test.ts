@@ -1,5 +1,5 @@
 import { validSteps, promptFixture, preservedCheck } from './helpers/gate-fixtures.js';
-import { clarificationContentHash, parseClarification } from '../src/schema/clarification.js';
+import { clarificationContentHash, parseClarification, renderPresentation } from '../src/schema/clarification.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -46,7 +46,7 @@ afterEach(async () => {
 function confirmedEntry(forSteps: ClarificationSteps) {
   const base = {
     id: 'IC-001',
-    presented_statement: `원문: ${originalPrompt.raw_text} / 해석: 결제 완료 시 주문 확정, 이메일 발송, 재고 차감이 모두 일어난다`,
+    presented_statement: renderPresentation({ steps: forSteps, finding_candidates: [] }, originalPrompt),
     presented_hash: stepsContentHash(forSteps),
     prompt_ref: originalPrompt.id,
     prompt_content_hash: originalPrompt.content_hash,
@@ -236,7 +236,7 @@ describe('productkit atomize — completion judgement', () => {
     const lockSteps: ClarificationSteps = {
       ...validSteps(['3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다']),
       decomposition: [
-        { statement: '3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다', span_refs: ['SPN-001'] },
+        { statement: '3회 이상 실패했고 최근 1시간 이내면 계정을 잠근다', span_refs: ['SPN-001'], single_statement_reason: '결합 조건이 하나의 정책이라 한 문장으로 읽는다' },
       ],
     };
     await writeConfirmedClarification(lockSteps);

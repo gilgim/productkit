@@ -15,8 +15,7 @@ import {
   type Clarification,
   type ClarificationSteps,
   computeEntryHash,
-  stepsContentHash,
-} from '../src/schema/clarification.js';
+  stepsContentHash, renderPresentation } from '../src/schema/clarification.js';
 
 let root: string;
 
@@ -47,7 +46,7 @@ function buildEntry(
 ) {
   const base = {
     id: overrides.id ?? 'IC-001',
-    presented_statement: `원문: ${sourcePrompt.raw_text} / reconstructed statement`,
+    presented_statement: renderPresentation({ steps, finding_candidates: [] }, sourcePrompt),
     presented_hash: stepsContentHash(steps),
     prompt_ref: sourcePrompt.id,
     prompt_content_hash: sourcePrompt.content_hash,

@@ -9,7 +9,7 @@ import { stringify } from 'yaml';
 
 import { computePromptHash, type Prompt } from '../../src/schema/prompt.js';
 import { segmentSpans } from '../../src/clarification/spans.js';
-import { clarificationSchema, clarificationContentHash, computeEntryHash, interpretationCheckEntrySchema, stepsContentHash, type ClarificationSteps } from '../../src/schema/clarification.js';
+import { clarificationSchema, clarificationContentHash, computeEntryHash, interpretationCheckEntrySchema, renderPresentation, stepsContentHash, type ClarificationSteps } from '../../src/schema/clarification.js';
 import { evaluateAtomicityFinal, nodeGroupSchema, nodeSetContentHash, type Node } from '../../src/schema/node.js';
 import { appendFindingConfirmation, createFinding, findingContentHash, findingHistoryEntryHash, findingSchema, toFindingInput } from '../../src/schema/finding.js';
 import { challengeAreas } from '../../src/schema/challenge.js';
@@ -88,7 +88,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
     relation_check: [], relation_check_no_items_reason: '각 행동 사이의 필수 의존이나 순서는 원문에 명시되어 있지 않다.',
     counterexample: [], counterexample_no_items_reason: '기록된 조건과 행동을 대조했으며 추가 해석 후보를 발견하지 못했다.',
   };
-  const entry = { id: 'IC-001', presented_statement: 'SYNTHETIC: ' + stmts.join(' '), presented_hash: stepsContentHash(steps), prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, user_response: 'agreed' as const, user_statement: 'SYNTHETIC TEST ONLY: 동의', checked_at: '2026-10-12T00:00:00Z' };
+  const entry = { id: 'IC-001', presented_statement: renderPresentation({ steps, finding_candidates: [] }, prompt), presented_hash: stepsContentHash(steps), prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, user_response: 'agreed' as const, user_statement: 'SYNTHETIC TEST ONLY: 동의', checked_at: '2026-10-12T00:00:00Z' };
   const { entry_hash: _u, ...stored } = interpretationCheckEntrySchema.parse({ ...entry, entry_hash: '0'.repeat(64) });
   const clarification = clarificationSchema.parse({ id: 'CLR-001', prompt_ref: prompt.id, prompt_content_hash: prompt.content_hash, steps, status: 'confirmed', interpretation_check: [{ ...stored, entry_hash: computeEntryHash(stored) }], finding_candidates: [] });
   await writeFile(path.join(root, 'discovery', 'CLR-001.yaml'), stringify(clarification));

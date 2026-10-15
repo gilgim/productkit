@@ -4,7 +4,7 @@ import { stringify as stringifyYaml } from 'yaml';
 
 import { CliError, ExitCode, describeCause } from '../../errors.js';
 import { atomicWriteFile, nextSequentialId } from '../../clarification/io.js';
-import { segmentSpans } from '../../clarification/spans.js';
+import { SEGMENTATION_VERSION, segmentSpans } from '../../clarification/spans.js';
 import { ensureWorkspace, markStage } from '../../clarification/workspace.js';
 import { computePromptHash, promptSchema, type Prompt } from '../../schema/prompt.js';
 import type { Output } from '../output.js';
@@ -58,7 +58,8 @@ export async function runIntake(options: IntakeOptions, output: Output): Promise
     raw_text: rawText,
     received_at: (options.now ?? new Date()).toISOString(),
     content_hash: computePromptHash(rawText),
-    spans: segmentSpans(rawText),
+    spans: segmentSpans(rawText, SEGMENTATION_VERSION),
+    segmentation: SEGMENTATION_VERSION,
   };
   promptSchema.parse(prompt);
 

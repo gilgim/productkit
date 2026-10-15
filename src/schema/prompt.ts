@@ -20,6 +20,8 @@ export const promptSchema = z.object({
   received_at: z.string().min(1),
   content_hash: z.string().regex(/^[0-9a-f]{64}$/, 'content_hash must be a SHA-256 hex digest'),
   spans: z.array(promptSpanSchema),
+  /** Segmentation rule the spans were cut with; missing means 1. */
+  segmentation: z.union([z.literal(1), z.literal(2)]).optional(),
 });
 
 export type PromptSpan = z.infer<typeof promptSpanSchema>;
@@ -38,6 +40,6 @@ export function parsePrompt(yamlText: string): Prompt {
 export function promptIntegrityIssue(prompt: Prompt): string | undefined {
   if (!promptSchema.safeParse(prompt).success) return 'Invalid Prompt schema.';
   if (computePromptHash(prompt.raw_text) !== prompt.content_hash) return 'Prompt raw text does not match content_hash.';
-  if (canonicalJson(prompt.spans) !== canonicalJson(segmentSpans(prompt.raw_text))) return 'Prompt spans do not match original text segmentation.';
+  if (canonicalJson(prompt.spans) !== canonicalJson(segmentSpans(prompt.raw_text, prompt.segmentation ?? 1))) return 'Prompt spans do not match original text segmentation.';
   return undefined;
 }

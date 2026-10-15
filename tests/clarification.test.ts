@@ -11,8 +11,7 @@ import {
   computeEntryHash,
   judgeCompletion,
   stepsContentHash,
-  stepsContentHashFromYaml,
-} from '../src/schema/clarification.js';
+  stepsContentHashFromYaml, renderPresentation } from '../src/schema/clarification.js';
 import { stringify as stringifyYaml } from 'yaml';
 
 const completeSteps: ClarificationSteps = validSteps();
@@ -27,7 +26,7 @@ function buildEntry(
 ) {
   const base = {
     id: overrides.id ?? 'IC-001',
-    presented_statement: `원문: ${promptFixture().raw_text} / reconstructed statement`,
+    presented_statement: renderPresentation({ steps, finding_candidates: [] }, promptFixture()),
     presented_hash: stepsContentHash(steps),
     prompt_ref: promptFixture().id,
     prompt_content_hash: promptFixture().content_hash,

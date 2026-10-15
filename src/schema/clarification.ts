@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { promptIntegrityIssue, type Prompt } from './prompt.js';
 import { isMeaningfulText } from './text.js';
+import { clauseSignalCount, spanText } from '../clarification/spans.js';
 
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 
@@ -23,6 +24,10 @@ export const definitionItemSchema = z.object({
 export const decompositionItemSchema = z.object({
   statement: z.string().min(1),
   span_refs: z.array(z.string().min(1)),
+  /** Required when span_refs has more than one entry: why these sentences are one requirement. */
+  merge_reason: z.string().optional(),
+  /** Required when this item is the only reading of a span that carries several clauses: why one statement is enough. */
+  single_statement_reason: z.string().optional(),
 });
 
 export const elaborationItemSchema = z.object({
@@ -171,7 +176,8 @@ export type CompletionBlockReason =
   | 'prompt_integrity_violation'
   | 'prompt_changed_since_clarification'
   | 'uncovered_spans'
-  | 'presented_statement_missing_source';
+  | 'missing_merge_reason'
+  | 'presented_statement_not_rendered';
 
 export type CompletionJudgement =
   | { confirmed: true }
@@ -229,33 +235,60 @@ export function judgeCompletion(clarification: Clarification, prompt?: Prompt): 
   if (clarification.steps.decomposition.some(d => d.span_refs.some(ref => !spanIds.has(ref))) || clarification.finding_candidates.some(f => f.span_refs.some(ref => !spanIds.has(ref))) || (clarification.steps.span_coverage ?? []).some(c => !spanIds.has(c.span_ref))) return { confirmed: false, reason: 'invalid_step_reference', detail: 'A source span reference does not resolve in the current Prompt.' };
   const uncovered = uncoveredSpans(clarification, prompt);
   if (uncovered.length) return { confirmed: false, reason: 'uncovered_spans', detail: `Prompt spans not decomposed, not raised as a finding candidate, and not dispositioned as non_requirement: ${uncovered.join(', ')}` };
-  const unquoted = unquotedSpans(clarification, prompt, latest.presented_statement);
-  if (unquoted.length) return { confirmed: false, reason: 'presented_statement_missing_source', detail: `The statement the user agreed to does not quote these Prompt spans verbatim: ${unquoted.join(', ')}` };
+  const merge = mergeReasonIssue(clarification, prompt);
+  if (merge) return { confirmed: false, reason: 'missing_merge_reason', detail: merge };
+  if (squash(latest.presented_statement) !== squash(renderPresentation(clarification, prompt))) return { confirmed: false, reason: 'presented_statement_not_rendered', detail: 'presented_statement must be exactly the text `productkit clarify` renders from the current steps (run it and copy the block verbatim).' };
   return { confirmed: true };
 }
 
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
+const spanTextById = (prompt: Prompt, id: string): string => { const span = prompt.spans.find(s => s.id === id); return span ? spanText(prompt.raw_text, span) : '(span not found)'; };
 
 /**
- * What the user agrees to must show the user's own words, not only the
- * agent's restatement of them. Every span that was decomposed or set aside
- * must appear verbatim in `presented_statement`, so a wrong restatement or a
- * wrong "not a requirement" label sits next to the original sentence when the
- * user reads it. The CLI checks presence, not that the user read it.
+ * The text the user is asked to agree to is rendered by the CLI, not written
+ * by the agent. It pairs every decomposed span with its reading, lists every
+ * span set aside with its reason, and lists every finding candidate with its
+ * spans. The agent can choose the readings and reasons; it cannot choose what
+ * the user sees or hide a span behind a summary. `judgeCompletion` requires
+ * `presented_statement` to equal this render exactly.
  */
-export function unquotedSpans(clarification: Clarification, prompt: Prompt, presented: string): string[] {
-  const shown = squash(presented);
-  const ids = new Set<string>();
-  for (const d of clarification.steps.decomposition) for (const ref of d.span_refs) ids.add(ref);
-  for (const c of clarification.steps.span_coverage ?? []) ids.add(c.span_ref);
-  const missing: string[] = [];
-  for (const id of ids) {
-    const span = prompt.spans.find(s => s.id === id);
-    if (!span) continue;
-    const text = squash(prompt.raw_text.slice(span.start, span.end));
-    if (text && !shown.includes(text)) missing.push(id);
+export function renderPresentation(clarification: Pick<Clarification, 'steps' | 'finding_candidates'>, prompt: Prompt): string {
+  const lines: string[] = [];
+  clarification.steps.decomposition.forEach((item, i) => {
+    lines.push(`[${i + 1}] 원문 ${item.span_refs.join(', ')}: ${item.span_refs.map(id => `"${spanTextById(prompt, id)}"`).join(' / ')}`);
+    if (item.span_refs.length > 1) lines.push(`    묶은 이유: ${squash(item.merge_reason ?? '')}`);
+    if (item.single_statement_reason) lines.push(`    한 문장으로 읽은 이유: ${squash(item.single_statement_reason)}`);
+    lines.push(`    해석: ${squash(item.statement)}`);
+  });
+  const aside = clarification.steps.span_coverage ?? [];
+  lines.push(aside.length ? `요구사항 아님 (${aside.length}):` : '요구사항 아님: 없음');
+  for (const c of aside) lines.push(`  - ${c.span_ref} "${spanTextById(prompt, c.span_ref)}" — ${squash(c.reason)}`);
+  const candidates = clarification.finding_candidates;
+  lines.push(candidates.length ? `질문으로 남김 (${candidates.length}):` : '질문으로 남김: 없음');
+  candidates.forEach((f, i) => lines.push(`  - [Q${i + 1}] ${f.span_refs.join(', ')} ${f.span_refs.map(id => `"${spanTextById(prompt, id)}"`).join(' / ')} — ${f.type}: ${squash(f.statement)}`));
+  return lines.join('\n');
+}
+
+/** A span carrying this many clause separators, read as one statement, needs a stated reason. */
+export const CLAUSE_SIGNAL_THRESHOLD = 3;
+
+/**
+ * Where requirements get merged away: one item citing several spans, or one
+ * item being the only reading of a span that plainly carries several
+ * clauses. Neither is forbidden; both need a reason the user will see.
+ */
+export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined {
+  const items = clarification.steps.decomposition;
+  for (const [i, item] of items.entries()) {
+    if (item.span_refs.length > 1 && !isMeaningfulText(item.merge_reason)) return `decomposition[${i}] cites ${item.span_refs.length} spans (${item.span_refs.join(', ')}) but gives no merge_reason.`;
+    if (item.span_refs.length === 1) {
+      const id = item.span_refs[0]!;
+      const readers = items.filter(other => other.span_refs.includes(id));
+      const signals = clauseSignalCount(spanTextById(prompt, id));
+      if (readers.length === 1 && signals >= CLAUSE_SIGNAL_THRESHOLD && !isMeaningfulText(item.single_statement_reason)) return `decomposition[${i}] is the only reading of ${id}, which carries ${signals} clause separators; give a single_statement_reason or split it.`;
+    }
   }
-  return missing;
+  return undefined;
 }
 
 /**

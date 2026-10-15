@@ -9,6 +9,7 @@ import {
   type CompletionBlockReason,
   judgeCompletion,
   parseClarification,
+  renderPresentation,
 } from '../../schema/clarification.js';
 import type { Output } from '../output.js';
 
@@ -31,9 +32,12 @@ const REASON_MESSAGES: Record<CompletionBlockReason, string> = {
   prompt_changed_since_clarification: 'Prompt snapshot is missing or changed; review and re-confirm without overwriting the original.',
   incomplete_steps: 'Clarification has incomplete steps or placeholder output.',
   invalid_step_reference: 'Clarification step references do not resolve.',
-  presented_statement_missing_source:
-    'The presented_statement the user agreed to must quote every decomposed or set-aside Prompt ' +
-    'span verbatim, so the original sentence sits next to its restatement.',
+  presented_statement_not_rendered:
+    'presented_statement must be exactly the block printed below under "Show the user"; the CLI ' +
+    'renders what the user sees, the agent does not.',
+  missing_merge_reason:
+    'A decomposition item merges several spans, or reads a many-clause span as one statement, ' +
+    'without saying why.',
   uncovered_spans:
     'Some Prompt spans are not accounted for. Every span must be decomposed, raised as a ' +
     'finding candidate, or listed in steps.span_coverage as non_requirement with a reason.',
@@ -140,4 +144,14 @@ export async function runClarify(options: ClarifyOptions, output: Output): Promi
     output.out(`  Detail: ${judgement.detail}`);
   }
   output.out(`  Instruction: ${instructionPath}`);
+  // Only once the steps themselves are sound does the rendered block mean
+  // anything; print it so the agent can copy it into presented_statement
+  // and show it to the user verbatim.
+  if (['no_confirmation', 'not_agreed', 'presented_statement_not_rendered', 'content_changed_since_confirmation', 'missing_user_statement'].includes(judgement.reason)) {
+    output.out('');
+    output.out('Show the user (copy into presented_statement exactly):');
+    output.out('----');
+    output.out(renderPresentation(clarification, sourcePrompt));
+    output.out('----');
+  }
 }
