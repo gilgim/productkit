@@ -25,7 +25,7 @@ To update, install the next approved tag explicitly using the same command and r
 
 ## Agent Skills
 
-**Install is all it takes.** `npm install --global` copies every Skill into `~/.claude/skills` and `~/.agents/skills`, so Claude Code and Codex see ProductKit in every project. If npm skipped install scripts, the first `productkit` run does it. Restart the agent once afterwards. Run `productkit install-skills` to repeat by hand (`--force` overwrites); set `PRODUCTKIT_SKIP_SKILLS=1` to opt out.
+**Install is all it takes.** The first `productkit` command after install copies every Skill into `~/.claude/skills` and `~/.agents/skills` (and refreshes them after an upgrade), so Claude Code and Codex see ProductKit in every project. There is no npm install script. Restart the agent once afterwards. Run `productkit install-skills` to repeat by hand (`--force` overwrites); set `PRODUCTKIT_SKIP_SKILLS=1` to opt out.
 
 Describing a new product idea makes the `productkit` Skill ask whether to use ProductKit.
 

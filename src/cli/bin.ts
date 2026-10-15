@@ -2,8 +2,10 @@
 import { ensureGlobalSkills } from './commands/install-skills.js';
 import { runCli } from './program.js';
 
-// Self-heal: if npm skipped the postinstall (--ignore-scripts, CI), the first
-// run still installs the user-wide skills. Never blocks or fails the command.
+// Every run makes sure the user-wide skills exist and match this version.
+// Done here, not in an npm lifecycle script: a global git install runs
+// postinstall in places where the package files are not there yet.
+// Never blocks or fails the command.
 // A closed pipe (`productkit ... | head`) is not an error worth a stack trace.
 process.stdout.on('error', (e: NodeJS.ErrnoException) => { if (e.code === 'EPIPE') process.exit(0); throw e; });
 

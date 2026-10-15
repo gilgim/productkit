@@ -49,9 +49,15 @@ export async function runInstallSkills(
 export async function ensureGlobalSkills(home: string = os.homedir()): Promise<void> {
   if (process.env.PRODUCTKIT_SKIP_SKILLS || process.env.VITEST) return;
   try {
-    const marker = path.join(home, AGENT_SKILL_DIRS[0], 'productkit', 'SKILL.md');
-    if (await readFile(marker, 'utf8').then(() => true, () => false)) return;
-    await runInstallSkills({ home }, { out: () => {}, err: () => {} } as unknown as Output);
+    // Install when missing; overwrite when a shipped skill changed (an upgrade).
+    // The productkit-* names are ours, so overwriting them loses nothing of the user's.
+    let stale = false;
+    for (const skill of SKILL_NAMES) {
+      const target = path.join(home, AGENT_SKILL_DIRS[0], installedSkillName(skill), 'SKILL.md');
+      const installed = await readFile(target, 'utf8').catch(() => undefined);
+      if (installed !== await loadSkillFile(`${skill}/SKILL.md`)) { stale = true; break; }
+    }
+    if (stale) await runInstallSkills({ home, force: true }, { out: () => {}, err: () => {} } as unknown as Output);
   } catch {
     // best effort
   }
