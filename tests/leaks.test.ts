@@ -348,13 +348,13 @@ describe('leak regression: source content cannot vanish silently', () => {
     aside.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: 'x' }];
     j = judgeCompletion(confirmedFixture(aside, prompt), prompt);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/6\+ characters/);
-    const numbered = promptFixture('제목. 쿠폰은 주문당 1장만 사용 가능.');
-    const aside2 = validSteps(['제목.']);
+    const numbered = promptFixture('# 제목\n쿠폰은 주문당 1장만 사용 가능.');
+    const aside2 = validSteps(['# 제목']);
     aside2.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '표의 행이라 제외함' }];
     j = judgeCompletion(confirmedFixture(aside2, numbered), numbered);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/carries a number/);
-    const wordy = promptFixture('제목. 주요 화면 항목은 결제 수단 카드 계좌이체 휴대폰 결제 포인트 사용 쿠폰 적용 환불 계좌 등록 영수증 이메일 발송 찜 목록 관리');
-    const aside3 = validSteps(['제목.']);
+    const wordy = promptFixture('# 제목\n주요 화면 항목은 결제 수단 카드 계좌이체 휴대폰 결제 포인트 사용 쿠폰 적용 환불 계좌 등록 영수증 이메일 발송 찜 목록 관리');
+    const aside3 = validSteps(['# 제목']);
     aside3.span_coverage = [{ span_ref: 'SPN-002', disposition: 'non_requirement', reason: '화면 항목 나열이라 요구사항 아님' }];
     j = judgeCompletion(confirmedFixture(aside3, wordy), wordy);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/content words/);
@@ -539,6 +539,40 @@ describe('leak regression: source content cannot vanish silently', () => {
     merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002']; merged.decomposition[0]!.merge_reason = '질문과 답을 한 요구로 읽는다';
     const j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
     expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/is a question .* raised as a finding candidate/);
+  });
+
+  it('only structure and user-marked asides can be set aside; a bare line is content', () => {
+    const p = promptFixture('쇼핑몰 앱을 만든다.\n배송 무료\n- 결제 수단: 카드, 계좌이체\n- 로그인: 소셜 로그인만\n참고: 디자인은 나중에');
+    const steps = validSteps(['쇼핑몰 앱을 만든다.']);
+    const text = (id: string) => { const sp = p.spans.find((x) => x.id === id)!; return p.raw_text.slice(sp.start, sp.end).trim(); };
+    for (const ref of ['SPN-002', 'SPN-003'] as const) {
+      steps.span_coverage = [{ span_ref: ref, disposition: 'non_requirement', reason: '배경 메모라 요구사항 아님' }];
+      const others = ['SPN-002', 'SPN-003', 'SPN-004', 'SPN-005'].filter((id) => id !== ref && id !== 'SPN-005');
+      steps.decomposition = [{ statement: '쇼핑몰 앱을 만든다.', span_refs: ['SPN-001'] }, ...others.map((id) => ({ statement: text(id), span_refs: [id] }))];
+      steps.elaboration = steps.decomposition.map((d) => ({ statement: d.statement, actor: 'a', object: 'b', condition: 'c', action: 'd', result: 'e' }));
+      steps.span_coverage.push({ span_ref: 'SPN-005', disposition: 'non_requirement', reason: '사용자가 참고로 표시함' });
+      const j = judgeCompletion(confirmedFixture(steps, p), p);
+      expect(j.confirmed, ref).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/did not mark as a heading|carries a negation/);
+    }
+    // "소셜 로그인만" — a trailing 만 is a condition word too.
+    steps.span_coverage = [{ span_ref: 'SPN-004', disposition: 'non_requirement', reason: '목록 항목 메모라 제외' }, { span_ref: 'SPN-005', disposition: 'non_requirement', reason: '사용자가 참고로 표시함' }];
+    steps.decomposition = [{ statement: '쇼핑몰 앱을 만든다.', span_refs: ['SPN-001'] }, { statement: text('SPN-002'), span_refs: ['SPN-002'] }, { statement: text('SPN-003'), span_refs: ['SPN-003'] }];
+    steps.elaboration = steps.decomposition.map((d) => ({ statement: d.statement, actor: 'a', object: 'b', condition: 'c', action: 'd', result: 'e' }));
+    const j = judgeCompletion(confirmedFixture(steps, p), p);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/negation\/condition word \(만\)/);
+  });
+
+  it('a Node cannot be only a condition, drop the condition that opens its sentence, trail off, or cross into another sentence', async () => {
+    const { sliceIssue } = await import('../src/schema/clarification.js');
+    expect(sliceIssue('주문을 취소한다, 결제가 실패하면.', ['주문을 취소한다', '결제가 실패하면'])).toMatch(/only a condition/);
+    expect(sliceIssue('결제가 완료되면 재고를 차감한다.', ['결제가 완료되면', '재고를 차감한다'])).toMatch(/only a condition|drops the condition/);
+    expect(sliceIssue('결제가 완료되면 주문을 확정하고 이메일을 보내고 재고를 차감한다.', ['결제가 완료되면 주문을 확정하고', '이메일을 보내고', '재고를 차감한다'])).toMatch(/drops the condition "결제가 완료되면"/);
+    expect(sliceIssue('결제가 완료되면 주문을 확정하고 이메일을 보내고 재고를 차감한다.', ['결제가 완료되면 주문을 확정하고', '결제가 완료되면 이메일을 보내고', '결제가 완료되면 재고를 차감한다'])).toBeUndefined();
+    expect(sliceIssue('결제가 완료되면 주문을 확정하고 결제가 실패하면 주문을 취소한다.', ['결제가 완료되면 주문을 확정하고', '결제가 실패하면 주문을 취소한다'])).toBeUndefined();
+    expect(sliceIssue('Users can request a refund unless the item is a subscription.', ['Users can request a refund unless', 'the item is a subscription'])).toMatch(/trails off|exception clause/);
+    const two = '회원은 반드시 이메일로 가입해야 한다. 환불은 불가능하다.';
+    expect(sliceIssue(two, [two], ['회원은 반드시 이메일로 가입해야 한다.', '환불은 불가능하다.'])).toMatch(/crosses from one of the user's sentences/);
+    expect(sliceIssue(two, ['회원은 반드시 이메일로 가입해야 한다', '환불은 불가능하다'], ['회원은 반드시 이메일로 가입해야 한다.', '환불은 불가능하다.'])).toBeUndefined();
   });
 
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {

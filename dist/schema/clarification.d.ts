@@ -275,7 +275,7 @@ export declare function restatementIssue(source: string, readings: string[]): st
  * the slices must cover every content word of the source. Nothing can be
  * flipped, dropped or reordered: the only freedom is where to cut.
  */
-export declare function sliceIssue(source: string, statements: string[]): string | undefined;
+export declare function sliceIssue(source: string, statements: string[], segments?: string[]): string | undefined;
 /** Share of a span's content that its readings must carry. */
 export declare const READING_COVERAGE_RATIO = 0.6;
 /**

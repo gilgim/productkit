@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { promptIntegrityIssue } from './prompt.js';
 import { forbiddenTextIssue, isMeaningfulText } from './text.js';
-import { clauseSignalCount, contentTokenList, contentTokens, endsWithConnective, endsWithPredicate, isStructuralSpan, lcsLength, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
+import { clauseSignalCount, contentTokenList, contentTokens, endsWithCondition, endsWithConnective, endsWithDangler, endsWithPredicate, hasAsideMarker, isStructuralSpan, lcsLength, leadingCondition, numberTokens, polarityTokens, spanText, startsWithException } from '../clarification/spans.js';
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 const hashHex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 hex digest');
 /**
@@ -292,6 +292,11 @@ export function mergeReasonIssue(clarification, prompt) {
             return `span_coverage[${i}] sets aside ${c.span_ref}, which has ${contentTokenList(text).length} content words; a sentence that long is not a heading or an aside — decompose it or raise it as a finding candidate.`;
         if (!isStructuralSpan(text) && endsWithPredicate(text))
             return `span_coverage[${i}] sets aside ${c.span_ref}, which states something ("…${text.slice(-12)}"); a sentence with a predicate is a requirement or a question, not an aside.`;
+        // Only what the user themselves marked as structure or as an aside may be
+        // set aside. A sentence without such a marker is content, whatever the
+        // agent's reason says.
+        if (!isStructuralSpan(text) && !hasAsideMarker(text))
+            return `span_coverage[${i}] sets aside ${c.span_ref} ("${text.slice(0, 30)}${text.length > 30 ? '…' : ''}"), which the user did not mark as a heading, list marker, separator or aside ("예:", "비유:", "참고:", "비고:"); it is content — decompose it or raise it as a finding candidate.`;
     }
     // "단, …" means nothing away from the sentence it qualifies: it must sit in
     // the same decomposition item as the span before it. A question is never a
@@ -344,8 +349,25 @@ export function restatementIssue(source, readings) {
  * the slices must cover every content word of the source. Nothing can be
  * flipped, dropped or reordered: the only freedom is where to cut.
  */
-export function sliceIssue(source, statements) {
+export function sliceIssue(source, statements, segments) {
     const src = squash(source).replace(/[.。]$/, '');
+    // A slice stays inside one of the user's sentences: merging several
+    // sentences into one Node would let ten rules become "one atomic Node".
+    const segmentRanges = [];
+    if (segments && segments.length > 1) {
+        let from = 0;
+        for (const seg of segments) {
+            const sq = squash(seg).replace(/[.。]$/, '');
+            const i = src.indexOf(sq, from);
+            if (i >= 0) {
+                segmentRanges.push([i, i + sq.length]);
+                from = i + sq.length;
+            }
+        }
+    }
+    const insideOneSegment = (a, b) => !segmentRanges.length || segmentRanges.some(([s0, s1]) => a >= s0 && b <= s1 + 1);
+    // If a sentence opens with a condition, every Node of that sentence must carry it.
+    const condition = leadingCondition(src);
     const covered = new Array(src.length).fill(false);
     const mark = (a, b) => { for (let i = a; i < b; i++)
         covered[i] = true; };
@@ -393,10 +415,17 @@ export function sliceIssue(source, statements) {
         }
         if (s !== src && !endsWithPredicate(s) && !endsWithConnective(s) && !startsWithException(s))
             return `"${s.slice(0, 50)}" is a fragment: a Node must end with a predicate or a connective ending`;
+        if (s !== src && (endsWithCondition(s) || endsWithDangler(s)))
+            return `"${s.slice(0, 50)}" is only a condition or trails off; a Node states what happens`;
         if (s !== src && startsWithException(s))
             return `"${s.slice(0, 50)}" is an exception clause on its own; keep it in the Node of the sentence it qualifies`;
-        for (const [a, b] of parts)
+        if (condition && s !== src && !s.startsWith(condition) && !leadingCondition(s))
+            return `"${s.slice(0, 50)}" drops the condition "${condition}" that opens its sentence; every Node of this sentence must carry it (or open with its own condition)`;
+        for (const [a, b] of parts) {
+            if (!insideOneSegment(a, b))
+                return `"${s.slice(0, 50)}" crosses from one of the user's sentences into another; a Node stays within one sentence`;
             mark(a, b);
+        }
     }
     if (new Set(triggers).size > 1)
         return `two-slice Nodes of this item carry different triggers (${[...new Set(triggers)].join(' / ')}); a split shares one sentence-initial trigger`;

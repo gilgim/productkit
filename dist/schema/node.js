@@ -261,10 +261,13 @@ export function judgeNodeSetCompletion(group, currentSteps, source) {
     for (const n of group.nodes)
         byIndex.set(n.derived_from.decomposition_index, [...(byIndex.get(n.derived_from.decomposition_index) ?? []), n.statement]);
     for (const [index, statements] of byIndex) {
-        const source = currentSteps.decomposition[index]?.statement;
-        if (!source)
+        const stmt = currentSteps.decomposition[index]?.statement;
+        if (!stmt)
             continue;
-        const issue = sliceIssue(source, statements);
+        const refs = currentSteps.decomposition[index]?.span_refs ?? [];
+        const prompt = source?.prompt;
+        const segments = prompt ? refs.map(id => { const sp = prompt.spans.find((x) => x.id === id); return sp ? prompt.raw_text.slice(sp.start, sp.end) : ''; }).filter(Boolean) : undefined;
+        const issue = sliceIssue(stmt, statements, segments);
         if (issue)
             restate.push(`decomposition[${index}] → ${statements.length} Node(s): ${issue}`);
     }

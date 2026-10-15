@@ -25,6 +25,14 @@ export declare function contentTokens(text: string): Set<string>;
 export declare function polarityTokens(text: string): string[];
 /** Headings, list markers, table separators and header rows: structure, not content. A heading that carries a number or a negation is content. */
 export declare function isStructuralSpan(text: string): boolean;
+/** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
+export declare function hasAsideMarker(text: string): boolean;
+/** Korean conditional connective: a clause that is only a condition. */
+export declare function endsWithCondition(text: string): boolean;
+/** The sentence-initial condition of a Korean sentence, if it starts with one: "결제가 완료되면". */
+export declare function leadingCondition(text: string): string | undefined;
+/** English clause that trails off: a conjunction or preposition as the last word. */
+export declare function endsWithDangler(text: string): boolean;
 /** A sentence that states something: Korean sentence-final endings or an English finite verb/modal. */
 export declare function endsWithPredicate(text: string): boolean;
 /** Korean connective endings that leave a clause open (a trigger-sharing split piece may end with one). */

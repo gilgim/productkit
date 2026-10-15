@@ -340,7 +340,7 @@ export function judgeNodeSetCompletion(
   const restate: string[] = [];
   const byIndex = new Map<number, string[]>();
   for (const n of group.nodes) byIndex.set(n.derived_from.decomposition_index, [...(byIndex.get(n.derived_from.decomposition_index) ?? []), n.statement]);
-  for (const [index, statements] of byIndex) { const source = currentSteps.decomposition[index]?.statement; if (!source) continue; const issue = sliceIssue(source, statements); if (issue) restate.push(`decomposition[${index}] → ${statements.length} Node(s): ${issue}`); }
+  for (const [index, statements] of byIndex) { const stmt = currentSteps.decomposition[index]?.statement; if (!stmt) continue; const refs = currentSteps.decomposition[index]?.span_refs ?? []; const prompt = source?.prompt; const segments = prompt ? refs.map(id => { const sp = prompt.spans.find((x: { id: string }) => x.id === id); return sp ? prompt.raw_text.slice(sp.start, sp.end) : ''; }).filter(Boolean) : undefined; const issue = sliceIssue(stmt, statements, segments); if (issue) restate.push(`decomposition[${index}] → ${statements.length} Node(s): ${issue}`); }
   if (restate.length) { reasons.push('restatement_mismatch'); detail.push(...restate); }
   const forbidden = forbiddenTextIssue(canonicalJson(group.nodes.map(n => [n.statement, n.atomicity])));
   if (forbidden) { reasons.push('invalid_reference'); detail.push(`Node text ${forbidden}.`); }

@@ -73,7 +73,7 @@ export function contentTokens(text: string): Set<string> {
  * Words that flip or bound a requirement. Dropping one of these from a
  * restatement changes what is required; they are kept like numbers are.
  */
-const POLARITY = /(어떤 경우에도|언제든지|무조건|불허|결코|전혀|말 것|말것|마라|말아야|하지 말|안된다|안됨|불가능|불가|없이|없다|없음|없는|않는|않고|않은|않아|않음|않도록|안\s|못\s|못한|아니|금지|제외|예외|단,|만\s|만으로|만이|에만|경우에만|이상|이하|미만|초과|이내|이전|이후|전에|전까지|후에|반드시|필수|항상|절대|모든|전부|즉시|최대|최소|최소한|적어도|\bnot\b|\bno\b|\bnever\b|\bonly\b|\bunless\b|\bexcept\b|\bmust\b|\bbefore\b|\bafter\b|\bat least\b|\bat most\b|\bwithin\b|\ball\b|\bevery\b)/g;
+const POLARITY = /(어떤 경우에도|언제든지|무조건|불허|결코|전혀|말 것|말것|마라|말아야|하지 말|안된다|안됨|불가능|불가|없이|없다|없음|없는|않는|않고|않은|않아|않음|않도록|안\s|못\s|못한|아니|금지|제외|예외|단,|만\s|만$|만으로|만이|에만|경우에만|이상|이하|미만|초과|이내|이전|이후|전에|전까지|후에|반드시|필수|항상|절대|모든|전부|즉시|최대|최소|최소한|적어도|\bnot\b|\bno\b|\bnever\b|\bonly\b|\bunless\b|\bexcept\b|\bmust\b|\bbefore\b|\bafter\b|\bat least\b|\bat most\b|\bwithin\b|\ball\b|\bevery\b)/g;
 export function polarityTokens(text: string): string[] {
   return (text.match(POLARITY) ?? []).map((t) => t.trim().replace(/,$/, ''));
 }
@@ -83,6 +83,28 @@ export function isStructuralSpan(text: string): boolean {
   const t = text.trim();
   const plain = !/\d/.test(t) && polarityTokens(t).length === 0 && !endsWithPredicate(t);
   return (/^#{1,6}\s/.test(t) && plain) || /^\d{1,3}\.?$/.test(t) || /^[-*+]\s*$/.test(t) || /^\|?[\s|:-]+\|?$/.test(t) || (/^\|?\s*[^|]*(\|[^|]*)*\|?$/.test(t) && plain && t.includes('|'));
+}
+
+/** A line the user marked as an aside: "예:", "비유:", "참고:", "비고:", "주:", "note:", "e.g.". Only such lines, and structure, may be set aside. */
+export function hasAsideMarker(text: string): boolean {
+  return /^(예|예시|비유|참고|비고|주|메모|note|e\.g\.|eg|tip|hint)\s*[:：]/i.test(text.trim());
+}
+
+/** Korean conditional connective: a clause that is only a condition. */
+export function endsWithCondition(text: string): boolean {
+  const t = text.trim().replace(/[.。!?,，]+$/, '').trim();
+  return /(하면|되면|이면|라면|다면|으면|면)$/.test(t) && !/(면|화면|장면|측면|지면|당면|대면|전면|후면|표면|내면|외면|서면|도면|단면|수면|라면)$/.test(t.replace(/(하면|되면|이면|다면|으면)$/, 'X'));
+}
+
+/** The sentence-initial condition of a Korean sentence, if it starts with one: "결제가 완료되면". */
+export function leadingCondition(text: string): string | undefined {
+  const m = text.trim().match(/^((?:\S+\s+){0,5}?\S+(?:하면|되면|이면|라면|다면|으면|면)),?\s/);
+  return m ? m[1]! : undefined;
+}
+
+/** English clause that trails off: a conjunction or preposition as the last word. */
+export function endsWithDangler(text: string): boolean {
+  return /\b(unless|if|when|whenever|because|and|or|but|that|which|while|until|before|after|only|not|except|without|with|to|of|for|the|a|an)$/i.test(text.trim().replace(/[.。!?,]+$/, ''));
 }
 
 /** A sentence that states something: Korean sentence-final endings or an English finite verb/modal. */
