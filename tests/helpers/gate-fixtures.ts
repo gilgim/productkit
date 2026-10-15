@@ -1,6 +1,6 @@
 import { clarificationContentHash, clarificationSchema, interpretationCheckEntrySchema, computeEntryHash, renderPresentation, stepsContentHash, type ClarificationSteps } from '../../src/schema/clarification.js';
 import { computePromptHash, type Prompt } from '../../src/schema/prompt.js';
-import { segmentSpans } from '../../src/clarification/spans.js';
+import { SEGMENTATION_VERSION, segmentSpans } from '../../src/clarification/spans.js';
 
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -18,7 +18,7 @@ export async function allowFlagAttestation(productRoot: string): Promise<void> {
 
 // All confirmations in this helper are SYNTHETIC TEST DATA, never user consent.
 export function promptFixture(raw_text = '사용자가 결제를 완료하면 주문을 확정한다.'): Prompt {
-  return { id: 'PRM-001', raw_text, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(raw_text), spans: segmentSpans(raw_text) };
+  return { id: 'PRM-001', raw_text, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(raw_text), spans: segmentSpans(raw_text, SEGMENTATION_VERSION), segmentation: SEGMENTATION_VERSION };
 }
 export function validSteps(statements = ['사용자가 결제를 완료하면 주문을 확정한다.']): ClarificationSteps {
   return {

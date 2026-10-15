@@ -66,6 +66,6 @@ export async function updateChallengeRun(root: string, id: string, update: (run:
 }
 export async function refreshChallengeRun(root: string, run: ChallengeRun): Promise<{ run: ChallengeRun; stale: boolean; completion: 'complete' | 'incomplete' }> {
   const current = await currentChallengeInputs(root); const stale = canonicalJson(current.inputs) !== canonicalJson(run.inputs) || canonicalJson(current.scope) !== canonicalJson(run.scope.included) || current.unavailable.length > 0;
-  const completion = stale ? 'incomplete' : judgeChallengeCompletion({ ...run, status: run.status });
+  const completion = stale ? 'incomplete' : judgeChallengeCompletion({ ...run, status: run.status }, new Set(run.inputs.map((i) => i.kind)));
   return { run, stale, completion };
 }

@@ -111,7 +111,9 @@ export function registerSchemaHashCommands(program: Command, output: Output): vo
       const { entry_hash: _ignored, ...rest } = raw;
       const { computeEntryHash } = await import('../../schema/clarification.js');
       const stored = interpretationCheckEntrySchema.parse({ ...rest, entry_hash: '0'.repeat(64) });
-      const { entry_hash: _zero, ...body } = stored;
+      const { entry_hash: _zero, ...rest2 } = stored;
+      // Whatever the input claims, an entry assembled from a file was not typed on a terminal.
+      const body = { ...rest2, attestation: 'flag' as const };
       output.out(stringifyYaml({ ...body, entry_hash: computeEntryHash(body) }).trimEnd());
     });
 }

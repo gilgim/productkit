@@ -49,7 +49,7 @@ export const findingInputSchema = z.object({
   questions: z.array(z.string().trim().min(1)),
   supersedes_finding_ref: z.string().regex(/^FND-[0-9a-f]{16}$/).optional(),
   /** Clarification finding_candidates this Finding promotes; validate requires every candidate to be promoted and user-confirmed. */
-  candidate_refs: z.array(z.object({ clarification_ref: z.string().regex(/^CLR-\d{3,}$/), index: z.number().int().nonnegative() }).strict()).optional(),
+  candidate_refs: z.array(z.object({ clarification_ref: z.string().regex(/^CLR-\d{3,}$/), index: z.number().int().nonnegative(), span_refs: z.array(z.string().min(1)).min(1) }).strict()).optional(),
 }).strict().superRefine((finding, ctx) => {
   if (finding.type === 'other' && !finding.issue_key.toLowerCase().startsWith('other:')) {
     ctx.addIssue({ code: 'custom', path: ['issue_key'], message: 'Other Findings require an issue_key explaining the subtype.' });

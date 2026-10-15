@@ -39,7 +39,7 @@ export function registerChallengeCommand(program: Command, output: Output): void
     const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const run = (await readChallengeRuns(root)).find((r) => r.id === id);
     if (!run) throw new CliError(`Review ${id} not found.`, ExitCode.USAGE_OR_IO);
     const fresh = await refreshChallengeRun(root, run); if (fresh.stale) throw new CliError('Review inputs changed; start a new review.', ExitCode.GATE_BLOCKED);
-    const status = judgeChallengeCompletion(run);
+    const status = judgeChallengeCompletion(run, new Set(run.inputs.map((i) => i.kind)));
     if (status !== 'complete') throw new CliError('Review coverage is incomplete; record every area and explain unavailable inputs.', ExitCode.GATE_BLOCKED);
     const updated = await updateChallengeRun(root, id, (r) => ({ ...r, status: 'complete', history: [...r.history, { event: 'completed', at: new Date().toISOString(), statement: 'All required review areas have recorded coverage. This is not semantic correctness or product approval.', content_hash: r.review_hash }] }));
     await markStage(root, 'challenge', 'done');

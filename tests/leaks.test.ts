@@ -377,6 +377,91 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(rendered).toContain('달리 읽힐 수 있는 곳: 없음 —');
   });
 
+  it('a candidate is carried only by a confirmed Finding about the same spans that is not dismissed', async () => {
+    let g = await gate({ candidate: 'wrong_spans' });
+    expect(g.check('source.candidates')?.message).toContain('promoting Finding names spans SPN-002, candidate has SPN-001');
+    await rm(temp, { recursive: true, force: true });
+    g = await gate({ candidate: 'dismissed' });
+    expect(g.check('source.candidates')?.message).toContain('dismissed/deferred do not count');
+  });
+
+  it('a goal item does not place Nodes; a requirement item must cite a Node', async () => {
+    const g = await gate({ goalCover: true });
+    expect(g.check('definition.node_coverage')?.status).toBe('fail');
+    expect(g.check('definition.node_coverage')?.message).toContain('NOD-001-2, NOD-001-3, NOD-001-4');
+  });
+
+  it('a Node must restate its decomposition item: numbers kept, none invented, most words kept', async () => {
+    const { restatementIssue } = await import('../src/schema/clarification.js');
+    expect(restatementIssue('환불은 7일 이내 가능하다.', ['환불은 7일 이내 가능하다.'])).toBeUndefined();
+    expect(restatementIssue('환불은 7일 이내 가능하다.', ['환불은 불가능하다.'])).toMatch(/drops these numbers: 7일/);
+    expect(restatementIssue('환불은 가능하다.', ['환불은 30일 이내 가능하다.'])).toMatch(/adds numbers absent/);
+    expect(restatementIssue('공물은 현금과 별도로 납부하며 자동 누적되지 않는다.', ['공물 규칙'])).toMatch(/content words/);
+  });
+
+  it('control, invisible and HTML-comment characters are refused in every artifact', async () => {
+    const { forbiddenTextIssue } = await import('../src/schema/text.js');
+    expect(forbiddenTextIssue('정상 문장')).toBeUndefined();
+    expect(forbiddenTextIssue('a\u001b[2Kb')).toMatch(/U\+001b/);
+    expect(forbiddenTextIssue('a​b')).toMatch(/U\+200b/);
+    expect(forbiddenTextIssue('a‮b')).toMatch(/U\+202e/);
+    expect(forbiddenTextIssue('x <!-- hidden --> y')).toMatch(/HTML comment/);
+    const prompt = promptFixture('첫 문장이다.');
+    const steps = validSteps(['첫 문장이다.']);
+    steps.definition[0]!.meaning = '뜻 <!-- 단 보스전은 예외 -->';
+    const j = judgeCompletion(confirmedFixture(steps, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/HTML comment/);
+  });
+
+  it('two Clarifications for one Prompt, and a Prompt cut under an old segmentation rule, are refused', async () => {
+    const g = await gate();
+    const { writeFile: wf, readFile: rf } = await import('node:fs/promises');
+    await wf(path.join(g.root, 'discovery', 'CLR-002.yaml'), (await rf(path.join(g.root, 'discovery', 'CLR-001.yaml'), 'utf8')).replace(/^id: CLR-001/m, 'id: CLR-002'));
+    let report = await createValidationReport(g.root, g.review.id);
+    expect(report.checks.find((c) => c.id === 'source.coverage')?.message).toContain('duplicate_clarification');
+    await rm(path.join(g.root, 'discovery', 'CLR-002.yaml'));
+    const { stringify: sy } = await import('yaml');
+    const { parsePrompt } = await import('../src/schema/prompt.js');
+    const { segmentSpans } = await import('../src/clarification/spans.js');
+    const p = parsePrompt(await rf(path.join(g.root, 'sources', 'PRM-001.yaml'), 'utf8'));
+    await wf(path.join(g.root, 'sources', 'PRM-001.yaml'), sy({ ...p, segmentation: 1, spans: segmentSpans(p.raw_text, 1) }));
+    report = await createValidationReport(g.root, g.review.id);
+    expect(report.checks.find((c) => c.id === 'source.segmentation.PRM-001')?.status).toBe('fail');
+  });
+
+  it('a ChallengeRun may mark only the policy area not_applicable, and only without Policies', async () => {
+    const { judgeChallengeCompletion, challengeAreas } = await import('../src/schema/challenge.js');
+    const base = { status: 'in_progress' as const, scope: { included: ['NDG-001'], excluded: [] }, inputs: [{ kind: 'node', ref: 'NOD-001-1', content_hash: 'a'.repeat(64) }], unavailable_inputs: [] };
+    const na = Object.fromEntries(challengeAreas.map((a) => [a, { status: 'not_applicable' as const, rationale: '해당 없음입니다', evidence_refs: [] }]));
+    expect(judgeChallengeCompletion({ ...base, areas: na as never }, new Set(['node']))).toBe('incomplete');
+    const ok = Object.fromEntries(challengeAreas.map((a) => [a, a === 'policy_conflicts_duplicates' ? { status: 'not_applicable' as const, rationale: '정책 artifact 없음', evidence_refs: [] } : { status: 'reviewed' as const, evidence_refs: [{ kind: 'node' as const, ref: 'NOD-001-1' }] }]));
+    expect(judgeChallengeCompletion({ ...base, areas: ok as never }, new Set(['node']))).toBe('complete');
+    expect(judgeChallengeCompletion({ ...base, areas: ok as never }, new Set(['node', 'policy']))).toBe('incomplete');
+  });
+
+  it('flipping attestation to flag, approving, and flipping back is caught at export', async () => {
+    const g = await gate();
+    await recordApproval(g.root, g.report.id, 'AGENT가 쓴 승인 문장', 'all', 'flag');
+    const { readFile: rf, writeFile: wf } = await import('node:fs/promises');
+    const cfg = path.join(g.root, 'config.yaml');
+    await wf(cfg, (await rf(cfg, 'utf8')).replace(/^attestation:\s*flag\s*$/m, 'attestation: tty'));
+    await expect(exportOpenSpec(g.root, g.temp, 'flip')).rejects.toThrow(/passed as flags|stale|differs/);
+  });
+
+  it('`productkit hash entry` never produces a tty-attested entry', async () => {
+    const { runCli } = await import('../src/cli/program.js');
+    const { createMemoryOutput } = await import('../src/cli/output.js');
+    const { writeFile: wf } = await import('node:fs/promises');
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
+    const entry = { id: 'IC-001', presented_statement: 'x', presented_hash: 'a'.repeat(64), user_response: 'agreed', user_statement: '위조', attestation: 'tty', checked_at: '2026-10-16T00:00:00Z' };
+    await wf(path.join(temp, 'entry.yaml'), stringify(entry));
+    const out = createMemoryOutput();
+    const cwd = process.cwd(); process.chdir(temp);
+    try { expect(await runCli(['hash', 'entry', '--input', 'entry.yaml'], out)).toBe(0); } finally { process.chdir(cwd); }
+    expect(out.stdout.join('\n')).toContain('attestation: flag');
+    expect(out.stdout.join('\n')).not.toContain('attestation: tty');
+  });
+
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {
     const g = await gate({ challengeEvidence: [] });
     expect(g.report.readiness).toBe('blocked');

@@ -4,6 +4,8 @@ import type { Prompt } from './prompt.js';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { clauseSignalCount } from '../clarification/spans.js';
+import { forbiddenTextIssue } from './text.js';
+import { restatementIssue } from './clarification.js';
 
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
 
@@ -249,6 +251,7 @@ export type NodeGroupBlockReason =
   | 'source_changed_since_modeling'
   | 'structural_signal_mismatch'
   | 'split_review_required'
+  | 'restatement_mismatch'
   | 'invalid_reference';
 
 export type NodeGroupJudgement =
@@ -331,6 +334,16 @@ export function judgeNodeSetCompletion(
   // Structural signals are the CLI's numbers, not the author's. A statement
   // that still carries several clauses cannot be waved through with
   // decomposability: not_applicable — it must be split or defended.
+  // Nodes must restate their decomposition item, not re-decide it: every
+  // number of the source present in the Nodes for that item, none invented,
+  // most content words kept. Same bar as a reading against its span.
+  const restate: string[] = [];
+  const byIndex = new Map<number, string[]>();
+  for (const n of group.nodes) byIndex.set(n.derived_from.decomposition_index, [...(byIndex.get(n.derived_from.decomposition_index) ?? []), n.statement]);
+  for (const [index, statements] of byIndex) { const source = currentSteps.decomposition[index]?.statement; if (!source) continue; const issue = restatementIssue(source, statements); if (issue) restate.push(`decomposition[${index}] → ${statements.length} Node(s) ${issue}`); }
+  if (restate.length) { reasons.push('restatement_mismatch'); detail.push(...restate); }
+  const forbidden = forbiddenTextIssue(canonicalJson(group.nodes.map(n => [n.statement, n.atomicity])));
+  if (forbidden) { reasons.push('invalid_reference'); detail.push(`Node text ${forbidden}.`); }
   const signalMismatch = group.nodes.filter(n => { const c = computeStructuralSignal(n.statement); return c.conjunction_count !== n.structural_signal.conjunction_count || c.multiple_predicates !== n.structural_signal.multiple_predicates; });
   if (signalMismatch.length) { reasons.push('structural_signal_mismatch'); detail.push(`structural_signal must equal what the CLI computes from the statement (productkit hash atomicity --input prints it): ${signalMismatch.map(n => n.id).join(', ')}`); }
   const clauseHeavy = group.nodes.filter(n => clauseSignalCount(n.statement) >= 3 && n.atomicity.decomposability.verdict === 'not_applicable');

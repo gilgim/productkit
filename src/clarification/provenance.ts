@@ -98,7 +98,12 @@ export async function loadGraphWorkspace(productRoot: string): Promise<GraphWork
   // omission: none of its content enters the pipeline (Constitution 11).
   const clarified = new Set<string>();
   for (const file of await yamlFiles(clarificationDir)) {
-    try { clarified.add(parseClarification((await readYaml(clarificationDir, file)).text).prompt_ref); } catch { /* reported above */ }
+    try {
+      const ref = parseClarification((await readYaml(clarificationDir, file)).text).prompt_ref;
+      // Two Clarifications of one Prompt would let the fuller one be ignored.
+      if (clarified.has(ref)) issues.push({ code: 'duplicate_clarification', ref: file, reason: `Prompt ${ref} already has a Clarification; only one is allowed.` });
+      clarified.add(ref);
+    } catch { /* reported above */ }
   }
   for (const id of prompts.keys()) {
     if (!clarified.has(id)) issues.push({ code: 'missing_clarification', ref: id, reason: `Prompt ${id} has no Clarification; run productkit clarify --prompt ${id}.` });

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { stringify } from 'yaml';
 
 import { computePromptHash, type Prompt } from '../../src/schema/prompt.js';
-import { segmentSpans } from '../../src/clarification/spans.js';
+import { SEGMENTATION_VERSION, segmentSpans } from '../../src/clarification/spans.js';
 import { clarificationSchema, clarificationContentHash, computeEntryHash, interpretationCheckEntrySchema, renderPresentation, stepsContentHash, type ClarificationSteps } from '../../src/schema/clarification.js';
 import { evaluateAtomicityFinal, nodeGroupSchema, nodeSetContentHash, type Node } from '../../src/schema/node.js';
 import { appendFindingConfirmation, createFinding, findingContentHash, findingHistoryEntryHash, findingSchema, toFindingInput } from '../../src/schema/finding.js';
@@ -49,7 +49,9 @@ export interface LeakOptions {
   /** Leave those open Findings agent-proposed (no user confirmation). */
   openFindingsProposed?: boolean;
   /** Park a finding candidate on SPN-001 in the Clarification and promote it: not at all, as a proposed Finding, or as a confirmed one. */
-  candidate?: 'none' | 'proposed' | 'confirmed';
+  candidate?: 'none' | 'proposed' | 'confirmed' | 'wrong_spans' | 'dismissed';
+  /** Place Nodes 2-4 only through a goal item (attack). */
+  goalCover?: boolean;
   /** Make the Policy cite these Nodes (attack: policy as cover for Node placement). */
   policyNodes?: string[];
   /** Leave the exclusion's Finding agent-proposed. */
@@ -80,10 +82,10 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   await writeFile(path.join(temp, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
   try { execFileSync('ln', ['-s', path.resolve('node_modules'), path.join(temp, 'node_modules')]); } catch { /* exists */ }
 
-  const prompt: Prompt = { id: 'PRM-001', raw_text: RAW, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(RAW), spans: segmentSpans(RAW) };
+  const prompt: Prompt = { id: 'PRM-001', raw_text: RAW, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(RAW), spans: segmentSpans(RAW, SEGMENTATION_VERSION), segmentation: SEGMENTATION_VERSION };
   await writeFile(path.join(root, 'sources', 'PRM-001.yaml'), stringify(prompt));
   if (o.extraPrompt) {
-    const p2: Prompt = { id: 'PRM-002', raw_text: o.extraPrompt, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(o.extraPrompt), spans: segmentSpans(o.extraPrompt) };
+    const p2: Prompt = { id: 'PRM-002', raw_text: o.extraPrompt, received_at: '2026-10-12T00:00:00Z', content_hash: computePromptHash(o.extraPrompt), spans: segmentSpans(o.extraPrompt, SEGMENTATION_VERSION), segmentation: SEGMENTATION_VERSION };
     await writeFile(path.join(root, 'sources', 'PRM-002.yaml'), stringify(p2));
   }
 
@@ -112,7 +114,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const finding = mkFinding('k1', '취소 처리 방식이 정의되지 않았다.', ['NOD-001-1']);
   await writeFile(path.join(root, 'findings', `${finding.id}.yaml`), stringify(finding));
   for (const [i, nodeRef] of (o.openFindingNodes ?? []).entries()) { const f = (o.openFindingsProposed ? mkProposed : mkFinding)(`open-${i}`, `${nodeRef}의 예외 처리가 미정이다.`, [nodeRef]); await writeFile(path.join(root, 'findings', `${f.id}.yaml`), stringify(f)); }
-  if (o.candidate === 'proposed' || o.candidate === 'confirmed') { const f = (o.candidate === 'confirmed' ? mkFinding : mkProposed)('cand', '주문 확정 시점이 모호하다', ['NOD-001-1'], 'major', { candidate_refs: [{ clarification_ref: 'CLR-001', index: 0 }] }); await writeFile(path.join(root, 'findings', `${f.id}.yaml`), stringify(f)); }
+  if (o.candidate && o.candidate !== 'none') { const spans = o.candidate === 'wrong_spans' ? ['SPN-002'] : ['SPN-001']; const f = (o.candidate === 'proposed' ? mkProposed : mkFinding)('cand', '주문 확정 시점이 모호하다', ['NOD-001-1'], 'major', { candidate_refs: [{ clarification_ref: 'CLR-001', index: 0, span_refs: spans }] }); await writeFile(path.join(root, 'findings', `${f.id}.yaml`), stringify(f)); }
 
   const { graph } = await readGraphDocument(root); const workspace = await loadGraphWorkspace(root); const candidates = await readRelationCandidates(root);
   // One before-ImpactReport per Node: an Application must carry one for every
@@ -132,6 +134,13 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const promptHash = get('prompt', prompt.id); const findingHash = get('finding', finding.id);
   const decision = (await addDecision(root, { decision_type: 'content_decision', proposal_ref: proposal.id, option_ref: 'OPT-A', finding_refs: [{ finding_ref: finding.id, claim_hash: claim }], selection: { kind: 'proposal_option', proposal_ref: proposal.id, option_ref: 'OPT-A' }, user_statement: 'SYNTHETIC USER: OPT-A', rationale: 'r', scope: 's', input_snapshot: [{ kind: 'prompt', ref: prompt.id, content_hash: promptHash }, { kind: 'node', ref: 'NOD-001-1', content_hash: nodeHash }, { kind: 'finding', ref: finding.id, content_hash: findingHash }, { kind: 'proposal', ref: proposal.id, content_hash: proposal.claim_hash }] })).decision;
 
+  if (o.candidate === 'dismissed') {
+    const cand = (await (await import('../../src/clarification/proposal-decision-store.js')).readCurrentFindings(root)).find((f) => f.issue_key === 'cand')!;
+    const fh = findingContentHash(toFindingInput(cand));
+    const base = { id: 'FHE-' + sha256Hex('d' + cand.id).slice(0, 16), event: 'resolution_recorded' as const, actor: 'change06_decision' as const, prior_review_status: 'confirmed' as const, review_status: 'confirmed' as const, prior_resolution_status: 'unresolved' as const, resolution_status: 'dismissed' as const, finding_hash: fh, statement: 'dismissed', decision_ref: decision.id, recorded_at: new Date().toISOString() };
+    const dismissed = findingSchema.parse({ ...cand, resolution_status: 'dismissed', decision_ref: decision.id, history: [...cand.history, { ...base, entry_hash: findingHistoryEntryHash(base) }] });
+    await writeFile(path.join(root, 'findings', `${cand.id}.yaml`), stringify(dismissed));
+  }
   if (o.resolvedByUnrelatedDecision) {
     let f2 = mkFinding('k2', '원문 2~4문장이 정의에서 누락되었다.', ['NOD-001-1']);
     const fh = findingContentHash(toFindingInput(f2));
@@ -155,7 +164,8 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const prov = (refs: string[]) => ({ origin: 'user_decision' as const, source_refs: refs.map(nodeRef), decision_refs: [decisionRef], prompt_refs: [promptRef] });
   const policy = createPolicy({ schema_version: 1, id: 'POL-1111111111111111', context: 'c', actor: 'a', condition_text: 't', condition: { op: 'lte', field: 'f', value_type: 'number', value: 1 }, action: 'a', outcome: 'o', exceptions: [], provenance: prov(o.policyNodes ?? ['NOD-001-1']) });
   const itemNodes = o.itemNodes ?? nodes.map((n) => n.id).filter((id) => !(o.excludeNodes ?? []).includes(id));
-  const specs = o.items ?? itemNodes.flatMap((ref) => { const text = nodes.find((n) => n.id === ref)!.statement; return [{ kind: 'functional_requirement', text, nodes: [ref] }, { kind: 'acceptance_criterion', text: `검증: ${text}`, nodes: [ref] }]; });
+  const specs = o.items ?? (o.goalCover ? [{ kind: 'goal', text: '게임 경제를 설계한다', nodes: ['NOD-001-2', 'NOD-001-3', 'NOD-001-4'] }, { kind: 'functional_requirement', text: nodes[0]!.statement, nodes: ['NOD-001-1'] }, { kind: 'acceptance_criterion', text: `검증: ${nodes[0]!.statement}`, nodes: ['NOD-001-1'] }] : itemNodes.flatMap((ref) => { const text = nodes.find((n) => n.id === ref)!.statement; return [{ kind: 'functional_requirement', text, nodes: [ref] }, { kind: 'acceptance_criterion', text: `검증: ${text}`, nodes: [ref] }]; }));
+  if (o.goalCover) { /* itemNodes stays full so impacts/snapshot cover every Node */ }
   const items: unknown[] = specs.map((x, i) => ({ id: `ITM-${String(i).padStart(12, 'a')}`, kind: x.kind, text: x.text, provenance: prov(x.nodes) }));
   if (exclusion) {
     const decisions = await (await import('../../src/clarification/proposal-decision-store.js')).readDecisions(root); const ex = decisions.find((d) => d.id === exclusionDecisionId)!;
@@ -182,7 +192,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   };
   const evidenceFor = (area: string) => o.semanticEvidence === 'none' ? [] : o.semanticEvidence === 'skill' ? [of('skill')] : perArea[area]!;
   const areas = Object.fromEntries(Object.keys(perArea).map((a) => [a, { status: 'reviewed', evidence_refs: evidenceFor(a), rationale: 'SYNTHETIC AGENT REVIEW' }]));
-  const item_fidelity = (items as Array<{ id: string; provenance: { source_refs: Array<{ kind: string; ref: string }> } }>).flatMap((item) => item.provenance.source_refs.filter((r) => r.kind === 'node').map((r) => ({ item_ref: item.id, node_ref: r.ref, verdict: 'same', reason: 'SYNTHETIC: item text equals Node text' })));
+  const item_fidelity = [...(items as Array<{ id: string; provenance: { source_refs: Array<{ kind: string; ref: string }> } }>), policy].flatMap((item) => item.provenance.source_refs.filter((r) => r.kind === 'node').map((r) => ({ item_ref: item.id, node_ref: r.ref, verdict: 'same', reason: 'SYNTHETIC: item text equals Node text' })));
   const semanticInput = { schema_version: 1, definition_ref: definition.id, definition_hash: definition.content_hash, input_fingerprint: snap.fingerprint, assessor: 'ai', scope: 'all', areas, item_fidelity, unreviewed_scope_resolved: [], finding_refs: [finding.id], unreviewed_scope: [], uncertainty: ['synthetic'], summary: 's', created_at: new Date().toISOString() };
   return { temp, root, definitionId: definition.id, definitionHash: definition.content_hash, findingId: finding.id, decisionId: decision.id, semanticInput };
 }

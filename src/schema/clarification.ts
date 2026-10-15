@@ -2,7 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
 import { promptIntegrityIssue, type Prompt } from './prompt.js';
-import { isMeaningfulText } from './text.js';
+import { forbiddenTextIssue, isMeaningfulText } from './text.js';
 import { clauseSignalCount, contentTokens, numberTokens, spanText } from '../clarification/spans.js';
 
 import { canonicalJson, sha256Hex } from '../clarification/hash.js';
@@ -242,6 +242,8 @@ export function judgeCompletion(clarification: Clarification, prompt?: Prompt): 
   if (merge) return { confirmed: false, reason: 'missing_merge_reason', detail: merge };
   const reading = readingCoverageIssue(clarification, prompt);
   if (reading) return { confirmed: false, reason: 'reading_incomplete', detail: reading };
+  const forbidden = forbiddenTextIssue(canonicalJson({ steps: clarification.steps, finding_candidates: clarification.finding_candidates }));
+  if (forbidden) return { confirmed: false, reason: 'incomplete_steps', detail: `Clarification text ${forbidden}.` };
   if (squash(latest.presented_statement) !== squash(renderPresentation(clarification, prompt))) return { confirmed: false, reason: 'presented_statement_not_rendered', detail: 'presented_statement must be exactly the text `productkit clarify` renders from the current steps (run it and copy the block verbatim).' };
   return { confirmed: true };
 }
@@ -302,7 +304,7 @@ export const CLAUSE_SIGNAL_THRESHOLD = 3;
  * clauses. Neither is forbidden; both need a reason the user will see.
  */
 /** A reason must say something: not a placeholder, not "x". */
-export const isReason = (value: unknown): value is string => isMeaningfulText(value) && value.trim().length >= 6;
+export const isReason = (value: unknown): value is string => isMeaningfulText(value) && value.trim().length >= 6 && contentTokens(value).size >= 2;
 
 export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, prompt: Prompt): string | undefined {
   const items = clarification.steps.decomposition;
@@ -318,6 +320,25 @@ export function mergeReasonIssue(clarification: Pick<Clarification, 'steps'>, pr
   for (const [i, c] of (clarification.steps.span_coverage ?? []).entries()) {
     if (!isReason(c.reason)) return `span_coverage[${i}] (${c.span_ref}) needs a reason of 6+ characters.`;
     if (/[?？]\s*$/.test(spanTextById(prompt, c.span_ref))) return `span_coverage[${i}] sets aside ${c.span_ref}, which is a question; decompose it or raise it as a finding candidate.`;
+  }
+  return undefined;
+}
+
+/** Does `readings` restate `source`: every number of source present, 60%+ of its content words, and no number invented? */
+export function restatementIssue(source: string, readings: string[]): string | undefined {
+  const union = readings.join(' ');
+  const unionText = union.replace(/\s+/g, '');
+  const missingNumbers = numberTokens(source).filter(n => !unionText.includes(n.replace(/\s+/g, '')));
+  if (missingNumbers.length) return `drops these numbers: ${missingNumbers.join(', ')}`;
+  const sourceText = source.replace(/\s+/g, '');
+  const invented = readings.flatMap(r => numberTokens(r)).filter(n => !sourceText.includes(n.replace(/\s+/g, '')));
+  if (invented.length) return `adds numbers absent from the source: ${invented.join(', ')}`;
+  const sourceTokens = [...contentTokens(source)];
+  if (sourceTokens.length >= 3) {
+    const unionTokens = contentTokens(union);
+    const kept = sourceTokens.filter(t => unionTokens.has(t) || unionText.toLowerCase().includes(t));
+    const ratio = kept.length / sourceTokens.length;
+    if (ratio < READING_COVERAGE_RATIO) return `carries ${Math.round(ratio * 100)}% of the source's content words (need ${READING_COVERAGE_RATIO * 100}%); missing e.g. ${sourceTokens.filter(t => !kept.includes(t)).slice(0, 6).join(', ')}`;
   }
   return undefined;
 }
@@ -373,6 +394,8 @@ export function uncoveredSpans(clarification: Clarification, prompt: Prompt): st
  * reports this first so the agent fixes steps before asking the user.
  */
 export function stepsReadinessIssue(clarification: Clarification, prompt: Prompt): Extract<CompletionJudgement, { confirmed: false }> | undefined {
+  const forbidden = forbiddenTextIssue(canonicalJson({ steps: clarification.steps, finding_candidates: clarification.finding_candidates }));
+  if (forbidden) return { confirmed: false, reason: 'incomplete_steps', detail: `Clarification text ${forbidden}.` };
   const issue = clarificationStepsIssue(clarification.steps);
   if (issue) return issue;
   const uncovered = uncoveredSpans(clarification, prompt);

@@ -55,12 +55,18 @@ export function challengeRunHash(run: Omit<ChallengeRun, 'review_hash'> | (Omit<
   return sha256Hex(canonicalJson(base));
 }
 
-export function judgeChallengeCompletion(run: Pick<ChallengeRun, 'areas' | 'scope' | 'inputs' | 'unavailable_inputs' | 'status'>): 'complete' | 'incomplete' {
+/** Areas that may be not_applicable, and only while the named artifact kind is absent. */
+export const CHALLENGE_NOT_APPLICABLE: Partial<Record<z.infer<typeof challengeAreaSchema>, string>> = { policy_conflicts_duplicates: 'policy' };
+
+export function judgeChallengeCompletion(run: Pick<ChallengeRun, 'areas' | 'scope' | 'inputs' | 'unavailable_inputs' | 'status'>, presentKinds?: Set<string>): 'complete' | 'incomplete' {
   if (run.status === 'stale' || run.unavailable_inputs.length > 0) return 'incomplete';
   if (!run.scope.included.length || !run.inputs.length) return 'incomplete';
   return challengeAreas.every((area) => {
     const result = run.areas[area];
+    if (!result) return false;
     // "reviewed" with nothing cited is indistinguishable from "did not look".
-    return result && ((result.status === 'reviewed' && result.evidence_refs.length > 0) || (result.status === 'not_applicable' && Boolean(result.rationale?.trim())));
+    if (result.status === 'reviewed') return result.evidence_refs.length > 0;
+    if (result.status === 'not_applicable') { const kind = CHALLENGE_NOT_APPLICABLE[area]; return Boolean(kind) && !(presentKinds?.has(kind!)) && (result.rationale?.trim().length ?? 0) >= 6; }
+    return false;
   }) ? 'complete' : 'incomplete';
 }
