@@ -1,3 +1,8 @@
+---
+name: propose
+description: Turn challenge Findings into Proposals and record the user's explicit Decisions. Use after the challenge step.
+---
+
 # Proposal & Decision
 
 Use this skill after Challenge has produced Findings. The CLI validates local structure and hashes; it does not call an LLM, verify semantic correctness, or authenticate the speaker of a recorded statement.

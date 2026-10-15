@@ -1,3 +1,8 @@
+---
+name: model
+description: Split confirmed clarifications into atomic ProductKit Nodes with source links. Use after the clarify step is confirmed.
+---
+
 # Model Skill
 
 ProductKit의 Phase 3(Atomic Node Modeling) instruction이다. Claude Code와

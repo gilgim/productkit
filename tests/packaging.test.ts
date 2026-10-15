@@ -6,6 +6,8 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 import { parseProductConfig } from '../src/schema/config.js';
+import { buildInitPlan } from '../src/workspace/plan.js';
+import { AGENT_SKILL_DIRS, SKILL_NAMES } from '../src/workspace/skills.js';
 
 const run = promisify(execFile);
 const repoRoot = path.resolve(import.meta.dirname, '..');
@@ -52,6 +54,12 @@ describe('npm package contents', () => {
     expect(templates.length).toBe(14);
   });
 
+  it('includes every agent skill', () => {
+    for (const name of SKILL_NAMES) {
+      expect(tarEntries, name).toContain(`skills/${name}/SKILL.md`);
+    }
+  });
+
   it('does not ship tests or openspec artifacts', () => {
     expect(tarEntries.some((entry) => entry.startsWith('tests/'))).toBe(false);
     expect(tarEntries.some((entry) => entry.startsWith('openspec/'))).toBe(false);
@@ -85,7 +93,7 @@ describe('installed CLI outside the repository', () => {
       { cwd: workDir },
     );
 
-    expect(stdout).toContain('26 created');
+    expect(stdout).toContain(`${buildInitPlan().length} created`);
     const config = await readFile(path.join(consumer, 'product', 'config.yaml'), 'utf8');
     expect(parseProductConfig(config).definition.status).toBe('not_started');
     const dir = await stat(path.join(consumer, 'product', 'decisions'));

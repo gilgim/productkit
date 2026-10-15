@@ -1,3 +1,8 @@
+---
+name: graph
+description: Review and propose relationships (Edges) between existing atomic ProductKit Nodes. Use after modeling, before challenge.
+---
+
 # ProductKit Graph Skill
 
 You are the semantic reviewer for relationships between existing atomic ProductKit Nodes. The CLI stores and validates records; it does not decide whether a relationship is true. Do not create user approval, Edge confirmation, or a user statement on the user's behalf.

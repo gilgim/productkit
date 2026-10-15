@@ -75,15 +75,9 @@ PRODUCT READINESS BLOCKED
 FAIL definition.required: Product Definition is missing.
 ```
 
-Claude Code·Codex가 각 단계를 실행하도록 Skill을 연결한다([설치 가이드](docs/installation.md)).
-
-```bash
-PRODUCTKIT_ROOT="$(npm root -g)/productkit"
-mkdir -p .claude/skills
-for skill in clarify model graph challenge propose define validate; do
-  ln -s "$PRODUCTKIT_ROOT/skills/$skill" ".claude/skills/$skill"
-done
-```
+따로 연결할 게 없다. `productkit init` 이 Skill 을 `.claude/skills/` 와
+`.agents/skills/` 에 같이 써 준다. 그 폴더에서 Claude Code·Codex 를 다시 켜면
+바로 잡힌다(원치 않으면 `--no-skills`, [설치 가이드](docs/installation.md)).
 
 Claude Code에서 `/clarify`라고 말하고 질문에 답한다. 정의가 승인되면 내보낸다.
 

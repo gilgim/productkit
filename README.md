@@ -75,15 +75,10 @@ PRODUCT READINESS BLOCKED
 FAIL definition.required: Product Definition is missing.
 ```
 
-Connect the Skills so Claude Code / Codex can run each stage (see [installation guide](docs/installation.md)):
-
-```bash
-PRODUCTKIT_ROOT="$(npm root -g)/productkit"
-mkdir -p .claude/skills
-for skill in clarify model graph challenge propose define validate; do
-  ln -s "$PRODUCTKIT_ROOT/skills/$skill" ".claude/skills/$skill"
-done
-```
+Nothing else to wire. `productkit init` writes the Skills into `.claude/skills/`
+and `.agents/skills/`, so Claude Code and Codex pick them up on their next
+start in that directory (`--no-skills` opts out; see the
+[installation guide](docs/installation.md)).
 
 Then, in Claude Code, say `/clarify` and answer the questions. When the definition is approved:
 

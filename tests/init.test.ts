@@ -8,6 +8,7 @@ import { createMemoryOutput } from '../src/cli/output.js';
 import { CliError, ExitCode } from '../src/errors.js';
 import { parseProductConfig } from '../src/schema/config.js';
 import { ARTIFACT_DIRS, buildInitPlan } from '../src/workspace/plan.js';
+import { AGENT_SKILL_DIRS, SKILL_NAMES, loadSkillFile } from '../src/workspace/skills.js';
 
 let root: string;
 
@@ -59,7 +60,7 @@ describe('init on an empty directory', () => {
       const info = await stat(path.join(target, 'product', dir));
       expect(info.isDirectory(), dir).toBe(true);
     }
-    expect(output.stdout.join('\n')).toContain('26 created');
+    expect(output.stdout.join('\n')).toContain(`${buildInitPlan().length} created`);
   });
 
   it('creates the target directory when it does not exist yet', async () => {
@@ -126,7 +127,7 @@ describe('init never overwrites', () => {
     const output = await init(target);
 
     expect(await readFile(constitution, 'utf8')).toBe('MY OWN RULES\n');
-    expect(output.stdout.join('\n')).toContain('0 created, 26 skipped, 0 conflicts');
+    expect(output.stdout.join('\n')).toContain(`0 created, ${buildInitPlan().length} skipped, 0 conflicts`);
     expect(output.stdout.join('\n')).toContain('left untouched');
   });
 
@@ -141,7 +142,7 @@ describe('init never overwrites', () => {
       'hand written\n',
     );
     expect(await exists(path.join(target, 'product', 'overview.md'))).toBe(true);
-    expect(output.stdout.join('\n')).toContain('24 created, 2 skipped, 0 conflicts');
+    expect(output.stdout.join('\n')).toContain(`${buildInitPlan().length - 2} created, 2 skipped, 0 conflicts`);
   });
 
   it('writes nothing in --dry-run', async () => {
@@ -149,7 +150,7 @@ describe('init never overwrites', () => {
     const output = await init(target, { dryRun: true });
     expect(await exists(path.join(target, 'product'))).toBe(false);
     expect(output.stdout.join('\n')).toContain('would create');
-    expect(output.stdout.join('\n')).toContain('26 to create');
+    expect(output.stdout.join('\n')).toContain(`${buildInitPlan().length} to create`);
   });
 });
 
@@ -247,5 +248,47 @@ describe('init stays inside product/', () => {
       const files = await readdir(path.join(target, 'product', dir));
       expect(files, dir).toEqual(['README.md']);
     }
+  });
+});
+
+describe('init installs the agent skills', () => {
+  it('writes every skill into every agent directory', async () => {
+    const target = path.join(root, 'app');
+    await init(target);
+
+    for (const agentDir of AGENT_SKILL_DIRS) {
+      for (const name of SKILL_NAMES) {
+        const written = await readFile(
+          path.join(target, agentDir, name, 'SKILL.md'),
+          'utf8',
+        );
+        expect(written, `${agentDir}/${name}`).toBe(await loadSkillFile(`${name}/SKILL.md`));
+      }
+    }
+  });
+
+  it('tells the user the agent must be restarted', async () => {
+    const output = await init(path.join(root, 'app'));
+    expect(output.stdout.join('\n')).toMatch(/Restart Claude Code or Codex/);
+  });
+
+  it('writes no agent directory when --no-skills is given', async () => {
+    const target = path.join(root, 'app');
+    await init(target, { skills: false });
+
+    expect(await exists(path.join(target, 'product', 'config.yaml'))).toBe(true);
+    for (const agentDir of AGENT_SKILL_DIRS) {
+      expect(await exists(path.join(target, agentDir)), agentDir).toBe(false);
+    }
+  });
+
+  it('leaves an edited skill alone on a second run', async () => {
+    const target = path.join(root, 'app');
+    await init(target);
+    const skillPath = path.join(target, '.claude', 'skills', 'clarify', 'SKILL.md');
+    await writeFile(skillPath, 'edited by the user', 'utf8');
+
+    await init(target);
+    expect(await readFile(skillPath, 'utf8')).toBe('edited by the user');
   });
 });

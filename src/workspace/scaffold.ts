@@ -3,7 +3,8 @@ import path from 'node:path';
 
 import { CliError, describeCause } from '../errors.js';
 import { loadTemplate, type TemplateVars } from './templates.js';
-import { buildInitPlan, type PlanEntry } from './plan.js';
+import { loadSkillFile } from './skills.js';
+import { buildInitPlan, type FileEntry, type PlanEntry } from './plan.js';
 
 export type EntryAction = 'created' | 'skipped';
 
@@ -30,6 +31,15 @@ export interface ScaffoldOptions {
   targetRoot: string;
   vars: TemplateVars;
   dryRun?: boolean;
+  /** Install the agent skills into the target. Defaults to true. */
+  skills?: boolean | undefined;
+}
+
+/** Resolves a planned file's contents from its declared source. */
+async function readSource(entry: FileEntry, vars: TemplateVars): Promise<string> {
+  return entry.source.from === 'template'
+    ? loadTemplate(entry.source.path, vars)
+    : loadSkillFile(entry.source.path);
 }
 
 async function inspect(absolutePath: string): Promise<'file' | 'dir' | 'other' | 'missing'> {
@@ -89,7 +99,7 @@ export async function scaffoldWorkspace(
 
   await ensureTargetRoot(targetRoot);
 
-  const plan = buildInitPlan();
+  const plan = buildInitPlan({ skills: options.skills ?? true });
 
   // Phase 2: inspect every planned path before touching anything.
   const states = new Map<string, 'file' | 'dir' | 'other' | 'missing'>();
@@ -134,7 +144,7 @@ export async function scaffoldWorkspace(
           );
         }
       } else {
-        const contents = await loadTemplate(entry.template, vars);
+        const contents = await readSource(entry, vars);
         try {
           await writeFile(absolute, contents, { encoding: 'utf8', flag: 'wx' });
         } catch (cause) {

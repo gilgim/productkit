@@ -11,6 +11,7 @@
   },
   "files": [
     "dist",
+    "scripts",
     "templates",
     "skills",
     "CONSTITUTION.md",
@@ -24,7 +25,8 @@
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "postinstall": "node scripts/postinstall.mjs"
   },
   "keywords": [
     "product",

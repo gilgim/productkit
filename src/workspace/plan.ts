@@ -6,6 +6,8 @@
  * changing the generated workspace.
  */
 
+import { AGENT_SKILL_DIRS, SKILL_NAMES } from './skills.js';
+
 /** Directory name holding every ProductKit artifact inside a target app. */
 export const WORKSPACE_DIR = 'product';
 
@@ -30,11 +32,21 @@ export interface DirEntry {
   relativePath: string;
 }
 
+/**
+ * Where a planned file's contents come from.
+ *
+ * Templates are rendered with the init variables; skills are copied byte for
+ * byte. Keeping the two apart means a stray `{{...}}` in a skill is never
+ * silently substituted.
+ */
+export type FileSource =
+  | { from: 'template'; /** Relative to TEMPLATE_ROOT. */ path: string }
+  | { from: 'skill'; /** Relative to SKILL_ROOT. */ path: string };
+
 export interface FileEntry {
   kind: 'file';
   relativePath: string;
-  /** Path of the source template, relative to TEMPLATE_ROOT. */
-  template: string;
+  source: FileSource;
 }
 
 export type PlanEntry = DirEntry | FileEntry;
@@ -44,14 +56,27 @@ function dir(relativePath: string): DirEntry {
 }
 
 function file(relativePath: string, template: string): FileEntry {
-  return { kind: 'file', relativePath, template };
+  return { kind: 'file', relativePath, source: { from: 'template', path: template } };
+}
+
+function skillFile(relativePath: string, skillPath: string): FileEntry {
+  return { kind: 'file', relativePath, source: { from: 'skill', path: skillPath } };
+}
+
+export interface InitPlanOptions {
+  /**
+   * Install the agent skills alongside the workspace. On by default: a
+   * workspace without them leaves the user with files no agent knows how to
+   * drive.
+   */
+  skills?: boolean | undefined;
 }
 
 /**
  * Builds the full create plan. Order matters: a directory is always listed
  * before anything inside it.
  */
-export function buildInitPlan(): PlanEntry[] {
+export function buildInitPlan(options: InitPlanOptions = {}): PlanEntry[] {
   const entries: PlanEntry[] = [
     dir(WORKSPACE_DIR),
     file(`${WORKSPACE_DIR}/config.yaml`, 'product/config.yaml'),
@@ -64,6 +89,22 @@ export function buildInitPlan(): PlanEntry[] {
     entries.push(
       file(`${WORKSPACE_DIR}/${name}/README.md`, `product/${name}/README.md`),
     );
+  }
+
+  if (options.skills ?? true) {
+    for (const agentDir of AGENT_SKILL_DIRS) {
+      // Both path segments are planned so the conflict check sees a file
+      // sitting where a directory belongs before anything is written.
+      const agentRoot = agentDir.slice(0, agentDir.indexOf('/'));
+      entries.push(dir(agentRoot));
+      entries.push(dir(agentDir));
+      for (const skill of SKILL_NAMES) {
+        entries.push(dir(`${agentDir}/${skill}`));
+        entries.push(
+          skillFile(`${agentDir}/${skill}/SKILL.md`, `${skill}/SKILL.md`),
+        );
+      }
+    }
   }
 
   return entries;

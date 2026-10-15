@@ -1,3 +1,8 @@
+---
+name: clarify
+description: Clarify a raw product idea saved by `productkit intake` into confirmed, traceable Clarification artifacts (definition, decomposition, specifics, relations, counter-examples, interpretation). Use after intake, or when the user wants to sharpen a vague product idea.
+---
+
 # Clarify Skill
 
 ProductKit의 Phase 2(Clarification) instruction이다. Claude Code와 Codex가 공유한다.

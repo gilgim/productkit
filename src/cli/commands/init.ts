@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { CliError, ExitCode } from '../../errors.js';
 import { WORKSPACE_DIR } from '../../workspace/plan.js';
+import { AGENT_SKILL_DIRS } from '../../workspace/skills.js';
 import { scaffoldWorkspace } from '../../workspace/scaffold.js';
 import type { Output } from '../output.js';
 
@@ -11,6 +12,8 @@ export interface InitOptions {
   /** Product name written into config.yaml. Defaults to the directory name. */
   name?: string | undefined;
   dryRun?: boolean | undefined;
+  /** Install the agent skills into the target. Defaults to true. */
+  skills?: boolean | undefined;
   /** Injected for tests; defaults to the real clock. */
   now?: Date | undefined;
   cwd?: string | undefined;
@@ -34,9 +37,12 @@ export async function runInit(options: InitOptions, output: Output): Promise<voi
   const targetRoot = path.resolve(cwd, options.targetPath ?? '.');
   const productName = options.name ?? defaultProductName(targetRoot);
 
+  const installSkills = options.skills ?? true;
+
   const result = await scaffoldWorkspace({
     targetRoot,
     dryRun: options.dryRun ?? false,
+    skills: installSkills,
     vars: {
       product_name: productName,
       created_at: isoDate(options.now ?? new Date()),
@@ -86,6 +92,12 @@ export async function runInit(options: InitOptions, output: Output): Promise<voi
 
   if (created.length > 0 && !result.dryRun) {
     output.out('');
+    if (installSkills) {
+      output.out(
+        `Skills installed into ${AGENT_SKILL_DIRS.join(' and ')}. Restart Claude Code or Codex in this directory so it picks them up.`,
+      );
+      output.out('');
+    }
     output.out('Next: productkit intake "<your idea>", then productkit clarify.');
   }
 }

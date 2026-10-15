@@ -1,3 +1,8 @@
+---
+name: validate
+description: Run `productkit validate`, inspect blocking/stale/unreviewed items, and guide user approval of the Product Definition.
+---
+
 # ProductKit Validation & Approval
 
 Use this skill after Change 07 has produced a draft Product Definition.

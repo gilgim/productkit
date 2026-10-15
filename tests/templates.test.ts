@@ -4,6 +4,12 @@ import path from 'node:path';
 
 import { TEMPLATE_ROOT, loadTemplate, renderTemplate } from '../src/workspace/templates.js';
 import { buildInitPlan } from '../src/workspace/plan.js';
+import {
+  AGENT_SKILL_DIRS,
+  SKILL_NAMES,
+  SKILL_ROOT,
+  loadSkillFile,
+} from '../src/workspace/skills.js';
 import { CliError } from '../src/errors.js';
 
 describe('renderTemplate', () => {
@@ -30,10 +36,10 @@ describe('loadTemplate', () => {
 describe('init plan', () => {
   it('has a template file on disk for every planned file', async () => {
     for (const entry of buildInitPlan()) {
-      if (entry.kind !== 'file') continue;
+      if (entry.kind !== 'file' || entry.source.from !== 'template') continue;
       await expect(
-        access(path.join(TEMPLATE_ROOT, entry.template)),
-        entry.template,
+        access(path.join(TEMPLATE_ROOT, entry.source.path)),
+        entry.source.path,
       ).resolves.toBeUndefined();
     }
   });
@@ -49,22 +55,52 @@ describe('init plan', () => {
     }
   });
 
-  it('writes only inside product/', () => {
-    for (const entry of buildInitPlan()) {
+  it('writes only inside product/ when skills are skipped', () => {
+    for (const entry of buildInitPlan({ skills: false })) {
       expect(entry.relativePath === 'product' || entry.relativePath.startsWith('product/')).toBe(
         true,
       );
     }
   });
 
+  it('writes only inside product/ and the agent skill directories', () => {
+    const allowed = ['product', ...AGENT_SKILL_DIRS.map((d) => d.slice(0, d.indexOf('/')))];
+    for (const entry of buildInitPlan()) {
+      const root = entry.relativePath.split('/')[0];
+      expect(allowed, entry.relativePath).toContain(root);
+    }
+  });
+
+  it('has a skill file on disk for every planned skill', async () => {
+    for (const entry of buildInitPlan()) {
+      if (entry.kind !== 'file' || entry.source.from !== 'skill') continue;
+      await expect(
+        access(path.join(SKILL_ROOT, entry.source.path)),
+        entry.source.path,
+      ).resolves.toBeUndefined();
+    }
+  });
+
+  it('plans one SKILL.md per skill per agent directory', () => {
+    const skillFiles = buildInitPlan().filter(
+      (entry) => entry.kind === 'file' && entry.source.from === 'skill',
+    );
+    expect(skillFiles.length).toBe(SKILL_NAMES.length * AGENT_SKILL_DIRS.length);
+  });
+
+  it('leaves skill files untouched by template rendering', async () => {
+    const source = await loadSkillFile('clarify/SKILL.md');
+    expect(source.length).toBeGreaterThan(0);
+  });
+
   it('renders every planned template with the init variables', async () => {
     for (const entry of buildInitPlan()) {
-      if (entry.kind !== 'file') continue;
-      const rendered = await loadTemplate(entry.template, {
+      if (entry.kind !== 'file' || entry.source.from !== 'template') continue;
+      const rendered = await loadTemplate(entry.source.path, {
         product_name: 'demo',
         created_at: '2026-10-02',
       });
-      expect(rendered.length, entry.template).toBeGreaterThan(0);
+      expect(rendered.length, entry.source.path).toBeGreaterThan(0);
     }
   });
 });

@@ -4,6 +4,7 @@ import { CliError, ExitCode, describeCause, type ExitCodeValue } from '../errors
 import { VERSION } from '../version.js';
 import { runClarify } from './commands/clarify.js';
 import { runInit } from './commands/init.js';
+import { runInstallSkills } from './commands/install-skills.js';
 import { runIntake } from './commands/intake.js';
 import { runModel } from './commands/model.js';
 import { registerGraphCommand } from './commands/graph.js';
@@ -52,12 +53,35 @@ export function buildProgram(output: Output = consoleOutput): Command {
     .description('create the product/ workspace in a target app')
     .option('--name <name>', 'product name written into config.yaml')
     .option('--dry-run', 'report what would be created without writing anything')
+    .option(
+      '--no-skills',
+      'skip installing the agent skills into .claude/skills and .agents/skills',
+    )
     .exitOverride()
-    .action(async (targetPath: string | undefined, opts: { name?: string; dryRun?: boolean }) => {
-      await runInit(
-        { targetPath, name: opts.name, dryRun: opts.dryRun ?? false },
-        output,
-      );
+    .action(
+      async (
+        targetPath: string | undefined,
+        opts: { name?: string; dryRun?: boolean; skills?: boolean },
+      ) => {
+        await runInit(
+          {
+            targetPath,
+            name: opts.name,
+            dryRun: opts.dryRun ?? false,
+            skills: opts.skills ?? true,
+          },
+          output,
+        );
+      },
+    );
+
+  program
+    .command('install-skills')
+    .description('copy the agent skills into ~/.claude/skills and ~/.agents/skills (all projects)')
+    .option('--force', 'overwrite skills that already exist')
+    .exitOverride()
+    .action(async (opts: { force?: boolean }) => {
+      await runInstallSkills({ force: opts.force ?? false }, output);
     });
 
   program

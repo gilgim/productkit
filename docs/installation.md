@@ -23,24 +23,44 @@ The expected version output is `0.1.0-beta.1`. The package's `prepare` script co
 
 To update, install the next approved tag explicitly using the same command and replace the tag. To roll back, install a previously approved tag the same way. Avoid an unpinned branch URL for repeatable environments.
 
-## Connect Agent Skills
+## Agent Skills
 
-ProductKit ships shared `SKILL.md` directories. It does not edit the consuming project's `.claude/` or `.agents/` directories. Link only the needed skills into the project, and keep these machine-specific links out of shared source control unless the team intentionally maintains portable relative links.
+**Install is all it takes.** `npm install --global` copies every Skill into `~/.claude/skills` and `~/.agents/skills`, so Claude Code and Codex see ProductKit in every project. If npm skipped install scripts, the first `productkit` run does it. Restart the agent once afterwards. Run `productkit install-skills` to repeat by hand (`--force` overwrites); set `PRODUCTKIT_SKIP_SKILLS=1` to opt out.
 
-On macOS/Linux, from the consuming project root:
+Describing a new product idea makes the `productkit` Skill ask whether to use ProductKit.
+
+### Per-project copy (optional)
+
+`productkit init` installs the Skills as part of the workspace. From the consuming project root:
 
 ```sh
-PRODUCTKIT_ROOT="$(npm root -g)/productkit"
-mkdir -p .claude/skills .agents/skills
-for skill in clarify model graph challenge propose define validate; do
-  ln -s "$PRODUCTKIT_ROOT/skills/$skill" ".claude/skills/$skill"
-  ln -s "$PRODUCTKIT_ROOT/skills/$skill" ".agents/skills/$skill"
-done
+productkit init
 ```
 
-Claude Code discovers project Skills under `.claude/skills/<name>/SKILL.md`; invoke one by its Skill name (for example, `/clarify`). Codex can discover the same project-scoped Agent Skills under `.agents/skills/<name>/SKILL.md`; ask Codex to use the relevant ProductKit Skill. Start a new session if the Agent has not discovered newly linked Skills.
+This copies each `SKILL.md` into both discovery paths:
 
-The commands above assume a global npm install. For a local npm prefix, replace `$(npm root -g)/productkit` with that prefix's `node_modules/productkit` path. On Windows, create directory junctions from an elevated or symlink-enabled PowerShell session, or copy the Skill directories into the same discovery paths; do not copy authentication settings.
+```text
+.claude/skills/<name>/SKILL.md     Claude Code
+.agents/skills/<name>/SKILL.md     Codex
+```
+
+The files are copied, not symlinked. A copy keeps working after ProductKit is
+uninstalled or moved, works on Windows without elevated permissions, and shows
+up in `git diff` — so a team reviews a Skill change the same way it reviews any
+other file. The cost is that a ProductKit upgrade does not update them; run
+`productkit init` again to pull in new Skills.
+
+An existing file is never overwritten. Running `init` a second time reports the
+Skills as `skipped (exists)` and leaves local edits alone; to take the shipped
+version of one, delete that file and run `init` again.
+
+Pass `--no-skills` to create the workspace without touching `.claude/` or
+`.agents/` — for a project that manages Skills centrally, or vendors them by
+some other route.
+
+Invoke a Skill by name in Claude Code (for example, `/clarify`); in Codex, ask
+it to use the relevant ProductKit Skill. **Restart the agent after `init`** —
+neither discovers Skills added during a running session.
 
 ## ProductKit and OpenSpec
 
