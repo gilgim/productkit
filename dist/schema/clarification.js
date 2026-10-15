@@ -347,15 +347,16 @@ export function mergeReasonIssue(clarification, prompt) {
 /** Two sentences on a shared subject that pull apart: negation on one side, different numbers, or an antonym pair. A heuristic, shown to a person — never a proof. */
 export function contradictionIssue(a, b) {
     const ta = contentTokens(a), tb = contentTokens(b);
-    const shared = [...ta].some(x => [...tb].some(y => x.slice(0, 2) === y.slice(0, 2)));
-    if (!shared)
+    const sharedPrefixes = new Set([...ta].filter(x => [...tb].some(y => x.slice(0, 2) === y.slice(0, 2))).map(x => x.slice(0, 2)));
+    if (!sharedPrefixes.size)
         return undefined;
     const NEG = /(않|안\s|안됨|안된|못|불가|없|금지|불허|아니|숨|꺼|unavailable|\bnot\b|\bno\b|never|cannot|can't|prohibited|forbidden|blocked|hidden|\boff\b|disabled)/i;
     const na = NEG.test(a), nb = NEG.test(b);
     const numsA = (a.match(/\d+/g) ?? []).join(','), numsB = (b.match(/\d+/g) ?? []).join(',');
     const ANT = [[/무료/, /유료|\d\s*원/], [/보인다|표시/, /숨|안 보/], [/켜/, /꺼|끈/], [/허용/, /금지|불허/], [/있다/, /없다/], [/가능/, /불가능|불가/], [/이내/, /이후/], [/이상/, /이하|미만/], [/전액/, /일부/], [/필수/, /선택|생략/], [/평문/, /암호화/], [/보관/, /삭제/], [/온라인/, /오프라인/], [/적립/, /소멸|차감/], [/available/i, /unavailable/i], [/\bon\b/i, /\boff\b/i], [/enabled/i, /disabled/i]];
     const antonym = ANT.some(([x, y]) => (x.test(a) && y.test(b)) || (y.test(a) && x.test(b)));
-    if (na !== nb || (numsA !== numsB && numsA && numsB) || antonym)
+    // One shared word plus a negation is everyday Korean ("환불은 …" / "환불 수수료는 받지 않는다"); a negation counts only when the sentences share two subjects.
+    if ((na !== nb && sharedPrefixes.size >= 2) || (numsA !== numsB && numsA && numsB) || antonym)
         return `"${a.slice(0, 30)}" / "${b.slice(0, 30)}"`;
     return undefined;
 }
