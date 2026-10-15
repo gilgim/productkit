@@ -309,6 +309,21 @@ export function uncoveredSpans(clarification: Clarification, prompt: Prompt): st
   return prompt.spans.map(s => s.id).filter(id => !covered.has(id));
 }
 
+/**
+ * What is wrong with the steps themselves, before any confirmation is
+ * considered: structure, span coverage, merge reasons. `productkit clarify`
+ * reports this first so the agent fixes steps before asking the user.
+ */
+export function stepsReadinessIssue(clarification: Clarification, prompt: Prompt): Extract<CompletionJudgement, { confirmed: false }> | undefined {
+  const issue = clarificationStepsIssue(clarification.steps);
+  if (issue) return issue;
+  const uncovered = uncoveredSpans(clarification, prompt);
+  if (uncovered.length) return { confirmed: false, reason: 'uncovered_spans', detail: `Prompt spans not decomposed, not raised as a finding candidate, and not dispositioned as non_requirement: ${uncovered.join(', ')}` };
+  const merge = mergeReasonIssue(clarification, prompt);
+  if (merge) return { confirmed: false, reason: 'missing_merge_reason', detail: merge };
+  return undefined;
+}
+
 /** Completion requirements are stricter than parsing an editable, unfinished draft. */
 export function clarificationStepsIssue(steps: ClarificationSteps): Extract<CompletionJudgement, { confirmed: false }> | undefined {
   const incomplete = (detail: string) => ({ confirmed: false as const, reason: 'incomplete_steps' as const, detail });
@@ -323,10 +338,10 @@ export function clarificationStepsIssue(steps: ClarificationSteps): Extract<Comp
     if (!statements.has(relation.statement_a) || !statements.has(relation.statement_b) || relation.statement_a === relation.statement_b) return { confirmed: false, reason: 'invalid_step_reference', detail: 'Relation review must reference two distinct decomposition statements.' };
   }
   if (!steps.relation_check.length && !isMeaningfulText(steps.relation_check_no_items_reason)) return incomplete('Relation review requires candidates or an explicit reviewed-no-items reason.');
-  if (steps.relation_check.length && steps.relation_check_no_items_reason !== undefined) return incomplete('Relation review cannot have candidates and a no-items assertion together.');
+  if (steps.relation_check.length && isMeaningfulText(steps.relation_check_no_items_reason)) return incomplete('Relation review cannot have candidates and a no-items assertion together.');
   if (steps.counterexample.some(c => !isMeaningfulText(c.ambiguity) || c.possible_interpretations.length < 2 || c.possible_interpretations.some(v => !isMeaningfulText(v)))) return incomplete('Counterexample requires an ambiguity and at least two substantive interpretations.');
   if (!steps.counterexample.length && !isMeaningfulText(steps.counterexample_no_items_reason)) return incomplete('Counterexample review requires records or an explicit reviewed-no-items reason.');
-  if (steps.counterexample.length && steps.counterexample_no_items_reason !== undefined) return incomplete('Counterexample review cannot have records and a no-items assertion together.');
+  if (steps.counterexample.length && isMeaningfulText(steps.counterexample_no_items_reason)) return incomplete('Counterexample review cannot have records and a no-items assertion together.');
   return undefined;
 }
 

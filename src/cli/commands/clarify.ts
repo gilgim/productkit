@@ -16,6 +16,7 @@ import {
   parseClarification,
   renderPresentation,
   stepsContentHash,
+  stepsReadinessIssue,
   uncoveredSpans,
 } from '../../schema/clarification.js';
 import type { Output } from '../output.js';
@@ -183,6 +184,9 @@ export async function runClarify(options: ClarifyOptions, output: Output): Promi
     output.out(`  Write to:    ${path.relative(cwd, clarificationPath)}`);
     output.out('  Completion contract: all steps need outputs; empty relation/counterexample lists need reviewed-no-items reasons.');
     output.out(`  Span coverage: all ${sourcePrompt.spans.length} Prompt spans must be decomposed, raised as finding candidates, or dispositioned in steps.span_coverage.`);
+    output.out('  Shape: productkit schema clarification');
+    output.out('  Spans:');
+    for (const span of sourcePrompt.spans) output.out(`    ${span.id}  "${sourcePrompt.raw_text.slice(span.start, span.end).replace(/\s+/g, ' ').trim()}"`);
     output.out('  Bind prompt_ref + prompt_content_hash in the clarification and new confirmation; do not invent user agreement.');
     return;
   }
@@ -198,7 +202,9 @@ export async function runClarify(options: ClarifyOptions, output: Output): Promi
   }
 
   if (clarification.id !== clarificationId || clarification.prompt_ref !== promptId) throw new CliError('Clarification identity/reference does not match the selected Prompt.', ExitCode.USAGE_OR_IO);
-  const judgement = judgeCompletion(clarification, sourcePrompt);
+  // Report a steps problem before "nothing confirmed yet": the agent must fix
+  // the steps before anyone is asked to agree to them.
+  const judgement = (() => { const j = judgeCompletion(clarification, sourcePrompt); if (j.confirmed) return j; if (j.reason !== 'no_confirmation') return j; return stepsReadinessIssue(clarification, sourcePrompt) ?? j; })();
 
   if (judgement.confirmed) {
     await markStage(productRoot, 'discover', 'done');
