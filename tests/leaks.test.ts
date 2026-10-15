@@ -528,6 +528,19 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(check?.message).toMatch(/must read exactly as its Node text/);
   });
 
+  it('no character is too small to drop from a slice; slices sit on word boundaries; questions are never read', async () => {
+    const { sliceIssue } = await import('../src/schema/clarification.js');
+    expect(sliceIssue('비밀번호는 평문으로 안 저장한다.', ['비밀번호는 평문으로 저장한다'])).toMatch(/not a verbatim slice|in no slice: 안/);
+    expect(sliceIssue('수수료는 0.5 퍼센트이다.', ['수수료는 0 퍼센트이다'])).toMatch(/not a verbatim slice|in no slice/);
+    expect(sliceIssue('나이 < 18 이면 가입할 수 없다.', ['나이 18 이면 가입할 수 없다'])).toMatch(/not a verbatim slice|in no slice/);
+    expect(sliceIssue('관리자는 비밀번호를 평문으로 저장할 수 없다.', ['관리자는 비밀번호를 평문으로 저장 할 수 없다'])).toMatch(/not a verbatim slice/);
+    const prompt = promptFixture('환불 비율은 어떻게 할까요? 전액 환불한다.');
+    const merged = validSteps(['환불 비율은 어떻게 할까요? 전액 환불한다.']);
+    merged.decomposition[0]!.span_refs = ['SPN-001', 'SPN-002']; merged.decomposition[0]!.merge_reason = '질문과 답을 한 요구로 읽는다';
+    const j = judgeCompletion(confirmedFixture(merged, prompt), prompt);
+    expect(j.confirmed).toBe(false); if (!j.confirmed) expect(j.detail).toMatch(/is a question .* raised as a finding candidate/);
+  });
+
   it('a ChallengeRun whose areas cite no evidence is incomplete', async () => {
     const g = await gate({ challengeEvidence: [] });
     expect(g.report.readiness).toBe('blocked');

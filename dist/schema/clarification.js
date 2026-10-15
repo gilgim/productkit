@@ -294,10 +294,13 @@ export function mergeReasonIssue(clarification, prompt) {
             return `span_coverage[${i}] sets aside ${c.span_ref}, which states something ("…${text.slice(-12)}"); a sentence with a predicate is a requirement or a question, not an aside.`;
     }
     // "단, …" means nothing away from the sentence it qualifies: it must sit in
-    // the same decomposition item as the span before it.
+    // the same decomposition item as the span before it. A question is never a
+    // requirement: it goes to finding_candidates, not into a reading.
     for (const [i, item] of items.entries()) {
         for (const id of item.span_refs) {
             const text = spanTextById(prompt, id);
+            if (/[?？]\s*$/.test(text))
+                return `decomposition[${i}] reads ${id}, which is a question ("${text.slice(0, 30)}…"); a question is raised as a finding candidate, not read as a requirement.`;
             if (!startsWithException(text))
                 continue;
             const idx = prompt.spans.findIndex(s => s.id === id);
@@ -346,15 +349,26 @@ export function sliceIssue(source, statements) {
     const covered = new Array(src.length).fill(false);
     const mark = (a, b) => { for (let i = a; i < b; i++)
         covered[i] = true; };
+    // A slice starts and ends on word boundaries: cutting "저장할 수 없다" into
+    // "저장" + "할 수 없다" is not reading the sentence, it is rewriting it.
+    const boundary = (i) => i <= 0 || i >= src.length || /[\s,.;:!?()\[\]{}"'“”‘’·]/.test(src[i - 1]) || /[\s,.;:!?()\[\]{}"'“”‘’·]/.test(src[i]);
+    const findAt = (needle) => { let from = 0; for (;;) {
+        const i = src.indexOf(needle, from);
+        if (i < 0)
+            return -1;
+        if (boundary(i) && boundary(i + needle.length))
+            return i;
+        from = i + 1;
+    } };
     const locate = (s) => {
-        const whole = src.indexOf(s);
+        const whole = findAt(s);
         if (whole >= 0)
             return [[whole, whole + s.length]];
         for (let cut = s.indexOf(' '); cut > 0; cut = s.indexOf(' ', cut + 1)) {
             const a = s.slice(0, cut);
             const b = s.slice(cut + 1);
-            const ia = src.indexOf(a);
-            const ib = src.indexOf(b);
+            const ia = findAt(a);
+            const ib = findAt(b);
             if (ia >= 0 && ib >= 0)
                 return [[ia, ia + a.length], [ib, ib + b.length]];
         }
@@ -386,16 +400,17 @@ export function sliceIssue(source, statements) {
     }
     if (new Set(triggers).size > 1)
         return `two-slice Nodes of this item carry different triggers (${[...new Set(triggers)].join(' / ')}); a split shares one sentence-initial trigger`;
+    // Every character that is not whitespace or sentence punctuation must be
+    // inside some slice — including one-syllable words (안, 못, 만, 외), digits,
+    // decimals and comparison symbols. Nothing is too small to drop.
     const missing = [];
-    const re = /[^\s,.;:!?()\[\]{}"'`“”‘’·/|]+/g;
+    const re = /[^\s,.;:!?()\[\]{}"'`“”‘’·]+/g;
     let m;
     while ((m = re.exec(src)) !== null) {
         const token = m[0];
-        if (token.length < 2 && !/^[한두세네열백천]$/.test(token))
-            continue;
         let ok = true;
         for (let i = m.index; i < m.index + token.length; i++)
-            if (!covered[i]) {
+            if (!covered[i] && !/[.,]/.test(src[i])) {
                 ok = false;
                 break;
             }
