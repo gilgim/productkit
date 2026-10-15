@@ -47,6 +47,31 @@ export declare function resolveFindingsByDecision(root: string, decisionId: stri
     resolved: string[];
     skipped: string[];
 }>;
+/**
+ * The agent describes what a Decision changes (Definition items, Policies,
+ * Journeys) and the CLI does the bookkeeping it kept getting wrong: ids,
+ * content hashes, provenance hashes, before/after file hashes, the
+ * ImpactReports for the changed Nodes, the plan, and the apply. Verification
+ * (`define application verify`) and `decide resolve` stay separate steps.
+ */
+export declare function draftApplication(root: string, decisionId: string, input: {
+    scope: string;
+    rationale: string;
+    residual_risks?: string[];
+    finding_refs?: string[];
+    definition?: {
+        product_name: string;
+        items: unknown[];
+        finding_refs?: string[];
+        assumption_refs?: string[];
+    };
+    policies?: unknown[];
+    journeys?: unknown[];
+}, now?: Date): Promise<{
+    application: Application;
+    impact_reports: string[];
+    records: string[];
+}>;
 export declare function applicationFreshness(root: string, app: Application): Promise<{
     stale: boolean;
     reasons: string[];

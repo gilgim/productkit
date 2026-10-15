@@ -15,7 +15,7 @@ import { loadGraphWorkspace } from './provenance.js';
 import { readAttestationPolicy } from './workspace.js';
 import { parseClarification } from '../schema/clarification.js';
 import { SEGMENTATION_VERSION } from './spans.js';
-import { forbiddenTextIssue, isMeaningfulText, multilineIssue, saysNo } from '../schema/text.js';
+import { forbiddenTextIssue, isMeaningfulText, multilineIssue, saysNo, startsWithRefusal } from '../schema/text.js';
 import { parseProductConfig } from '../schema/config.js';
 import { findingContentHash, toFindingInput } from '../schema/finding.js';
 import { CliError, ExitCode } from '../errors.js';
@@ -259,7 +259,7 @@ async function checksFor(root, review) {
             if (saysNo(a.user_statement))
                 add(`approval.statement.${a.id}`, 'structure', 'fail', `Approval ${a.id} statement reads as a refusal: "${a.user_statement.slice(0, 40)}"`);
         for (const d of decisionsT)
-            if (saysNo(d.user_statement))
+            if (startsWithRefusal(d.user_statement))
                 add(`decision.statement.${d.id}`, 'decision', 'fail', `Decision ${d.id} user statement reads as a refusal: "${d.user_statement.slice(0, 40)}"`);
         for (const f of findingsT) {
             const last = f.confirmation_history.at(-1);
@@ -317,9 +317,9 @@ async function checksFor(root, review) {
             const isDecisionText = decisionWords.includes(item.text.replace(/\s+/g, ' ').trim().replace(/[.。]$/, ''));
             if (!nodes.length && !isDecisionText)
                 add(`definition.item_source.${item.id}`, 'traceability', 'fail', `${item.kind} item ${item.id} cites no Node and is not a cited Decision's user statement; every Definition sentence is one of the user's sentences.`);
-            if (NORMATIVE.has(item.kind))
-                for (const r of nodes)
-                    placed.add(r.ref);
+            for (const r of nodes)
+                placed.add(r.ref); // goal/scope/stakeholder items are in the export's Scope section, so they place a Node too
+            void NORMATIVE;
             // The item carries its Node's sentence verbatim; it may frame it, not rewrite it.
             // The item text IS the Node text(s), in Node order, with at most a short
             // allowed prefix ("검증:", "AC:", "수락 기준:"). Framing that could reverse

@@ -224,6 +224,32 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(d.check('definition.double_placement')?.status).toBe('fail'); expect(d.check('definition.double_placement')?.message).toContain('NOD-001-2');
   });
 
+  it('define draft + decide resolve: the CLI fills ids, hashes, snapshots and impact reports; the Decision closes its Finding and its words reach the export', async () => {
+    temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-draft-'));
+    const w = await buildLeakWorkspace(temp);
+    const { draftApplication, recordApplicationVerification, readDefinition, readPolicies } = await import('../src/clarification/definition-store.js');
+    const { readCurrentFindings, readDecisions } = await import('../src/clarification/proposal-decision-store.js');
+    const decision = (await readDecisions(w.root)).find((d) => d.id === w.decisionId)!;
+    const before = await readDefinition(w.root);
+    const items = before!.items.map((i) => ({ kind: i.kind, text: i.text, provenance: { source_refs: i.provenance.source_refs.filter((r) => r.kind === 'node').map((r) => ({ kind: r.kind, ref: r.ref })), decision_refs: [{ kind: 'decision', ref: decision.id }] } }));
+    items.push({ kind: 'functional_requirement', text: decision.user_statement, provenance: { source_refs: [], decision_refs: [{ kind: 'decision', ref: decision.id }] } });
+    const r = await draftApplication(w.root, decision.id, { scope: 's', rationale: 'the user decided', definition: { product_name: 'Leak', items }, policies: [{ context: '결제를 완료하면 주문을 확정한다.', actor: '주문', condition_text: '결제를 완료하면 주문을 확정한다.', condition: { op: 'eq', field: 'paid', value_type: 'boolean', value: true }, action: '결제를 완료하면 주문을 확정한다.', outcome: decision.user_statement, exceptions: [], provenance: { source_refs: [{ kind: 'node', ref: 'NOD-001-1' }] } }] });
+    expect(r.application.status).toBe('applied');
+    expect((await readPolicies(w.root)).some((p) => p.outcome === decision.user_statement)).toBe(true);
+    await recordApplicationVerification(w.root, r.application.id, { status: 'verified', assessor: 'ai', summary: 'ok', evidence_refs: [], uncertainty: ['synthetic'] });
+    const { resolveFindingsByDecision } = await import('../src/clarification/definition-store.js');
+    const res = await resolveFindingsByDecision(w.root, decision.id);
+    expect(res.resolved).toContain(w.findingId);
+    const f = (await readCurrentFindings(w.root)).find((x) => x.id === w.findingId)!;
+    expect(f.resolution_status).toBe('resolved'); expect(f.decision_ref).toBe(decision.id); expect(f.history.at(-1)?.event).toBe('resolution_recorded');
+    const review = await recordSemanticReview(w.root, { ...(w.semanticInput as object), input_fingerprint: (await (await import('../src/clarification/validation-store.js')).currentValidationFingerprint(w.root)).fingerprint, definition_ref: (await readDefinition(w.root))!.id, definition_hash: (await readDefinition(w.root))!.content_hash } as never).catch((e: Error) => e);
+    // The old review's evidence is stale now; a report on the current state must at least not fail on the Decision-text item or the closed Finding.
+    const report = await createValidationReport(w.root, review instanceof Error ? undefined : review.id);
+    expect(report.checks.filter((c) => c.status === 'fail').map((c) => c.id)).not.toContain('definition.item_source');
+    expect(report.checks.filter((c) => c.status === 'fail').map((c) => c.id)).not.toContain('source.candidates');
+    expect(report.checks.find((c) => c.id.startsWith('application.'))?.status).toBe('pass');
+  });
+
   it('finding candidates appear in what the user sees, with their spans', () => {
     const prompt = promptFixture('첫 문장이다. 둘째 문장이다.');
     const steps = validSteps(['첫 문장이다.']);
@@ -448,10 +474,12 @@ describe('leak regression: source content cannot vanish silently', () => {
     expect(msg).toMatch(/does not carry the text of its source Node|stale|missing/);
   });
 
-  it('a goal item does not place Nodes; a requirement item must cite a Node', async () => {
+  it('a goal item places its Node (it is in the export Scope) but a Definition of goals alone is not a product definition', async () => {
     const g = await gate({ goalCover: true });
-    expect(g.check('definition.node_coverage')?.status).toBe('fail');
-    expect(g.check('definition.node_coverage')?.message).toContain('NOD-001-2, NOD-001-3, NOD-001-4');
+    expect(g.check('definition.node_coverage')?.status).toBe('pass');
+    // but a goal that paraphrases three Nodes is not their text: item_restates blocks it.
+    expect(g.check('definition.item_restates')?.status).toBe('fail');
+    expect(g.report.readiness).toBe('blocked');
   });
 
   it('control, invisible and HTML-comment characters are refused in every artifact', async () => {
