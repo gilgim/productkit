@@ -50,12 +50,12 @@ ProductKit은 아이디어와 명세 사이에 안전장치를 둔다.
 
 ### 빈틈 하나가 Finding에서 Decision이 되기까지
 
-위 표의 "깔끔하게"를 따라가 보자. `clarify`에서 CLI가 원문 문장을 순서대로, 문장마다 읽은 내용·남긴 질문·달리 읽힐 수 있는 곳과 함께 찍고, 사람은 자기 터미널에서 그 블록에 동의한다. "이 화면 깔끔하게 해줘."는 해석 후보와 함께 질문으로 남는다. 그다음은 이렇게 간다(ID는 내용 해시로 만들어진다. 아래 값은 예시다).
+위 표의 "깔끔하게"를 따라가 보자. `clarify`에서 CLI가 원문 문장을 순서대로, 문장마다 읽은 내용·남긴 질문·달리 읽힐 수 있는 곳과 함께 찍고, 사람은 그 블록에 동의한다. "이 화면 깔끔하게 해줘."는 해석 후보와 함께 질문으로 남는다. 그다음은 이렇게 간다(ID는 내용 해시로 만들어진다. 아래 값은 예시다).
 
 ```text
 FND-3a7c0e91d4b25f68   "이 화면 깔끔하게 해줘."에 "깔끔하게"의 기준이 없음
                        해석: 요소 줄이기 / 여백·정렬 / 색 맞추기
-                       에이전트가 올림(proposed), 사람이 자기 터미널에서 확인(confirmed)
+                       에이전트가 올림(proposed), 사람이 자기 말로 확인(confirmed)
    ↓
 PROP-8e12b4f07a9d3c65  OPT-A 요소 줄이기 · OPT-B 여백·정렬 · OPT-C 색 맞추기
                        안마다 이점·비용·위험을 같이 적음. AI 추천은 선택이 아님
@@ -64,7 +64,7 @@ DEC-c45d19e2b07f8a31   사람이 OPT-A를 고르고 직접 입력: "화면 요�
                        근거·적용 범위와 함께 pending_application으로 기록
 ```
 
-에이전트는 Finding·Proposal·Decision 입력을 쓰지만 확인하거나 결정하지는 못한다. `productkit challenge finding confirm`과 `productkit decide record`는 실행한 터미널에서 사람의 말을 직접 읽으므로, 에이전트는 이 명령을 사람에게 넘긴다. 사람이 쓴 문장은 바꿔 쓰이지 않는다. 결정한 말은 그 Decision을 인용하는 별도 Definition 항목으로 들어갈 수 있고, 그 변경이 적용·검증되면(`productkit define draft` → `productkit define application verify`) `productkit decide resolve`가 Finding을 닫는다.
+에이전트는 Finding·Proposal·Decision 입력을 쓰지만, 확인과 선택은 사람 몫이다. 기본값 `attestation: flag`에서는 에이전트가 사람의 말을 그대로 `--user-statement`로 `productkit challenge finding confirm`·`productkit decide record`에 넘긴다. `attestation: tty`에서는 이 명령이 실행한 터미널에서 사람의 말을 직접 읽으므로, 에이전트는 명령을 사람에게 넘긴다. 사람이 쓴 문장은 바꿔 쓰이지 않는다. 결정한 말은 그 Decision을 인용하는 별도 Definition 항목으로 들어갈 수 있고, 그 변경이 적용·검증되면(`productkit define draft` → `productkit define application verify`) `productkit decide resolve`가 Finding을 닫는다.
 
 ## 빠른 시작
 
@@ -167,7 +167,7 @@ ProductKit은 자기 게이트를 상대로 공격 테스트를 했다. 왼쪽�
 - **쌍마다 판정 하나.** semantic review는 Definition 항목과 그 항목이 인용한 Node 하나하나에 대해 same / narrower / broader / contradicts 와 이유를 적어야 한다. "전부 보존됨" 한 줄은 쓸 수 없다.
 - **증거는 종류가 맞아야 한다.** `graph_impact`는 ImpactReport, `traceability`는 Decision과 Prompt. "뭔가 인용함"으로는 부족하다.
 - **미검토 목록에서 떨어지는 게 없다.** 같은 입력에 대한 다음 검토는 이전 미검토 항목을 그대로 두거나 증거와 함께 해소해야 한다.
-- **발언은 넘기는 게 아니라 치는 것이다.** 기본값 `attestation: tty`에서 `clarify confirm`·`challenge finding confirm`·`decide record`·`approve record`는 실행한 터미널에서 사용자 말을 직접 읽는다. 터미널 없이 돌린 에이전트는 거부당하고 명령을 사용자에게 넘긴다. 이건 자물쇠가 아니라 과속방지턱이다 — 가짜 터미널(`script`, `expect`)로 감싸거나 해시를 맞춰 YAML을 직접 쓰는 에이전트는 통과하고, `git diff`에만 남는다. `attestation: flag`로 바꿀 수는 있지만 보이고 모든 보고에 경고가 붙는다. "승인하지 않는다" 같은 거부 문장은 승인으로 안 받는다. 그 이상 말뜻은 사람 몫이다.
+- **발언이 어디서 왔는지 남긴다.** `clarify confirm`·`challenge finding confirm`·`decide record`·`approve record`는 사용자 말과 그 말이 들어온 경로를 함께 기록한다. 기본값 `attestation: flag`에서는 에이전트가 사용자 말을 그대로 `--user-statement`로 넘긴다. 누가 썼는지 CLI는 알 수 없으므로 모든 검증 보고에 경고가 붙는다. `attestation: tty`에서는 실행한 터미널에서 사용자 말을 직접 읽고, 터미널 없이 돌린 에이전트는 거부당해 명령을 사용자에게 넘긴다. 그것도 자물쇠가 아니라 과속방지턱이다 — 가짜 터미널(`script`, `expect`)로 감싸거나 해시를 맞춰 YAML을 직접 쓰는 에이전트는 통과하고, `git diff`에만 남는다. "승인하지 않는다" 같은 거부 문장은 승인으로 안 받는다. 그 이상 말뜻은 사람 몫이다.
 
 스킬도 더는 손으로 적은 필드 목록을 들고 다니지 않는다. `productkit schema <artifact>`가 게이트가 검사하는 JSON Schema를 그대로 찍고, `productkit hash ...`가 게이트가 다시 계산하는 해시를 찍고, 스킬이 CLI에 없는 명령을 적으면 테스트가 빌드를 깨뜨린다.
 

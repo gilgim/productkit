@@ -28,11 +28,12 @@ definition:
   # Only a passing gate may set this to confirmed.
   status: not_started
 
-# tty  | flag
-# tty:  Decisions and Approvals must be typed by a person on the terminal that
-#       runs `productkit decide record` / `productkit approve record`. An agent
-#       running the CLI has no terminal and is refused — it must hand the
-#       command to you.
-# flag: `--user-statement` is accepted from anyone, including an agent. Every
+# flag | tty   (default: flag)
+# flag: the agent asks you in the conversation and passes your exact words with
+#       `--user-statement`. The CLI cannot tell who wrote them, so every
 #       validation report carries a warning while this is set.
-attestation: tty
+# tty:  confirmations, Decisions and Approvals must be typed by a person on the
+#       terminal that runs `clarify confirm`, `challenge finding confirm`,
+#       `decide record` or `approve record`. An agent running the CLI has no
+#       terminal and is refused — it must hand the command to you.
+attestation: flag

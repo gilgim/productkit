@@ -49,7 +49,8 @@ export function initialConfig(name, createdAt) {
         product: { name, created_at: createdAt },
         stages: stagesFor(STAGE_NAMES),
         definition: { status: 'not_started' },
-        attestation: 'tty',
+        // The agent passes the user's words; every validation report warns. `tty` makes them typed on a terminal.
+        attestation: 'flag',
     };
 }
 export function initialLegacyConfig(name, createdAt) {

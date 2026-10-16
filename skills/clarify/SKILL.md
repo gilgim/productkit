@@ -95,11 +95,13 @@ ProductKit의 Phase 2(Clarification) instruction이다. CLI는 이 내용을 생
 3. 사용자 응답 기록은 `productkit clarify confirm --response agreed|disagreed|partially_agreed`
    이다. 이 명령은 블록을 다시 그리고, `presented_hash`·`entry_hash` 를 계산하고,
    사용자 발언을 **실행한 터미널에서 직접** 읽어 `interpretation_check` 에 붙인다.
-   - Agent 는 터미널이 없어 이 명령을 끝낼 수 없다("No terminal is attached").
-     그게 정상이다. 명령을 사용자에게 넘기고 멈춘다.
-   - `product/config.yaml` 이 `attestation: flag` 일 때만 `--user-statement "<사용자
-     발언 원문>"` 을 Agent 가 넘길 수 있고, 그 워크스페이스의 모든 검증 보고에
-     경고가 붙는다. 그 줄을 Agent 가 바꾸지 않는다.
+   - `product/config.yaml` 이 `attestation: flag`(`init` 기본값)면 블록을 사용자에게
+     보여 주고 대화로 답을 받아, 사용자 발언 원문을 `--user-statement "<사용자 발언
+     원문>"` 으로 넘긴다. 지어내거나 고쳐 쓰지 않고, 답이 없으면 멈춘다. 그
+     워크스페이스의 모든 검증 보고에 경고가 붙는다.
+   - `attestation: tty` 면 Agent 는 터미널이 없어 이 명령을 끝낼 수 없다("No terminal
+     is attached"). 그게 정상이다. 명령을 사용자에게 넘기고 멈춘다.
+   - 그 줄을 Agent 가 바꾸지 않는다.
 4. 동의하지 않으면 steps 를 고치고 1~3 을 반복한다. 이전 항목은 그대로 둔다.
    steps 가 바뀌면 이전 동의는 무효다(해시가 안 맞는다).
 

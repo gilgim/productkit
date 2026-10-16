@@ -83,3 +83,10 @@ describe('config template', () => {
     expect(CONFIG_SCHEMA_VERSION).toBe(1);
   });
 });
+
+describe('attestation default', () => {
+  it('a new workspace takes statements by flag; tty is opt-in', async () => {
+    const { initialConfig } = await import('../src/schema/config.js');
+    expect(initialConfig('x', '2026-10-16').attestation).toBe('flag');
+  });
+});
