@@ -20,6 +20,20 @@ English · [한국어](README.ko.md)
 
 Ask an AI to "build a running-log sharing app" and it will happily fill every blank with something plausible. Weeks later nobody can say which behavior was a decision and which was a guess.
 
+The blanks are not only missing features. They hide in ordinary words, too. (A made-up example, just to show the idea.)
+
+> Make this screen clean. Handle the rest well.
+
+| What you said | What it can also mean |
+|---|---|
+| clean | fewer elements / tidier spacing and alignment / matching colors / refactored code |
+| handle the rest | only what's on screen / related features too / ask me if stuck / don't ask, just go |
+| well | fast / safe / pretty / same as before |
+
+A person would ask, "Clean how?" An AI usually picks one plausible reading and moves on.
+
+ProductKit does not come up with ideas for you. **It fills the gaps in the idea you already have.** More precisely, it stops the AI from filling them on its own and has you fill them: a sentence that reads more than one way gets every reading written down and stays a question until you answer it, and the reading you pick is recorded in your own words.
+
 ProductKit puts a guard rail between the idea and the spec:
 
 - **AI guesses never become decisions.** A `DEC-xxx` exists only when *you* said so, with a rationale.
@@ -33,6 +47,24 @@ ProductKit puts a guard rail between the idea and the spec:
 <p align="center"><img src="docs/assets/how-it-works.svg" alt="How ProductKit works: you decide, the agent reasons, the CLI judges and records" width="100%"></p>
 
 The CLI judges whether each stage is actually complete. The agent cannot declare itself done.
+
+### One gap, from Finding to Decision
+
+Follow "clean" from the table above. At `clarify`, the CLI prints your sentences in order, what was read from each, the questions left open and the places that could read differently, and you agree to that block from your terminal. "Make this screen clean." is left as a question with its readings. From there (IDs are content hashes; these are illustrative):
+
+```text
+FND-3a7c0e91d4b25f68   "Make this screen clean." sets no standard for "clean"
+                       readings: fewer elements / spacing and alignment / matching colors
+                       added by the agent (proposed), confirmed by you on your terminal
+   ↓
+PROP-8e12b4f07a9d3c65  OPT-A fewer elements · OPT-B spacing and alignment · OPT-C matching colors
+                       each with benefits, costs and risks; an AI recommendation is not a choice
+   ↓
+DEC-c45d19e2b07f8a31   you pick OPT-A and type: "Only cut down the elements on screen."
+                       with your rationale and scope; recorded as pending_application
+```
+
+The agent writes the Finding, the Proposal and the Decision input, but it cannot confirm or decide: `productkit challenge finding confirm` and `productkit decide record` read your words from the terminal that runs them, so the agent hands those commands to you. Your sentence is never rewritten. Your decided words can enter the Definition as an item of their own that cites the Decision, and once that change is applied and verified (`productkit define draft`, then `productkit define application verify`), `productkit decide resolve` closes the Finding.
 
 ## Quick start
 
