@@ -439,10 +439,10 @@ async function checksFor(root, review) {
     const supersededProposals = new Set(proposals.flatMap(p => p.supersedes_proposal_ref ? [p.supersedes_proposal_ref] : []));
     for (const proposal of proposals) {
         if (supersededProposals.has(proposal.id))
-            continue;
-        const selected = decisions.find(d => d.selection.kind === 'proposal_option' && d.selection.proposal_ref === proposal.id && !staleIds.has(d.id) && !superseded.has(d.id));
-        const app = selected && applications.find(a => a.plan.decision_ref === selected.id && a.status === 'applied' && a.verification_status === 'verified');
-        if (!selected || !app)
+            continue; /* The user may pick an option or state their own choice; a direct Decision answers the Proposal it cites when it covers every Finding the Proposal is about. */
+        const answers = (d) => !staleIds.has(d.id) && !superseded.has(d.id) && (d.selection.kind === 'proposal_option' ? d.selection.proposal_ref === proposal.id : d.input_snapshot.some(r => r.kind === 'proposal' && r.ref === proposal.id) && proposal.finding_refs.every(f => d.finding_refs.some(x => x.finding_ref === f.finding_ref)));
+        const verified = (d) => applications.some(a => a.plan.decision_ref === d.id && a.status === 'applied' && a.verification_status === 'verified');
+        if (!decisions.some(d => answers(d) && verified(d)))
             add(`proposal.${proposal.id}`, 'decision', 'fail', `Proposal ${proposal.id} has no currently applied and verified user Decision.`);
     }
     for (const decision of decisions) {
