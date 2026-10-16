@@ -113,3 +113,13 @@ describe('Proposal and Decision command registration', () => {
     }
   });
 });
+
+describe('Finding confirm caveat source', () => {
+  it('takes the caveat from the same place as the statement', async () => {
+    for (const args of [['challenge','finding','confirm','FND-0000000000000000','--response','confirmed','--rationale','r','--caveat','typed by an agent'],['challenge','finding','confirm','FND-0000000000000000','--response','confirmed','--rationale','r','--user-statement','맞다.','--caveat']]) {
+      const out = createMemoryOutput();
+      expect(await runCli(args, out)).toBe(ExitCode.USAGE_OR_IO);
+      expect(out.stderr.join('\n')).toMatch(/--caveat/);
+    }
+  });
+});

@@ -231,7 +231,7 @@ async function checksFor(root, review) {
             }
             catch { }
         }
-        const oneLiners = [...definition.items.flatMap(i => [i.text, i.exclusion?.excluded_scope ?? '', i.exclusion?.impact ?? '', i.exclusion?.residual_risk ?? '']), ...policiesT.flatMap(p => [p.context, p.actor, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)]), ...journeysT.flatMap(j => [j.actor, j.goal, j.entry_state, ...j.states, ...j.terminal_states, ...j.acceptance_criteria]), ...findingsT.flatMap(f => [f.statement, ...f.questions, ...f.confirmation_history.map(c => c.user_statement)]), ...decisionsT.flatMap(d => [d.user_statement, d.rationale, d.scope]), ...approvalsT.flatMap(a => [a.user_statement, a.scope]), ...reviewsT];
+        const oneLiners = [...definition.items.flatMap(i => [i.text, i.exclusion?.excluded_scope ?? '', i.exclusion?.impact ?? '', i.exclusion?.residual_risk ?? '']), ...policiesT.flatMap(p => [p.context, p.actor, p.condition_text, p.action, p.outcome, ...p.exceptions.map(e => e.statement)]), ...journeysT.flatMap(j => [j.actor, j.goal, j.entry_state, ...j.states, ...j.terminal_states, ...j.acceptance_criteria]), ...findingsT.flatMap(f => [f.statement, ...f.questions, ...f.confirmation_history.flatMap(c => [c.user_statement, c.user_caveat ?? ''])]), ...decisionsT.flatMap(d => [d.user_statement, d.rationale, d.scope]), ...approvalsT.flatMap(a => [a.user_statement, a.scope]), ...reviewsT];
         const clrTexts = [];
         for (const f of await files(path.join(root, 'discovery'))) {
             try {

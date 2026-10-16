@@ -8,6 +8,7 @@ import { addFinding, confirmFinding, readFindings, validateFindingReferences } f
 import { createChallengeRun, readChallengeRuns, refreshChallengeRun, updateChallengeRun, validateChallengeRunReferences } from '../../clarification/challenge-store.js';
 import { challengeAreaSchema, challengeAreaResultSchema, judgeChallengeCompletion } from '../../schema/challenge.js';
 import { findingInputSchema } from '../../schema/finding.js';
+import { saysNo } from '../../schema/text.js';
 import type { Output } from '../output.js';
 
 function requireText(value: string | undefined, name: string): string { if (!value?.trim()) throw new CliError(`${name} is required.`, ExitCode.USAGE_OR_IO); return value.trim(); }
@@ -58,13 +59,23 @@ export function registerChallengeCommand(program: Command, output: Output): void
     const root = path.join(process.cwd(), 'product'); await ensureWorkspace(root); const value = findingInputSchema.parse(parseYaml(await readFile(path.resolve(opts.input), 'utf8'))); const result = await addFinding(root, value);
     output.out(`${result.created ? 'Created' : 'Existing'} Finding ${result.finding.id}: proposed / unresolved.`);
   });
-  finding.command('confirm').argument('<id>').requiredOption('--response <response>').option('--user-statement <text>', "the user's words; omit it to type them on the terminal (required when config attestation is tty)").requiredOption('--rationale <text>').description('append explicit user confirmation or rejection').action(async (id: string, opts: { response: string; userStatement?: string; rationale: string }) => {
+  finding.command('confirm').argument('<id>').requiredOption('--response <response>').option('--user-statement <text>', "the user's words; omit it to type them on the terminal (required when config attestation is tty)").option('--caveat [text]', 'a condition or limit the user puts on this response (e.g. confirming a gap is not approving a fix); with --user-statement pass the text, otherwise omit it to type it on the terminal').requiredOption('--rationale <text>').description('append explicit user confirmation or rejection').action(async (id: string, opts: { response: string; userStatement?: string; caveat?: string | true; rationale: string }) => {
     if (opts.response !== 'confirmed' && opts.response !== 'rejected') throw new CliError('Response must be confirmed or rejected.', ExitCode.USAGE_OR_IO);
     // No flag → read from the controlling terminal, which an agent does not have.
     const attestation = opts.userStatement === undefined ? 'tty' : 'flag';
-    const statement = opts.userStatement ?? await readStatementFromTerminal(`Finding ${id}: respond "${opts.response}".\nType your statement and press Enter (empty cancels): `);
-    const updated = await confirmFinding(path.join(process.cwd(), 'product'), id, opts.response, requireText(statement, '--user-statement'), requireText(opts.rationale, '--rationale'), attestation);
-    output.out(`Finding ${id}: ${updated.review_status}; current content hash and entry hash are structurally valid.`);
+    // The caveat is the user's words too, so it comes from the same place as the statement.
+    if (attestation === 'tty' && typeof opts.caveat === 'string') throw new CliError('--caveat <text> needs --user-statement; without it, pass --caveat alone and type the caveat on the terminal.', ExitCode.USAGE_OR_IO);
+    if (attestation === 'flag' && opts.caveat === true) throw new CliError('--caveat needs its text when --user-statement is passed.', ExitCode.USAGE_OR_IO);
+    let statement = opts.userStatement ?? await readStatementFromTerminal(`Finding ${id}: respond "${opts.response}".\nType your statement and press Enter (empty cancels): `);
+    let caveat = typeof opts.caveat === 'string' ? opts.caveat : opts.caveat === true ? await readStatementFromTerminal('Type the condition or limit on this response (caveat), or press Enter for none: ') : undefined;
+    // A typed confirmation that also states a limit ("맞다. 단, 승인은 아니다") reads as a refusal: let the user split it here instead of failing and retyping the command.
+    if (attestation === 'tty' && opts.response === 'confirmed' && !caveat?.trim() && saysNo(statement)) {
+      const confirming = await readStatementFromTerminal(`This reads as a refusal: "${statement.trim().slice(0, 60)}".\nIf you disagree with the Finding, press Enter and rerun with --response rejected.\nIf you confirm it with a condition, type only the confirming part (empty cancels): `);
+      if (confirming.trim()) { statement = confirming; caveat = await readStatementFromTerminal('Now type the condition or limit (caveat): '); }
+    }
+    const updated = await confirmFinding(path.join(process.cwd(), 'product'), id, opts.response, requireText(statement, '--user-statement'), requireText(opts.rationale, '--rationale'), attestation, caveat);
+    const recordedCaveat = updated.confirmation_history.at(-1)?.user_caveat;
+    output.out(`Finding ${id}: ${updated.review_status}${recordedCaveat ? ` with caveat "${recordedCaveat.slice(0, 60)}"` : ''}; current content hash and entry hash are structurally valid.`);
     output.out('The CLI cannot verify the speaker identity or truth of the recorded user statement.');
   });
 }

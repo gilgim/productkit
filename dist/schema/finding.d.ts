@@ -218,6 +218,7 @@ export declare const findingConfirmationSchema: z.ZodObject<{
         rejected: "rejected";
     }>;
     user_statement: z.ZodString;
+    user_caveat: z.ZodOptional<z.ZodString>;
     rationale: z.ZodString;
     attestation: z.ZodDefault<z.ZodEnum<{
         flag: "flag";
@@ -388,6 +389,7 @@ export declare const findingSchema: z.ZodObject<{
             rejected: "rejected";
         }>;
         user_statement: z.ZodString;
+        user_caveat: z.ZodOptional<z.ZodString>;
         rationale: z.ZodString;
         attestation: z.ZodDefault<z.ZodEnum<{
             flag: "flag";
@@ -448,5 +450,5 @@ export declare function findingConfirmationEntryHash(entry: Omit<FindingConfirma
 export declare function findingHistoryEntryHash(entry: Omit<FindingHistoryEntry, 'entry_hash'>): string;
 export declare function toFindingInput(finding: Finding | Omit<Finding, 'history' | 'confirmation_history' | 'review_status' | 'resolution_status' | 'decision_ref' | 'created_at' | 'updated_at' | 'schema_version' | 'id' | 'fingerprint'>): FindingInput;
 export declare function createFinding(inputValue: unknown, now?: Date): Finding;
-export declare function appendFindingConfirmation(findingValue: unknown, response: 'confirmed' | 'rejected', userStatement: string, rationale: string, now?: Date, attestation?: 'tty' | 'flag'): Finding;
+export declare function appendFindingConfirmation(findingValue: unknown, response: 'confirmed' | 'rejected', userStatement: string, rationale: string, now?: Date, attestation?: 'tty' | 'flag', userCaveat?: string): Finding;
 export declare function parseFinding(yamlText: string): Finding;

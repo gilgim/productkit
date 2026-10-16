@@ -46,4 +46,15 @@ describe('Finding model', () => {
     const confirmed = appendFindingConfirmation(createFinding(base), 'rejected', 'This is not an issue.', 'The retry policy is documented elsewhere.');
     expect(() => parseFinding(JSON.stringify({ ...confirmed, confirmation_history: confirmed.confirmation_history.map((c) => ({ ...c, user_statement: 'tampered' })) }))).toThrow();
   });
+
+  it('keeps a caveat apart from the statement, binds it to the entry hash, and leaves it out when there is none', () => {
+    const plain = appendFindingConfirmation(createFinding(base), 'confirmed', 'This flow is missing.', 'Reviewed.', new Date('2026-10-16T00:00:00Z'));
+    expect('user_caveat' in plain.confirmation_history[0]!).toBe(false);
+    expect(appendFindingConfirmation(createFinding(base), 'confirmed', 'This flow is missing.', 'Reviewed.', new Date('2026-10-16T00:00:00Z'), 'flag', '  ').confirmation_history[0]).toEqual(plain.confirmation_history[0]);
+    const withCaveat = appendFindingConfirmation(createFinding(base), 'confirmed', '질문이 맞다.', 'Reviewed.', new Date('2026-10-16T00:00:00Z'), 'flag', '단, 중앙 서버 구축을 승인하는 건 아니야.');
+    expect(withCaveat.confirmation_history[0]!.user_caveat).toBe('단, 중앙 서버 구축을 승인하는 건 아니야.');
+    expect(withCaveat.confirmation_history[0]!.entry_hash).not.toBe(plain.confirmation_history[0]!.entry_hash);
+    expect(parseFinding(JSON.stringify(withCaveat))).toEqual(withCaveat);
+    for (const user_caveat of [undefined, '승인한다.']) expect(() => parseFinding(JSON.stringify({ ...withCaveat, confirmation_history: withCaveat.confirmation_history.map((c) => ({ ...c, user_caveat })) }))).toThrow();
+  });
 });
