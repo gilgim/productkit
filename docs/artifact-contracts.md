@@ -288,12 +288,12 @@ counterexamples: [{condition, expected, observed, status: hypothesis|observed, e
 ai_assessment: {is_ai_judgment: true, rationale, confidence, uncertainty: []}
 review_status: proposed | confirmed | rejected
 resolution_status: unresolved | resolved | deferred | dismissed
-confirmation_history: [{finding_hash, user_statement, rationale, response, checked_at, entry_hash}]
+confirmation_history: [{finding_hash, user_statement, user_caveat?, rationale, response, checked_at, entry_hash}]
 questions: []
 history: [{event, actor, prior/new state, finding_hash, entry_hash}]
 ```
 
-`review_status` answers whether the user explicitly accepts or rejects that the issue exists. `resolution_status` is preserved by Change 06; its Decision is a pending application record and does not set resolution. New AI output is always `proposed` and `unresolved`; AI cannot write confirmation or resolution. Confirm/reject records bind to the current immutable Finding content hash and append to history. CLI checks structure and hashes, but cannot prove the speaker's identity or that a recorded statement is authentic. A substantive change creates a linked Finding; it does not overwrite the prior claim. Exact fingerprint reruns return the existing record.
+`review_status` answers whether the user explicitly accepts or rejects that the issue exists. `resolution_status` is preserved by Change 06; its Decision is a pending application record and does not set resolution. New AI output is always `proposed` and `unresolved`; AI cannot write confirmation or resolution. Confirm/reject records bind to the current immutable Finding content hash and append to history. `user_caveat` is an optional condition or limit the user put on the response ("the gap is real; building the fix is not approved"); it is part of the entry hash, comes from the same source as `user_statement`, and is not checked for refusal words. CLI checks structure and hashes, but cannot prove the speaker's identity or that a recorded statement is authentic. A substantive change creates a linked Finding; it does not overwrite the prior claim. Exact fingerprint reruns return the existing record.
 
 ChallengeRun files in `product/reviews/` capture the explicit NodeGroup scope, input hashes, eight review areas, exclusions/unavailable inputs, Finding references, rules/Skill version, checkpoints, and review hash. Review coverage can be complete while Findings remain open, including Critical Findings. This is not semantic correctness or Product Definition approval. Change 06 Decisions do not change Finding resolution state; Critical exclusions remain visible and unresolved pending Change 07 application and later verification.
 

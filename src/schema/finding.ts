@@ -66,6 +66,8 @@ export const findingConfirmationSchema = z.object({
   finding_hash: sha256,
   response: z.enum(['confirmed', 'rejected']),
   user_statement: z.string().trim().min(1),
+  /** A condition or limit the user put on this response, kept apart so it is not read as the response itself ("the gap is real; fixing it is not approved"). */
+  user_caveat: z.string().trim().min(1).optional(),
   rationale: z.string().trim().min(1),
   /** Where user_statement came from: typed on the terminal, or passed as a flag by whoever ran the command. */
   attestation: z.enum(['tty', 'flag']).default('flag'),
@@ -225,6 +227,7 @@ export function appendFindingConfirmation(
   rationale: string,
   now = new Date(),
   attestation: 'tty' | 'flag' = 'flag',
+  userCaveat?: string,
 ): Finding {
   const finding = findingSchema.parse(findingValue);
   if (finding.resolution_status !== 'unresolved') throw new Error('A resolved Finding cannot be re-triaged by Change 05.');
@@ -237,6 +240,8 @@ export function appendFindingConfirmation(
     finding_hash,
     response,
     user_statement: userStatement.trim(),
+    // Absent, not empty, when there is none: a confirmation without a caveat keeps the entry hash it always had.
+    ...(userCaveat?.trim() ? { user_caveat: userCaveat.trim() } : {}),
     rationale: rationale.trim(),
     attestation,
     checked_at,

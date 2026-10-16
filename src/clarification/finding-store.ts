@@ -3,7 +3,7 @@ import path from 'node:path';
 import { stringify as stringifyYaml } from 'yaml';
 import { CliError, ExitCode } from '../errors.js';
 import { readAttestationPolicy } from './workspace.js';
-import { saysNo } from '../schema/text.js';
+import { forbiddenTextIssue, isMeaningfulText, multilineIssue, saysNo } from '../schema/text.js';
 import { createFinding, findingSchema, parseFinding, toFindingInput, appendFindingConfirmation, type Finding, type FindingInput } from '../schema/finding.js';
 import { atomicCreateFile, atomicReplaceIfUnchanged } from './io.js';
 import { loadGraphWorkspace } from './provenance.js';
@@ -50,11 +50,14 @@ export async function addFinding(root: string, input: FindingInput): Promise<{ f
   if (JSON.stringify(toFindingInput(existing)) !== JSON.stringify(toFindingInput(proposed))) throw new CliError(`Finding ID collision: ${proposed.id}`, ExitCode.GATE_BLOCKED);
   return { finding: existing, created: false };
 }
-export async function confirmFinding(root: string, id: string, response: 'confirmed' | 'rejected', statement: string, rationale: string, attestation: 'tty' | 'flag' = 'flag'): Promise<Finding> {
+export async function confirmFinding(root: string, id: string, response: 'confirmed' | 'rejected', statement: string, rationale: string, attestation: 'tty' | 'flag' = 'flag', caveat?: string): Promise<Finding> {
   const policy = await readAttestationPolicy(root); if (policy.policy === 'tty' && attestation !== 'tty') throw new CliError('This workspace requires the confirmation statement to be typed on a terminal (config attestation: tty).', ExitCode.GATE_BLOCKED, [`Run \`productkit challenge finding confirm ${id} --response ${response} --rationale <r>\` without --user-statement, in a terminal, and type the statement when asked.`, 'An agent cannot do this step; hand the command to the user.']);
-  if (response === 'confirmed' && saysNo(statement)) throw new CliError(`Recorded as confirmed, but the statement reads as a refusal: "${statement.trim().slice(0, 60)}". Use --response rejected.`, ExitCode.GATE_BLOCKED);
+  if (response === 'confirmed' && saysNo(statement)) throw new CliError(`Recorded as confirmed, but the statement reads as a refusal: "${statement.trim().slice(0, 60)}".`, ExitCode.GATE_BLOCKED, ['If the user disagrees with the Finding, use --response rejected.', 'If the user confirms it with a condition or limit ("맞다. 단, 승인은 아니다"), keep only the confirming words in the statement and put the condition in --caveat. The caveat is not checked for refusal words.']);
+  // The refusal check above is what the caveat is kept apart from; the caveat still must be one plain line.
+  const note = caveat?.trim();
+  if (note) { const issue = forbiddenTextIssue(note) ?? multilineIssue(note); if (issue) throw new CliError(`The caveat ${issue}.`, ExitCode.GATE_BLOCKED); if (!isMeaningfulText(note)) throw new CliError('The caveat is a placeholder; omit --caveat when there is none.', ExitCode.GATE_BLOCKED); }
   const file = path.join(findingsDir(root), `${id}.yaml`); const before = await readFile(file, 'utf8'); const current = parseFinding(before);
   const missing = await validateFindingReferences(root, current); if (missing.length) throw new CliError(`Finding has unresolved references: ${missing.join(', ')}`, ExitCode.GATE_BLOCKED);
-  const updated = appendFindingConfirmation(current, response, statement, rationale, new Date(), attestation);
+  const updated = appendFindingConfirmation(current, response, statement, rationale, new Date(), attestation, note);
   await atomicReplaceIfUnchanged(file, before, stringifyYaml(updated)); return updated;
 }

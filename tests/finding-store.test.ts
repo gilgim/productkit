@@ -37,4 +37,12 @@ describe('Finding persistence and references', () => {
     await expect(addFinding(product, { ...input, issue_key: 'causes-different-id' })).rejects.toThrow();
     expect(await readFile(path.join(file, 'keep.txt'), 'utf8')).toBe('preserve');
   });
+
+  it('refuses a confirmation that says no but accepts the same limit as a caveat', async () => {
+    const product = await workspace(); const created = await addFinding(product, input);
+    await expect(confirmFinding(product, created.finding.id, 'confirmed', '맞다. 단, 중앙 서버 구축을 승인하는 건 아니야.', 'Reviewed.')).rejects.toMatchObject({ message: expect.stringMatching(/reads as a refusal/), details: expect.arrayContaining([expect.stringMatching(/--caveat/)]) });
+    for (const bad of ['first line\nsecond line', 'TBD']) await expect(confirmFinding(product, created.finding.id, 'confirmed', '질문이 맞다.', 'Reviewed.', 'flag', bad)).rejects.toThrow(/caveat/);
+    const confirmed = await confirmFinding(product, created.finding.id, 'confirmed', '질문이 맞다.', 'Reviewed.', 'flag', '단, 중앙 서버 구축을 승인하는 건 아니야.');
+    expect(confirmed.review_status).toBe('confirmed'); expect(confirmed.confirmation_history.at(-1)!.user_caveat).toBe('단, 중앙 서버 구축을 승인하는 건 아니야.');
+  });
 });

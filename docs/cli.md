@@ -67,7 +67,7 @@ productkit atomize
 productkit schema [name]                 # 게이트가 검사하는 정확한 JSON Schema
 productkit hash node-group|atomicity|steps|entry   # 게이트가 다시 계산하는 해시
 productkit challenge
-productkit challenge finding confirm <FND-id> --response confirmed|rejected --rationale "<근거>"   # 사용자가 터미널에서 직접 입력
+productkit challenge finding confirm <FND-id> --response confirmed|rejected --rationale "<근거>" [--caveat]   # 사용자가 터미널에서 직접 입력
 productkit propose add --input proposal.yaml
 productkit decide record --input decision.yaml --rationale "<근거>" --scope "<적용 범위>"   # 사용자가 터미널에서 직접 답변을 입력
 productkit decide status
@@ -86,6 +86,11 @@ productkit export openspec --change <change-id> --capability <capability-id>
 생략하면 **실행한 터미널에서** 사용자 발언을 직접 읽는다. 에이전트는 터미널이 없어 이 명령을 못 끝내고 "No terminal is attached"로
 멈춘다 — 그게 의도다. 명령을 사용자에게 넘긴다. `product/config.yaml`의 `attestation: flag`일
 때만 `--user-statement`를 받으며, 그 워크스페이스의 모든 검증 보고에 경고가 붙는다.
+
+`challenge finding confirm`은 확정 문장에 거절로 읽히는 말(아니, 않, 보류, 나중 등)이 있으면
+막는다. "질문이 맞다. 단, 서버 구축 승인은 아니다"처럼 확정에 조건을 붙이려면 조건을 단서(`user_caveat`)로
+따로 적는다. 단서는 거절 검사를 하지 않는다. 터미널에서 친 확정 문장이 막히면 그 자리에서 확정하는 부분과 단서를 나눠 다시 묻는다.
+`--caveat`만 붙이면 확정 문장 다음에 단서를 묻는다. `attestation: flag`에서는 `--user-statement`와 함께 `--caveat "<단서>"`로 넘긴다.
 
 `validate`는 현재 snapshot과 구조를 재검증한다. 구조 검증 PASS는 의미적 정확성을
 증명하지 않는다. 누락을 잡는 검사 네 가지가 있다 — `source.coverage`(intake된 Prompt
