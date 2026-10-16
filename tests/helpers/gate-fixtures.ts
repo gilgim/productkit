@@ -6,14 +6,21 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
- * Tests have no terminal, so they switch the workspace to `attestation: flag`
- * the same way a user would — by editing config.yaml. The gate then WARNs on
- * every report, which is the intended visible trace of that choice.
+ * Tests have no terminal, so they keep the workspace on `attestation: flag`
+ * (the init default) — set here explicitly so a test does not depend on the
+ * default. The gate then WARNs on every report, the visible trace of that choice.
  */
 export async function allowFlagAttestation(productRoot: string): Promise<void> {
   const file = path.join(productRoot, 'config.yaml');
   const text = await readFile(file, 'utf8');
   await writeFile(file, text.replace(/^attestation:\s*tty\s*$/m, 'attestation: flag'));
+}
+
+/** Switches the workspace to `attestation: tty`, the way a user would — by editing config.yaml. */
+export async function requireTtyAttestation(productRoot: string): Promise<void> {
+  const file = path.join(productRoot, 'config.yaml');
+  const text = await readFile(file, 'utf8');
+  await writeFile(file, text.replace(/^attestation:\s*flag\s*$/m, 'attestation: tty'));
 }
 
 /** Two user sentences → two verbatim Nodes (graph tests need two endpoints). */

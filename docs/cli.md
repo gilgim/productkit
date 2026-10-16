@@ -62,14 +62,14 @@ productkit --version
 productkit init [path]
 productkit intake -- "<아이디어 프롬프트>"
 productkit clarify
-productkit clarify confirm --response agreed|disagreed|partially_agreed   # 사용자가 터미널에서 직접 입력
+productkit clarify confirm --response agreed|disagreed|partially_agreed   # 사용자 발언 기록(flag: --user-statement, tty: 터미널 입력)
 productkit atomize
 productkit schema [name]                 # 게이트가 검사하는 정확한 JSON Schema
 productkit hash node-group|atomicity|steps|entry   # 게이트가 다시 계산하는 해시
 productkit challenge
-productkit challenge finding confirm <FND-id> --response confirmed|rejected --rationale "<근거>" [--caveat]   # 사용자가 터미널에서 직접 입력
+productkit challenge finding confirm <FND-id> --response confirmed|rejected --rationale "<근거>" [--caveat]   # 사용자 발언 기록(flag: --user-statement, tty: 터미널 입력)
 productkit propose add --input proposal.yaml
-productkit decide record --input decision.yaml --rationale "<근거>" --scope "<적용 범위>"   # 사용자가 터미널에서 직접 답변을 입력
+productkit decide record --input decision.yaml --rationale "<근거>" --scope "<적용 범위>"   # 사용자 발언 기록(flag: --user-statement, tty: 터미널 입력)
 productkit decide status
 productkit assumption add --input assumption.yaml
 productkit define status
@@ -77,15 +77,16 @@ productkit define application plan --input application.yaml
 productkit define application apply <APP-id>
 productkit validate
 productkit validate review --input semantic-review.yaml
-productkit approve record --validation <VAL-id> --scope "<승인 범위>"   # 사용자가 터미널에서 직접 승인 문장을 입력
+productkit approve record --validation <VAL-id> --scope "<승인 범위>"   # 사용자 승인 문장 기록(flag: --user-statement, tty: 터미널 입력)
 productkit approve status
 productkit export openspec --change <change-id> --capability <capability-id>
 ```
 
-`clarify confirm`·`challenge finding confirm`·`decide record`·`approve record`는 `--user-statement`를
-생략하면 **실행한 터미널에서** 사용자 발언을 직접 읽는다. 에이전트는 터미널이 없어 이 명령을 못 끝내고 "No terminal is attached"로
-멈춘다 — 그게 의도다. 명령을 사용자에게 넘긴다. `product/config.yaml`의 `attestation: flag`일
-때만 `--user-statement`를 받으며, 그 워크스페이스의 모든 검증 보고에 경고가 붙는다.
+`clarify confirm`·`challenge finding confirm`·`decide record`·`approve record`는 사용자 발언을 기록한다.
+`product/config.yaml`의 `attestation`이 `flag`(`init` 기본값)면 `--user-statement`로 사용자 발언 원문을 받고,
+누가 썼는지 CLI가 알 수 없으므로 그 워크스페이스의 모든 검증 보고에 경고가 붙는다. `tty`면 `--user-statement`를
+생략해 **실행한 터미널에서** 사용자 발언을 직접 읽는다. 에이전트는 터미널이 없어 이 명령을 못 끝내고 "No terminal is attached"로
+멈춘다 — 그게 의도다. 명령을 사용자에게 넘긴다.
 
 `challenge finding confirm`은 확정 문장에 거절로 읽히는 말(아니, 않, 보류, 나중 등)이 있으면
 막는다. "질문이 맞다. 단, 서버 구축 승인은 아니다"처럼 확정에 조건을 붙이려면 조건을 단서(`user_caveat`)로
@@ -175,7 +176,7 @@ Prompt의 모든 span이 `decomposition`·`finding_candidates` 중 한
 곳에 있어야 완료다. 빠진 span은 `uncovered_spans`로 나열한다. 사용자에게 보여줄 문장은
 CLI가 그린다(`Show the user` 블록): 원문 → 해석 쌍, 요구사항 아님 목록, 질문 후보 목록.
 `interpretation_check`의 `presented_statement`는 이 블록과 글자 그대로 같아야 한다.
-`productkit clarify confirm`이 블록을 그리고 해시를 계산하고 사용자 발언을 터미널에서 읽어
+`productkit clarify confirm`이 블록을 그리고 해시를 계산하고 사용자 발언을 받아(flag: `--user-statement`, tty: 터미널)
 항목을 붙인다.
 
 프롬프트가 6단계(정의·분해·구체화·관계검증·반례검증·해석확인)로 명료화됐는지

@@ -374,7 +374,7 @@ describe('leak regression: source content cannot vanish silently', () => {
   it('under attestation: tty, a statement passed as a flag is refused for Decisions and Approvals', async () => {
     temp = await mkdtemp(path.join(os.tmpdir(), 'productkit-leak-'));
     // The builder records its Decision through addDecision with attestation 'flag'.
-    await expect(buildLeakWorkspace(temp, { keepTtyAttestation: true })).rejects.toThrow(/typed on a terminal \(config attestation: tty\)/);
+    await expect(buildLeakWorkspace(temp, { ttyAttestation: true })).rejects.toThrow(/typed on a terminal \(config attestation: tty\)/);
     const g = await gate();
     expect(g.check('attestation.policy')?.status).toBe('warn');
     await expect(recordApproval(g.root, g.report.id, 'SYNTHETIC USER ONLY: approve', 'synthetic', 'flag')).resolves.toMatchObject({ attestation: 'flag' });

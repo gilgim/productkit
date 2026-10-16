@@ -50,12 +50,12 @@ The CLI judges whether each stage is actually complete. The agent cannot declare
 
 ### One gap, from Finding to Decision
 
-Follow "clean" from the table above. At `clarify`, the CLI prints your sentences in order, what was read from each, the questions left open and the places that could read differently, and you agree to that block from your terminal. "Make this screen clean." is left as a question with its readings. From there (IDs are content hashes; these are illustrative):
+Follow "clean" from the table above. At `clarify`, the CLI prints your sentences in order, what was read from each, the questions left open and the places that could read differently, and you agree to that block. "Make this screen clean." is left as a question with its readings. From there (IDs are content hashes; these are illustrative):
 
 ```text
 FND-3a7c0e91d4b25f68   "Make this screen clean." sets no standard for "clean"
                        readings: fewer elements / spacing and alignment / matching colors
-                       added by the agent (proposed), confirmed by you on your terminal
+                       added by the agent (proposed), confirmed in your own words
    ↓
 PROP-8e12b4f07a9d3c65  OPT-A fewer elements · OPT-B spacing and alignment · OPT-C matching colors
                        each with benefits, costs and risks; an AI recommendation is not a choice
@@ -64,7 +64,7 @@ DEC-c45d19e2b07f8a31   you pick OPT-A and type: "Only cut down the elements on s
                        with your rationale and scope; recorded as pending_application
 ```
 
-The agent writes the Finding, the Proposal and the Decision input, but it cannot confirm or decide: `productkit challenge finding confirm` and `productkit decide record` read your words from the terminal that runs them, so the agent hands those commands to you. Your sentence is never rewritten. Your decided words can enter the Definition as an item of their own that cites the Decision, and once that change is applied and verified (`productkit define draft`, then `productkit define application verify`), `productkit decide resolve` closes the Finding.
+The agent writes the Finding, the Proposal and the Decision input, but the confirmation and the choice are yours: under the default `attestation: flag` the agent passes your exact words to `productkit challenge finding confirm` and `productkit decide record` with `--user-statement`; under `attestation: tty` those commands read your words from the terminal that runs them, so the agent hands them to you. Your sentence is never rewritten. Your decided words can enter the Definition as an item of their own that cites the Decision, and once that change is applied and verified (`productkit define draft`, then `productkit define application verify`), `productkit decide resolve` closes the Finding.
 
 ## Quick start
 
@@ -168,7 +168,7 @@ How the right column got short: the first fuzz left "distortion" and "impersonat
 - **One verdict per pair.** The semantic review must say, for every Definition item and every Node it cites, whether the item is the same, narrower, broader or contradicts — and why. Blanket "all preserved" cannot be written.
 - **Evidence must be the right kind.** `graph_impact` needs an ImpactReport, `traceability` needs a Decision and the Prompt, and so on. "Cited something" is not enough.
 - **Nothing falls off the unreviewed list.** A later review of the same inputs must keep each earlier unreviewed item or resolve it with evidence.
-- **Statements are typed, not passed.** With `attestation: tty` (the default), `clarify confirm`, `challenge finding confirm`, `decide record` and `approve record` read the user's words from the terminal that runs them. An agent run without a terminal is refused and hands the command to the user. This is a speed bump, not a lock: an agent that wraps the command in a pseudo-terminal (`script`, `expect`) or writes the YAML with the right hashes gets through, and only `git diff` shows it. Setting `attestation: flag` is allowed, visible, and warned on every report. A statement that reads as a refusal ("승인하지 않는다") is refused as an approval; beyond that, what the words mean is the person's.
+- **Where a statement came from is recorded.** `clarify confirm`, `challenge finding confirm`, `decide record` and `approve record` record the user's words with how they arrived. With `attestation: flag` (the default), the agent passes the user's exact words with `--user-statement`; the CLI cannot tell who wrote them, so every validation report carries a warning. With `attestation: tty`, the commands read the words from the terminal that runs them, and an agent run without a terminal is refused and hands the command to the user. Even that is a speed bump, not a lock: an agent that wraps the command in a pseudo-terminal (`script`, `expect`) or writes the YAML with the right hashes gets through, and only `git diff` shows it. A statement that reads as a refusal ("승인하지 않는다") is refused as an approval; beyond that, what the words mean is the person's.
 
 The skills no longer carry hand-maintained field lists either: `productkit schema <artifact>` prints the exact JSON Schema the gate validates, `productkit hash ...` prints the hashes it recomputes, and a test fails the build if a skill names a command the CLI does not have.
 

@@ -530,6 +530,6 @@ approve record` validates the record and hashes only; it cannot authenticate the
 or statement. It can, however, say *where the statement came from*: `attestation: tty`
 means it was typed on the controlling terminal of the process (an agent running the CLI
 has none); `attestation: flag` means it arrived via `--user-statement` from whoever ran
-the command. Decisions carry the same field. `product/config.yaml` `attestation: tty`
-(the `init` default) makes the stores refuse `flag` statements; `flag` accepts them and
-every ValidationReport carries an `attestation.policy` WARN. Input or rule changes make current approval stale while retaining history.
+the command. Decisions carry the same field. `product/config.yaml` `attestation: flag`
+(the `init` default) accepts `flag` statements and every ValidationReport carries an
+`attestation.policy` WARN; `attestation: tty` makes the stores refuse them. Input or rule changes make current approval stale while retaining history.

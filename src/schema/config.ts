@@ -72,7 +72,8 @@ export function initialConfig(name: string, createdAt: string): ProductConfigV1 
     product: { name, created_at: createdAt },
     stages: stagesFor(STAGE_NAMES) as Record<StageName, StageStatus>,
     definition: { status: 'not_started' },
-    attestation: 'tty',
+    // The agent passes the user's words; every validation report warns. `tty` makes them typed on a terminal.
+    attestation: 'flag',
   };
 }
 
