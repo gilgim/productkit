@@ -5,7 +5,7 @@ import type { Command } from 'commander';
 import { CliError, ExitCode, describeCause } from '../../errors.js';
 import { atomicCreateFile } from '../../clarification/io.js';
 import { loadGraphWorkspace, graphNodeSnapshotHash } from '../../clarification/provenance.js';
-import { computeImpactReport, effectiveEdge, validateGraph, validateConfirmation } from '../../clarification/graph.js';
+import { canonicalizeEdgeEndpoints, computeImpactReport, effectiveEdge, validateGraph, validateConfirmation } from '../../clarification/graph.js';
 import { addRelationCandidate, readGraphDocument, readRelationCandidates, reviewRelationCandidate, updateGraphDocument } from '../../clarification/graph-store.js';
 import { graphEdgeSchema, relationCandidateSchema, graphRelationTypeSchema } from '../../schema/graph.js';
 import { parseImpactReport } from '../../schema/impact.js';
@@ -155,8 +155,11 @@ export async function runGraphEdgeAdd(options: GraphBaseOptions & { input: strin
   const cwd = options.cwd ?? process.cwd();
   const root = path.join(cwd, 'product');
   await requireV1(root);
-  const edge = graphEdgeSchema.parse(parseYaml(await readFile(path.resolve(cwd, options.input), 'utf8')));
-  if (edge.status !== 'proposed' || edge.confirmations.length) throw new CliError('AI-created Edge must start proposed with no confirmation records.', ExitCode.GATE_BLOCKED);
+  const parsed = graphEdgeSchema.parse(parseYaml(await readFile(path.resolve(cwd, options.input), 'utf8')));
+  if (parsed.status !== 'proposed' || parsed.confirmations.length) throw new CliError('AI-created Edge must start proposed with no confirmation records.', ExitCode.GATE_BLOCKED);
+  // A symmetric relation has no direction, so its endpoints are stored in canonical ID order rather than refused.
+  const edge = { ...parsed, ...canonicalizeEdgeEndpoints(parsed.type, parsed.source, parsed.target) };
+  const swapped = edge.source !== parsed.source;
   const workspace = await loadGraphWorkspace(root);
   const result = await updateGraphDocument(root, (graph) => {
     const next = { ...graph, edges: [...graph.edges, edge] };
@@ -165,6 +168,7 @@ export async function runGraphEdgeAdd(options: GraphBaseOptions & { input: strin
     return next;
   });
   output.out(`Graph Edge proposed: ${edge.id} (${result.edges.length} total)`);
+  if (swapped) output.out(`${edge.type} is symmetric; stored as ${edge.source} → ${edge.target} (canonical ID order).`);
 }
 
 export async function runGraphEdgeConfirm(options: GraphBaseOptions & { id: string; response: 'agreed' | 'disagreed'; statement: string; rationale: string }, output: Output): Promise<void> {

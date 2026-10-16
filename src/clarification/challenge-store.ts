@@ -67,6 +67,22 @@ export async function updateChallengeRun(root: string, id: string, update: (run:
   const updated = update(current); const changed = { ...updated, updated_at: new Date().toISOString() };
   const final = challengeRunSchema.parse({ ...changed, review_hash: challengeRunHash(changed as ChallengeRun) }); await atomicReplaceIfUnchanged(file, before, stringifyYaml(final)); return final;
 }
+/** Names which inputs moved since a review started, so a stale error says why instead of only that it is stale. */
+export async function describeInputDrift(root: string, run: ChallengeRun): Promise<string[]> {
+  const current = await currentChallengeInputs(root);
+  const saved = new Map(run.inputs.map((i) => [`${i.kind}:${i.ref}`, i.content_hash])); const now = new Map(current.inputs.map((i) => [`${i.kind}:${i.ref}`, i.content_hash]));
+  const drift: string[] = [];
+  for (const [key, hash] of now) if (!saved.has(key)) drift.push(`${key} added`); else if (saved.get(key) !== hash) drift.push(`${key} changed`);
+  for (const key of saved.keys()) if (!now.has(key)) drift.push(`${key} removed`);
+  if (canonicalJson(current.scope) !== canonicalJson(run.scope.included)) drift.push('review scope changed');
+  for (const item of current.unavailable) drift.push(`unavailable: ${item.ref} (${item.reason})`);
+  return drift;
+}
+export const STALE_REVIEW_HINT = 'A Finding added or confirmed, a changed Prompt, Node, Graph record or ImpactReport, and a changed challenge Skill make a review stale; `productkit decide resolve` does not. Finish Findings, user confirmations and `productkit graph impact --all` first, then run `productkit challenge review-start`.';
+/** The review started last, by its start time: run IDs are content hashes, so file order says nothing about age. */
+export function latestChallengeRun(runs: ChallengeRun[]): ChallengeRun | undefined {
+  return [...runs].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.updated_at.localeCompare(b.updated_at)).at(-1);
+}
 export async function refreshChallengeRun(root: string, run: ChallengeRun): Promise<{ run: ChallengeRun; stale: boolean; completion: 'complete' | 'incomplete' }> {
   const current = await currentChallengeInputs(root); const stale = canonicalJson(current.inputs) !== canonicalJson(run.inputs) || canonicalJson(current.scope) !== canonicalJson(run.scope.included) || current.unavailable.length > 0;
   const completion = stale ? 'incomplete' : judgeChallengeCompletion({ ...run, status: run.status }, new Set(run.inputs.map((i) => i.kind)));

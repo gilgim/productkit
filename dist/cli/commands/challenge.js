@@ -4,7 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { CliError, ExitCode } from '../../errors.js';
 import { ensureWorkspace, markStage, readStatementFromTerminal } from '../../clarification/workspace.js';
 import { addFinding, confirmFinding, readFindings, validateFindingReferences } from '../../clarification/finding-store.js';
-import { createChallengeRun, readChallengeRuns, refreshChallengeRun, updateChallengeRun, validateChallengeRunReferences } from '../../clarification/challenge-store.js';
+import { createChallengeRun, describeInputDrift, latestChallengeRun, readChallengeRuns, refreshChallengeRun, STALE_REVIEW_HINT, updateChallengeRun, validateChallengeRunReferences } from '../../clarification/challenge-store.js';
 import { challengeAreaSchema, challengeAreaResultSchema, judgeChallengeCompletion } from '../../schema/challenge.js';
 import { findingInputSchema } from '../../schema/finding.js';
 import { saysNo } from '../../schema/text.js';
@@ -32,7 +32,7 @@ export function registerChallengeCommand(program, output) {
         const checked = await refreshChallengeRun(root, run);
         if (checked.stale) {
             await updateChallengeRun(root, id, (r) => ({ ...r, status: 'stale', history: [...r.history, { event: 'invalidated', at: new Date().toISOString(), statement: 'Input fingerprint changed; checkpoint cannot resume.', content_hash: r.review_hash }] }));
-            throw new CliError(`Review ${id} is stale; create a new review.`, ExitCode.GATE_BLOCKED);
+            throw new CliError(`Review ${id} is stale; create a new review.`, ExitCode.GATE_BLOCKED, [...(await describeInputDrift(root, run)), STALE_REVIEW_HINT]);
         }
         output.out(`Review ${id} resumed at its saved checkpoint. Status: ${run.status}.`);
     });
@@ -45,7 +45,7 @@ export function registerChallengeCommand(program, output) {
             throw new CliError(`Review ${id} not found.`, ExitCode.USAGE_OR_IO);
         const checkpoint = runs.find((r) => r.id === id);
         if ((await refreshChallengeRun(root, checkpoint)).stale || checkpoint.status === 'stale')
-            throw new CliError('Stale review cannot be resumed; create a new review.', ExitCode.GATE_BLOCKED);
+            throw new CliError('Stale review cannot be resumed; create a new review.', ExitCode.GATE_BLOCKED, [...(await describeInputDrift(root, checkpoint)), STALE_REVIEW_HINT]);
         const updated = await updateChallengeRun(root, id, (r) => ({ ...r, status: 'in_progress', areas: { ...r.areas, [parsedArea]: result }, history: [...r.history, { event: 'checkpointed', at: new Date().toISOString(), statement: `Recorded ${parsedArea}: ${result.status}.`, content_hash: r.review_hash }] }));
         output.out(`Review ${id} checkpointed: ${parsedArea}=${result.status}.`);
     });
@@ -57,7 +57,7 @@ export function registerChallengeCommand(program, output) {
             throw new CliError(`Review ${id} not found.`, ExitCode.USAGE_OR_IO);
         const fresh = await refreshChallengeRun(root, run);
         if (fresh.stale)
-            throw new CliError('Review inputs changed; start a new review.', ExitCode.GATE_BLOCKED);
+            throw new CliError('Review inputs changed; start a new review.', ExitCode.GATE_BLOCKED, [...(await describeInputDrift(root, run)), STALE_REVIEW_HINT]);
         const status = judgeChallengeCompletion(run, new Set(run.inputs.map((i) => i.kind)));
         if (status !== 'complete')
             throw new CliError('Review coverage is incomplete; record every area and explain unavailable inputs.', ExitCode.GATE_BLOCKED);
@@ -70,7 +70,8 @@ export function registerChallengeCommand(program, output) {
         await ensureWorkspace(root);
         const findings = await readFindings(root);
         const runs = await readChallengeRuns(root);
-        const selected = opts.review ? runs.filter((r) => r.id === opts.review) : runs.slice(-1);
+        const latest = latestChallengeRun(runs);
+        const selected = opts.review ? runs.filter((r) => r.id === opts.review) : latest ? [latest] : [];
         let issues = 0;
         for (const finding of findings) {
             const missing = await validateFindingReferences(root, finding);

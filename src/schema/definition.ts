@@ -33,27 +33,30 @@ const provenance = z.object({
   value.prompt_refs.forEach((ref,index)=>{if(ref.kind!=='prompt')ctx.addIssue({code:'custom',path:['prompt_refs',index,'kind'],message:'prompt_refs must contain Prompt references only.'});});
 });
 
-export const policySchema = z.object({
+const policyObject = z.object({
   schema_version: z.literal(1), id: id('POL'),
   context: z.string().trim().min(1), actor: z.string().trim().min(1),
   condition_text: z.string().trim().min(1), condition: policyConditionSchema,
   action: z.string().trim().min(1), outcome: z.string().trim().min(1),
-  exceptions: z.array(z.object({ statement: z.string().trim().min(1), relation_ref: id('EDG').optional(), source_refs: z.array(productArtifactRefSchema).min(1) }).strict()),
+  // A Graph Edge ID, which the graph lets the agent name (EDG-001), not a content-hash ID.
+  exceptions: z.array(z.object({ statement: z.string().trim().min(1), relation_ref: z.string().regex(/^EDG-[A-Za-z0-9-]+$/).optional(), source_refs: z.array(productArtifactRefSchema).min(1) }).strict()),
   priority: z.object({ value: z.number().finite(), decision_ref: id('DEC') }).strict().optional(),
   provenance, supersedes_policy_ref: id('POL').optional(), content_hash: hash,
-}).strict().superRefine((policy, ctx) => {
+}).strict();
+export const policySchema = policyObject.superRefine((policy, ctx) => {
   const body = { ...policy, content_hash: undefined };
   if (sha256Hex(canonicalJson(body)) !== policy.content_hash) ctx.addIssue({ code:'custom', path:['content_hash'], message:'Policy content hash mismatch.' });
 });
 export type Policy = z.infer<typeof policySchema>;
 
-export const journeySchema = z.object({
+const journeyObject = z.object({
   schema_version:z.literal(1), id:id('JRN'), actor:z.string().trim().min(1), goal:z.string().trim().min(1),
   entry_state:z.string().trim().min(1), states:z.array(z.string().trim().min(1)).min(1),
   transitions:z.array(z.object({from:z.string().trim().min(1),to:z.string().trim().min(1),trigger:z.string().trim().min(1),decision_refs:z.array(id('DEC'))}).strict()),
   terminal_states:z.array(z.string().trim().min(1)).min(1), acceptance_criteria:z.array(z.string().trim().min(1)), provenance,
   content_hash:hash,
-}).strict().superRefine((journey,ctx)=>{
+}).strict();
+export const journeySchema = journeyObject.superRefine((journey,ctx)=>{
   const body={...journey,id:undefined,content_hash:undefined};
   if(sha256Hex(canonicalJson(body))!==journey.content_hash||journey.id!==`JRN-${journey.content_hash.slice(0,16)}`)ctx.addIssue({code:'custom',path:['content_hash'],message:'Journey ID/content hash mismatch.'});
   const states=new Set(journey.states); if(!states.has(journey.entry_state)||journey.terminal_states.some(state=>!states.has(state))||journey.transitions.some(t=>!states.has(t.from)||!states.has(t.to)))ctx.addIssue({code:'custom',path:['states'],message:'Journey transitions and terminal states must resolve.'});
@@ -69,14 +72,15 @@ export const definitionItemSchema = z.object({
   if(item.kind!=='exclusion'&&item.exclusion)ctx.addIssue({code:'custom',path:['exclusion'],message:'Exclusion details may only be attached to exclusion items.'});
 });
 
-export const productDefinitionSchema = z.object({
+const productDefinitionObject = z.object({
   schema_version: z.literal(1), id: id('DEF'), status: z.literal('draft'),
   product_name: z.string().trim().min(1), items: z.array(definitionItemSchema),
   journey_refs: z.array(id('JRN')), policy_refs: z.array(id('POL')),
   finding_refs: z.array(id('FND')), assumption_refs: z.array(id('ASM')),
   input_snapshot: z.array(productArtifactRefSchema).min(1), rules_version: z.string().min(1),
   content_hash: hash, created_at: z.string().datetime({ offset:true }), history: z.array(z.object({event:z.literal('created'),at:z.string().datetime({offset:true}),content_hash:hash}).strict()).min(1),
-}).strict().superRefine((definition, ctx) => {
+}).strict();
+export const productDefinitionSchema = productDefinitionObject.superRefine((definition, ctx) => {
   const itemIds = definition.items.map(item => item.id);
   if (new Set(itemIds).size !== itemIds.length) ctx.addIssue({code:'custom',path:['items'],message:'Definition item IDs must be unique.'});
   const body = { ...definition, id: undefined, content_hash: undefined, history: undefined, created_at: undefined };
@@ -141,9 +145,13 @@ export function parsePolicy(text:string):Policy{return policySchema.parse(parseY
 export function parseJourney(text:string):Journey{return journeySchema.parse(parseYaml(text));}
 export function parseApplication(text:string):Application{return applicationSchema.parse(parseYaml(text));}
 
-export function createPolicy(input:Omit<Policy,'content_hash'>):Policy { return policySchema.parse({...input,content_hash:sha256Hex(canonicalJson(input))}); }
-export function createJourney(input:Omit<Journey,'id'|'content_hash'>):Journey { const content_hash=sha256Hex(canonicalJson({...input,id:undefined,content_hash:undefined})); return journeySchema.parse({...input,id:`JRN-${content_hash.slice(0,16)}`,content_hash}); }
+// Each create* parses the input through its schema before hashing, so the hash covers what the schema
+// stores (trimmed text: a YAML `|` block ends in a newline) rather than the raw input. A hash or id
+// left on the input is ignored.
+export function createPolicy(input:Omit<Policy,'content_hash'>):Policy { const {content_hash:_stale,...rest}=input as Policy; const body=policyObject.omit({content_hash:true}).parse(rest); return policySchema.parse({...body,content_hash:sha256Hex(canonicalJson(body))}); }
+export function createJourney(input:Omit<Journey,'id'|'content_hash'>):Journey { const {id:_id,content_hash:_stale,...rest}=input as Journey; const body=journeyObject.omit({id:true,content_hash:true}).parse(rest); const content_hash=sha256Hex(canonicalJson(body)); return journeySchema.parse({...body,id:`JRN-${content_hash.slice(0,16)}`,content_hash}); }
 export function createProductDefinition(input:Omit<ProductDefinition,'id'|'content_hash'|'history'|'created_at'>,now=new Date()):ProductDefinition {
-  const created_at=now.toISOString(); const body={...input,created_at}; const content_hash=sha256Hex(canonicalJson({...body,created_at:undefined})); const id=`DEF-${content_hash.slice(0,16)}`;
-  return productDefinitionSchema.parse({...body,id,content_hash,history:[{event:'created',at:created_at,content_hash}]});
+  const {id:_id,content_hash:_stale,history:_history,created_at:_created,...rest}=input as ProductDefinition;
+  const body=productDefinitionObject.omit({id:true,content_hash:true,history:true,created_at:true}).parse(rest); const created_at=now.toISOString(); const content_hash=sha256Hex(canonicalJson(body)); const id=`DEF-${content_hash.slice(0,16)}`;
+  return productDefinitionSchema.parse({...body,created_at,id,content_hash,history:[{event:'created',at:created_at,content_hash}]});
 }

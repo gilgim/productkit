@@ -64,6 +64,8 @@ export interface LeakOptions {
   keepTtyAttestation?: boolean;
   /** Semantic review area evidence kinds; default node. */
   semanticEvidence?: 'node' | 'none' | 'skill';
+  /** The user states their own choice instead of picking an option; the Decision cites the Proposal in its snapshot. */
+  directDecision?: boolean;
 }
 
 export interface LeakWorkspace {
@@ -132,7 +134,7 @@ export async function buildLeakWorkspace(temp: string, o: LeakOptions = {}): Pro
   const option = (id: string) => ({ id, description: `SYNTHETIC ${id}`, evidence_refs: [{ kind: 'node' as const, ref: 'NOD-001-1', content_hash: nodeHash }], benefits: ['b'], costs: ['c'], risks: ['r'], assumptions: ['a'], expected_impacts: ['e'], side_effects: ['s'], target_candidates: [{ kind: 'node' as const, ref: 'NOD-001-1', content_hash: nodeHash }], finding_coverage: [{ finding_ref: finding.id, approach: 'x', residual_issues: ['y'] }] });
   const proposal = (await addProposal(root, { finding_refs: [{ finding_ref: finding.id, claim_hash: claim, review_status: 'confirmed' }], input_snapshot: [{ kind: 'node', ref: 'NOD-001-1', content_hash: nodeHash }], options: [option('OPT-A'), option('OPT-B')], ai_recommendation: { is_ai_recommendation: true, option_ref: 'OPT-A', rationale: 'r', confidence: 'medium', uncertainty: ['u'] } })).proposal;
   const promptHash = get('prompt', prompt.id); const findingHash = get('finding', finding.id);
-  const decision = (await addDecision(root, { decision_type: 'content_decision', proposal_ref: proposal.id, option_ref: 'OPT-A', finding_refs: [{ finding_ref: finding.id, claim_hash: claim }], selection: { kind: 'proposal_option', proposal_ref: proposal.id, option_ref: 'OPT-A' }, user_statement: 'SYNTHETIC USER: OPT-A', rationale: 'r', scope: 's', input_snapshot: [{ kind: 'prompt', ref: prompt.id, content_hash: promptHash }, { kind: 'node', ref: 'NOD-001-1', content_hash: nodeHash }, { kind: 'finding', ref: finding.id, content_hash: findingHash }, { kind: 'proposal', ref: proposal.id, content_hash: proposal.claim_hash }] })).decision;
+  const decision = (await addDecision(root, { decision_type: 'content_decision', ...(o.directDecision ? { selection: { kind: 'direct_user_decision', text: 'SYNTHETIC USER: 둘 다 아니고 이렇게' } } : { proposal_ref: proposal.id, option_ref: 'OPT-A', selection: { kind: 'proposal_option', proposal_ref: proposal.id, option_ref: 'OPT-A' } }), finding_refs: [{ finding_ref: finding.id, claim_hash: claim }], user_statement: 'SYNTHETIC USER: OPT-A', rationale: 'r', scope: 's', input_snapshot: [{ kind: 'prompt', ref: prompt.id, content_hash: promptHash }, { kind: 'node', ref: 'NOD-001-1', content_hash: nodeHash }, { kind: 'finding', ref: finding.id, content_hash: findingHash }, { kind: 'proposal', ref: proposal.id, content_hash: proposal.claim_hash }] })).decision;
 
   if (o.candidate === 'dismissed') {
     const cand = (await (await import('../../src/clarification/proposal-decision-store.js')).readCurrentFindings(root)).find((f) => f.issue_key === 'cand')!;
